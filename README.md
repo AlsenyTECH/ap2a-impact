@@ -21,7 +21,12 @@ Les droits sont appliqués **par la base de données** (Row Level Security), pas
 
 Un compte sans fiche membre active (même email) n'a accès à rien.
 
-## Mise en route
+## En production
+
+- Base : projet Supabase `ap2a-impact` (réf. `mvdsoonjccvfkvvbqefn`, région Paris)
+- Application : projet Vercel `ap2a-impact`, déployé à chaque push sur `main`
+
+## Mise en route (nouvelle installation)
 
 1. **Supabase** : créer un projet, puis appliquer les fichiers de `supabase/migrations/` dans l'ordre
    (SQL Editor, ou `supabase db push`).
