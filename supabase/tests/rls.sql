@@ -12,12 +12,14 @@ create function t.refuse(requete text, msg text) returns void language plpgsql a
 begin
   execute requete;
   raise exception 'ÉCHEC (aurait dû être refusé) : %', msg;
-exception when insufficient_privilege or check_violation then
+exception when insufficient_privilege or check_violation or unique_violation then
   raise notice 'ok - refusé : %', msg;
 end $$;
 create function t.qui(email text) returns void language sql as $$
   select set_config('request.jwt.claim.sub', (select id::text from auth.users u where u.email = qui.email), false)
 $$;
+create function t.cat(motif text) returns int language sql security definer as $$ select id from public.categories_cible where libelle like motif order by id limit 1 $$;
+create function t.profil(motif text) returns int language sql security definer as $$ select id from public.profils_personne where libelle like motif order by id limit 1 $$;
 grant execute on all functions in schema t to authenticated, anon;
 grant select on auth.users to authenticated;
 
@@ -45,7 +47,7 @@ set role authenticated;
 select t.qui('inconnu@gmail.com');
 select t.ok((select count(*) from membres) = 0, 'inconnu : ne voit aucun membre');
 select t.ok((select count(*) from zones) = 0, 'inconnu : ne voit pas les référentiels');
-select t.refuse($$insert into cibles (type, nom) values ('collectif', 'GIE pirate')$$, 'inconnu : création de cible');
+select t.refuse($$insert into cibles (categorie_id, nom) values (1, 'GIE pirate')$$, 'inconnu : création de cible');
 reset role;
 set role anon;
 select t.refuse($$select * from membres$$, 'anonyme : lecture des membres');
@@ -54,19 +56,29 @@ set role authenticated;
 
 -- ===== Coordinateur =====
 select t.qui('coord@ap2a.sn');
-insert into cibles (type, nom, prenom, sexe, telephone, zone_id)
-  values ('personne', 'Diop', 'Mamadou', 'M', '+221 77 000 11 22', (select id from zones where nom = 'Unité 17'));
-insert into cibles (type, nom, sous_type, effectif, prenom, situation, categorie_id) values ('collectif', 'ASC Jappo', 'football', 40, 'ignoré', 'salarie', (select id from categories_cible where libelle like 'ASC%'));
-select t.ok((select prenom is null and situation is null from cibles where nom = 'ASC Jappo'), 'collectif : prénom et situation effacés');
-select t.refuse($$insert into cibles (type, nom, categorie_id) values ('lieu', 'X', (select id from categories_cible where libelle like 'ASC%'))$$, 'catégorie d''une autre nature');
-select t.refuse($$insert into cibles (type, nom, prenom, vulnerabilites) values ('personne', 'X', 'Y', '{inconnue}')$$, 'vulnérabilité hors liste');
-update cibles set situation = 'apprenti', vulnerabilites = '{orphelin}' where nom = 'Diop';
-select t.ok((select situation from cibles where nom = 'Diop') = 'apprenti', 'personne : situation et vulnérabilités');
+insert into cibles (categorie_id, nom, prenom, sexe, telephone, zone_id)
+  values (t.cat('Personne'), 'Diop', 'Mamadou', 'M', '+221 77 000 11 22', (select id from zones where nom = 'Unité 17'));
+insert into cibles (categorie_id, nom, sous_type, effectif, prenom, situation_id) values (t.cat('ASC%'), 'ASC Jappo', 'football', 40, 'ignoré', t.profil('Salarié%'));
+select t.ok((select type from cibles where nom = 'ASC Jappo') = 'collectif', 'la nature découle de la catégorie');
+select t.ok((select prenom is null and situation_id is null from cibles where nom = 'ASC Jappo'), 'collectif : prénom et situation effacés');
+select t.refuse($$insert into cibles (categorie_id, nom, prenom, vulnerabilites) values (t.cat('Personne'), 'X', 'Y', array[t.profil('Salarié%')])$$, 'une situation donnée comme vulnérabilité');
+select t.refuse($$insert into cibles (categorie_id, nom, situation_id, prenom) values (t.cat('Personne'), 'X', t.profil('Handicap'), 'Y')$$, 'une vulnérabilité donnée comme situation');
+update cibles set situation_id = t.profil('Apprenti%'), vulnerabilites = array[t.profil('Orphelin%')], metier = 'Électricité' where nom = 'Diop';
+select t.ok((select metier from cibles where nom = 'Diop') = 'Électricité' and (select cardinality(vulnerabilites) from cibles where nom = 'Diop') = 1, 'personne : situation, métier et vulnérabilités');
 insert into appartenances (personne_id, collectif_id, role) values ((select id from cibles where nom = 'Diop'), (select id from cibles where nom = 'ASC Jappo'), 'trésorier');
 select t.ok((select count(*) from appartenances) = 1, 'coordinateur : ajoute un membre à l''ASC');
 select t.refuse($$insert into appartenances (personne_id, collectif_id) values ((select id from cibles where nom = 'ASC Jappo'), (select id from cibles where nom = 'Diop'))$$, 'un collectif membre d''une personne');
-select t.ok((select count(*) from categories_cible) > 30, 'référentiel des catégories lisible');
-select t.refuse($$insert into categories_cible (type, famille, libelle) values ('collectif', 'X', 'Y')$$, 'coordinateur : modifier les catégories');
+-- Ménage : créé avec son chef en une opération.
+insert into cibles (categorie_id, nom, prenom, sexe) values (t.cat('Personne'), 'Ndiaye', 'Coumba', 'F');
+select t.ok(creer_menage((select id from cibles where prenom = 'Coumba'), 6) is not null, 'creer_menage renvoie le ménage');
+select t.ok((select nom || '/' || effectif || '/' || type from cibles where categorie_id = t.cat('Ménage')) = 'Ménage Coumba Ndiaye/6/menage', 'ménage créé avec son nom et sa taille');
+select t.ok((select role from appartenances a join cibles c on c.id = a.collectif_id where c.type = 'menage') = 'Chef de ménage', 'chef de ménage inscrit');
+select t.refuse($$insert into appartenances (personne_id, collectif_id, role) values ((select id from cibles where nom = 'Diop'), (select id from cibles where type = 'menage'), 'Chef de ménage')$$ , 'deux chefs pour un ménage');
+insert into appartenances (personne_id, collectif_id, role) values ((select id from cibles where nom = 'Diop'), (select id from cibles where type = 'menage'), 'Enfant');
+select t.ok((select count(*) from appartenances a join cibles c on c.id = a.collectif_id where c.type = 'menage') = 2, 'autre membre du ménage ajouté');
+select t.ok((select count(*) from familles_cible) = 11 and (select count(*) from categories_cible) > 40, 'familles et catégories lisibles');
+select t.refuse($$insert into familles_cible (nom) values ('X')$$, 'coordinateur : ajouter une famille');
+select t.refuse($$insert into profils_personne (genre, libelle) values ('situation', 'X')$$, 'coordinateur : ajouter une situation');
 select t.ok((select cree_par from cibles where nom = 'Diop') = mon_membre_id(), 'coordinateur : auteur rempli automatiquement');
 select t.ok((select telephone_normalise from cibles where nom = 'Diop') = '770001122', 'téléphone normalisé à l''enregistrement');
 insert into actions (type_id, titre, date_debut, responsable_id)

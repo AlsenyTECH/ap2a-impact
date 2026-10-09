@@ -3,14 +3,14 @@ import { useQuery } from '@tanstack/react-query'
 import { BarChart3 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Chargement, EnTete, Erreur, Liste } from '@/components/champs'
+import { Chargement, EnTete, Erreur, Liste, Pastilles } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
 import { fcfa, SITUATIONS } from '@/lib/format'
 import { useTypesAction } from '@/lib/requetes'
 import { supabase, verifier } from '@/lib/supabase'
 import type { Situation } from '@/lib/types'
 
-interface LigneBenef { id: string; action: { type_id: number; statut: string; date_debut: string } }
+interface LigneBenef { id: string; action: { type_id: number; statut: string; date_debut: string }; cible: { categorie: { famille: { nom: string } | null } | null } | null }
 interface LigneSuivi { beneficiaire_id: string; fait_le: string; situation: Situation; emplois_crees: number | null; revenu_mensuel_fcfa: number | null; utilise_apport: boolean | null }
 interface LigneApport { beneficiaire_id: string; valeur_fcfa: number | null }
 
@@ -37,13 +37,14 @@ export function Impact() {
   const { a } = useAuth()
   const { data: types = [] } = useTypesAction()
   const [annee, setAnnee] = useState('')
+  const [axe, setAxe] = useState<'type' | 'famille'>('type')
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['impact'],
     enabled: a('admin', 'bureau', 'coordinateur'),
     queryFn: async () => {
       const [benefs, suivis, apports] = await Promise.all([
-        supabase.from('beneficiaires').select('id, action:actions!inner(type_id, statut, date_debut)').neq('statut', 'abandon').then(verifier),
+        supabase.from('beneficiaires').select('id, action:actions!inner(type_id, statut, date_debut), cible:cibles!beneficiaires_cible_id_fkey(categorie:categories_cible(famille:familles_cible(nom)))').neq('statut', 'abandon').then(verifier),
         supabase.from('suivis').select('beneficiaire_id, fait_le, situation, emplois_crees, revenu_mensuel_fcfa, utilise_apport').not('fait_le', 'is', null).order('fait_le').then(verifier),
         supabase.from('apports').select('beneficiaire_id, valeur_fcfa').then(verifier),
       ])
@@ -56,7 +57,7 @@ export function Impact() {
   // Situation de chaque bénéficiaire = son dernier suivi fait.
   const { total, parType } = useMemo(() => {
     const total = vide('Toutes les actions')
-    const parType = new Map<number, Bilan>()
+    const parType = new Map<string, Bilan>()
     if (!data) return { total, parType: [] as Bilan[] }
     const dernier = new Map<string, LigneSuivi>()
     for (const s of data.suivis) dernier.set(s.beneficiaire_id, s) // triés par date : le dernier gagne
@@ -65,9 +66,12 @@ export function Impact() {
 
     for (const b of data.benefs) {
       if (annee && !b.action.date_debut.startsWith(annee)) continue
-      const t = types.find((x) => x.id === b.action.type_id)
-      const bilan = parType.get(b.action.type_id) ?? vide(t?.libelle ?? 'Autre')
-      parType.set(b.action.type_id, bilan)
+      // Regroupement par type d'action ou par famille de cible (ASC, ménages...).
+      const cle = axe === 'type'
+        ? types.find((x) => x.id === b.action.type_id)?.libelle ?? 'Autre'
+        : b.cible?.categorie?.famille?.nom ?? 'Autre'
+      const bilan = parType.get(cle) ?? vide(cle)
+      parType.set(cle, bilan)
       for (const cible of [bilan, total]) {
         cible.beneficiaires++
         cible.valeur += valeur.get(b.id) ?? 0
@@ -84,7 +88,7 @@ export function Impact() {
       }
     }
     return { total, parType: [...parType.values()].sort((x, y) => y.beneficiaires - x.beneficiaires) }
-  }, [data, types, annee])
+  }, [data, types, annee, axe])
 
   if (!a('admin', 'bureau', 'coordinateur')) {
     return <EmptyState icon={BarChart3} title="Réservé au bureau et aux coordinateurs" />
@@ -121,7 +125,10 @@ export function Impact() {
 
           <Card className="mb-6">
             <CardContent className="p-4">
-              <h2 className="mb-1 font-semibold">Situation au dernier suivi, par type d'action</h2>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-semibold">Situation au dernier suivi</h2>
+                <Pastilles<'type' | 'famille'> value={axe} onChange={setAxe} options={[['type', "Par type d'action"], ['famille', 'Par famille de cible']]} />
+              </div>
               <Legende />
               <div className="mt-4 space-y-4">
                 {[total, ...parType].map((b, i) => <BarreSituations key={b.libelle} bilan={b} fort={i === 0} />)}
@@ -129,12 +136,12 @@ export function Impact() {
             </CardContent>
           </Card>
 
-          <h2 className="mb-2 font-semibold">Détail par type d'action</h2>
+          <h2 className="mb-2 font-semibold">Détail {axe === 'type' ? "par type d'action" : 'par famille de cible'}</h2>
           <div className="overflow-x-auto rounded-lg border border-border bg-card">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Type d'action</th>
+                  <th className="px-3 py-2 font-medium">{axe === 'type' ? "Type d'action" : 'Famille'}</th>
                   <th className="px-3 py-2 text-right font-medium">Bénéf.</th>
                   <th className="px-3 py-2 text-right font-medium">Suivis</th>
                   {SITUATIONS.map((s) => <th key={s.valeur} className="px-3 py-2 text-right font-medium">{s.libelle}</th>)}

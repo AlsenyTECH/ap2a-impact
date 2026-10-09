@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
-import { BarChart3, CalendarCheck, Handshake, Home, ListChecks, LogOut, Menu, Target, UsersRound } from 'lucide-react'
+import { BarChart3, CalendarCheck, Handshake, Home, ListChecks, LogOut, Menu, Shapes, Target, UsersRound } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { LIBELLES_ROLE } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -15,6 +15,7 @@ const LIENS = [
   { vers: '/impact', libelle: 'Impact', icone: BarChart3 },
   { vers: '/membres', libelle: 'Membres', icone: UsersRound },
   { vers: '/partenaires', libelle: 'Partenaires', icone: Handshake },
+  { vers: '/categories', libelle: 'Catégories', icone: Shapes },
 ]
 
 /** Barre latérale sur ordinateur, barre du bas sur téléphone. */

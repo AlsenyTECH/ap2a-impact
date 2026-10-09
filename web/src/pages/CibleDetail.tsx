@@ -6,12 +6,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { CibleForm } from '@/components/CibleForm'
 import { SuiviForm } from '@/components/SuiviForm'
-import { MembreDe, MembresCollectif } from '@/components/MembresCollectif'
+import { MembreDe, MembresCollectif, SuiviMembres } from '@/components/MembresCollectif'
 import { ouvrirJustificatif } from '@/components/ApportForm'
 import { Chargement, EnTete, Erreur } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
-import { date, echeance, fcfa, LIBELLES_NATURE, LIBELLES_SITUATION_PERSONNE, LIBELLES_STATUT_BENEFICIAIRE, LIBELLES_TYPE_CIBLE, LIBELLES_VULNERABILITE, nomCible, SITUATION, trancheAge } from '@/lib/format'
-import { useCible, useParcours } from '@/lib/requetes'
+import { date, echeance, fcfa, LIBELLES_NATURE, LIBELLES_STATUT_BENEFICIAIRE, nomCible, SITUATION, trancheAge } from '@/lib/format'
+import { useCible, useParcours, useProfils } from '@/lib/requetes'
 import type { Suivi } from '@/lib/types'
 
 export function CibleDetail() {
@@ -19,6 +19,8 @@ export function CibleDetail() {
   const { a } = useAuth()
   const { data: cible, isLoading, error } = useCible(id)
   const { data: parcours = [] } = useParcours(id)
+  const { data: profils = [] } = useProfils()
+  const profil = (pid: number | null) => profils.find((p) => p.id === pid)?.libelle
   const [edition, setEdition] = useState(false)
   const [suivi, setSuivi] = useState<{ suivi: Suivi | null; beneficiaireId: string } | null>(null)
   const suit = a('admin', 'bureau', 'coordinateur')
@@ -35,9 +37,9 @@ export function CibleDetail() {
         titre={nomCible(cible)}
         sousTitre={
           <div className="mt-1 flex flex-wrap gap-1.5">
-            <Badge variant="outline">{cible.categorie?.libelle ?? LIBELLES_TYPE_CIBLE[cible.type]}</Badge>
+            <Badge variant="outline">{cible.categorie?.famille?.nom} · {cible.categorie?.libelle}</Badge>
             {age ? <Badge variant="secondary">{age.tranche}</Badge> : null}
-            {cible.vulnerabilites?.map((v) => <Badge key={v} variant="secondary">{LIBELLES_VULNERABILITE[v]}</Badge>)}
+            {cible.vulnerabilites?.map((v) => <Badge key={v} variant="secondary">{profil(v)}</Badge>)}
           </div>
         }
         actions={a('admin', 'bureau', 'coordinateur') ? <Button variant="secondary" onClick={() => setEdition(true)}><Pencil className="size-4" /> Modifier</Button> : null}
@@ -50,8 +52,13 @@ export function CibleDetail() {
             <>
               <Info label="Sexe" valeur={cible.sexe === 'F' ? 'Femme' : cible.sexe === 'M' ? 'Homme' : null} />
               <Info label="Âge" valeur={age ? `${age.age} ans` : null} />
-              <Info label="Situation" valeur={cible.situation ? LIBELLES_SITUATION_PERSONNE[cible.situation] : null} />
+              <Info label="Situation" valeur={profil(cible.situation_id)} />
+              <Info label="Métier / domaine" valeur={cible.metier} />
             </>
+          ) : cible.type === 'menage' ? (
+            <Info label="Taille du ménage" valeur={cible.effectif ? `${cible.effectif} personne(s)` : null} />
+          ) : cible.type === 'lieu' ? (
+            <Info label="Précision" valeur={cible.sous_type} />
           ) : (
             <>
               <Info label="Responsable" valeur={cible.responsable} />
@@ -59,13 +66,15 @@ export function CibleDetail() {
               <Info label="Précision" valeur={cible.sous_type} />
             </>
           )}
+          <Info label="Adresse / repère" valeur={cible.adresse} />
           <Info label="Référent du suivi" valeur={cible.referent ? `${cible.referent.prenom} ${cible.referent.nom}` : null} />
           {cible.notes ? <Info label="Notes" valeur={cible.notes} /> : null}
         </CardContent>
       </Card>
 
       {cible.type === 'personne' ? <MembreDe personneId={cible.id} /> : null}
-      {cible.type === 'collectif' || cible.type === 'structure' ? <MembresCollectif collectif={cible} gere={suit} /> : null}
+      {cible.type === 'menage' || cible.type === 'collectif' || cible.type === 'structure' ? <MembresCollectif collectif={cible} gere={suit} /> : null}
+      {cible.type === 'menage' || cible.type === 'collectif' || cible.type === 'structure' ? <SuiviMembres collectifId={cible.id} /> : null}
 
       <div className="mb-3 flex items-baseline justify-between">
         <h2 className="text-lg font-semibold">Parcours avec l'association</h2>
@@ -85,7 +94,10 @@ export function CibleDetail() {
                       {LIBELLES_STATUT_BENEFICIAIRE[b.statut]}
                     </Badge>
                   </div>
-                  <div className="text-xs text-muted-foreground">{b.action?.type?.libelle} · {date(b.action?.date_debut)}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {b.action?.type?.libelle} · {date(b.action?.date_debut)}
+                    {b.via ? <> · inscrit(e) avec <Link className="text-primary" to={`/cibles/${b.via.id}`}>{b.via.nom}</Link></> : null}
+                  </div>
                   {b.apports?.map((x) => (
                     <div key={x.id} className="flex items-center justify-between gap-2 rounded bg-muted/50 px-3 py-2 text-sm">
                       <div>

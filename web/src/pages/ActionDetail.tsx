@@ -16,7 +16,7 @@ import { CibleForm } from '@/components/CibleForm'
 import { ImportExcel } from '@/components/ImportExcel'
 import { Chargement, EnTete, Erreur, Liste, ListeMembres } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
-import { date, fcfa, LIBELLES_NATURE, LIBELLES_STATUT_ACTION, LIBELLES_STATUT_BENEFICIAIRE, LIBELLES_TYPE_CIBLE, nomCible } from '@/lib/format'
+import { date, fcfa, LIBELLES_NATURE, LIBELLES_STATUT_ACTION, LIBELLES_STATUT_BENEFICIAIRE, nomCible } from '@/lib/format'
 import { useAction, useCibles, usePartenaires, useTypesAction } from '@/lib/requetes'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 import type { Beneficiaire, Cible, Membre, RolePartenaire, StatutAction, StatutBeneficiaire } from '@/lib/types'
@@ -127,7 +127,7 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
     queryKey: ['beneficiaires', actionId],
     queryFn: async () =>
       verifier(await supabase.from('beneficiaires')
-        .select('*, cible:cibles(*), apports(*, partenaire:partenaires(nom, sigle))')
+        .select('*, cible:cibles!beneficiaires_cible_id_fkey(*), via:cibles!beneficiaires_via_collectif_id_fkey(id, nom), apports(*, partenaire:partenaires(nom, sigle))')
         .eq('action_id', actionId).order('ajoute_le')) as Beneficiaire[],
   })
   const dejaInscrits = new Set(liste.map((b) => b.cible_id))
@@ -160,7 +160,7 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
     if (error) return toast.error(messageErreur(error))
     const nouveaux = data.map((m) => m.personne_id).filter((p) => !dejaInscrits.has(p))
     if (!nouveaux.length) return toast.info(data.length ? 'Tous ses membres sont déjà inscrits' : "Ce groupe n'a pas encore de membres enregistrés")
-    const r = await supabase.from('beneficiaires').upsert(nouveaux.map((cible_id) => ({ action_id: actionId, cible_id })), { onConflict: 'action_id,cible_id', ignoreDuplicates: true })
+    const r = await supabase.from('beneficiaires').upsert(nouveaux.map((cible_id) => ({ action_id: actionId, cible_id, via_collectif_id: b.cible_id })), { onConflict: 'action_id,cible_id', ignoreDuplicates: true })
     if (r.error) return toast.error(messageErreur(r.error))
     toast.success(`${nouveaux.length} membre(s) inscrit(s)`)
     qc.invalidateQueries({ queryKey: ['beneficiaires', actionId] })
@@ -187,7 +187,7 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
                   {suggestions.slice(0, 8).map((c) => (
                     <button key={c.id} onClick={() => ajouter(c)} className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-muted">
                       <span>{nomCible(c)} <span className="text-muted-foreground">{c.telephone}</span></span>
-                      {dejaInscrits.has(c.id) ? <span className="text-xs text-muted-foreground">inscrit</span> : <span className="text-xs text-muted-foreground">{LIBELLES_TYPE_CIBLE[c.type]}</span>}
+                      {dejaInscrits.has(c.id) ? <span className="text-xs text-muted-foreground">inscrit</span> : <span className="text-xs text-muted-foreground">{c.categorie?.libelle}</span>}
                     </button>
                   ))}
                   <button onClick={() => setCreation(true)} className="flex w-full items-center gap-2 px-3 py-2 text-sm text-primary hover:bg-muted">
@@ -229,7 +229,10 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
               <CardContent className="space-y-2 p-3">
                 <div className="flex items-center gap-3">
                   {gere ? <Checkbox checked={selection.includes(b.id)} onCheckedChange={() => basculer(b.id)} /> : null}
-                  <Link to={`/cibles/${b.cible_id}`} className="min-w-0 flex-1 truncate font-medium">{b.cible ? nomCible(b.cible) : '—'}</Link>
+                  <Link to={`/cibles/${b.cible_id}`} className="min-w-0 flex-1 truncate font-medium">
+                    {b.cible ? nomCible(b.cible) : '—'}
+                    {b.via ? <span className="block truncate text-xs font-normal text-muted-foreground">avec {b.via.nom}</span> : null}
+                  </Link>
                   {gere ? (
                     <>
                       <Liste className="h-8 w-auto text-xs" value={b.statut} onChange={(e) => changer(b, e.target.value as StatutBeneficiaire)}>
@@ -240,7 +243,7 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
                     </>
                   ) : <Badge variant="secondary">{LIBELLES_STATUT_BENEFICIAIRE[b.statut]}</Badge>}
                 </div>
-                {gere && (b.cible?.type === 'collectif' || b.cible?.type === 'structure') ? (
+                {gere && (b.cible?.type === 'menage' || b.cible?.type === 'collectif' || b.cible?.type === 'structure') ? (
                   <button className="pl-7 text-xs text-primary" onClick={() => inscrireMembres(b)}>Inscrire aussi ses membres individuellement</button>
                 ) : null}
                 {b.apports?.length ? (

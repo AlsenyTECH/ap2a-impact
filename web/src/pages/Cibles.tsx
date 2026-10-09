@@ -9,19 +9,23 @@ import { CibleForm } from '@/components/CibleForm'
 import { ImportExcel } from '@/components/ImportExcel'
 import { Chargement, EnTete, Erreur, Liste, Pastilles } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
-import { LIBELLES_SITUATION_PERSONNE, LIBELLES_TYPE_CIBLE, nomCible } from '@/lib/format'
-import { useCategories, useCibles } from '@/lib/requetes'
-import type { TypeCible } from '@/lib/types'
+import { nomCible } from '@/lib/format'
+import { useCategories, useCibles, useFamilles, useProfils } from '@/lib/requetes'
 
 export function Cibles() {
   const { a } = useAuth()
   const [recherche, setRecherche] = useState('')
-  const [type, setType] = useState<TypeCible | ''>('')
+  const [famille, setFamille] = useState<number | null>(null)
   const [categorie, setCategorie] = useState<number | null>(null)
+  const { data: familles = [] } = useFamilles()
   const { data: categories = [] } = useCategories()
+  const { data: profils = [] } = useProfils()
   const [creation, setCreation] = useState(false)
   const [importer, setImporter] = useState(false)
-  const { data: cibles, isLoading, error } = useCibles(recherche, type, categorie)
+  const dansFamille = categories.filter((k) => k.famille_id === famille)
+  const filtre = categorie ? [categorie] : famille ? dansFamille.map((k) => k.id) : null
+  const { data: cibles, isLoading, error } = useCibles(recherche, '', filtre)
+  const situation = (id: number | null) => profils.find((p) => p.id === id)?.libelle
   const peutCreer = a('admin', 'bureau', 'coordinateur')
 
   return (
@@ -41,19 +45,15 @@ export function Cibles() {
         <Input className="pl-9" placeholder="Nom, prénom ou téléphone" value={recherche} onChange={(e) => setRecherche(e.target.value)} />
       </div>
       <div className="mb-4">
-        <Pastilles<TypeCible | ''>
-          value={type}
-          onChange={(t) => { setType(t === type ? '' : t); setCategorie(null) }}
-          options={[['', 'Toutes'], ...(Object.entries(LIBELLES_TYPE_CIBLE) as [TypeCible, string][])]}
+        <Pastilles<string>
+          value={famille ? String(famille) : ''}
+          onChange={(f) => { setFamille(f && Number(f) !== famille ? Number(f) : null); setCategorie(null) }}
+          options={[['', 'Toutes'], ...familles.filter((f) => f.actif).map((f) => [String(f.id), f.nom] as [string, string])]}
         />
-        {type && type !== 'personne' ? (
+        {dansFamille.length > 1 ? (
           <Liste className="mt-2" value={categorie ?? ''} onChange={(e) => setCategorie(e.target.value ? Number(e.target.value) : null)}>
             <option value="">Toutes les catégories</option>
-            {[...new Set(categories.filter((k) => k.type === type).map((k) => k.famille))].map((f) => (
-              <optgroup key={f} label={f}>
-                {categories.filter((k) => k.type === type && k.famille === f).map((k) => <option key={k.id} value={k.id}>{k.libelle}</option>)}
-              </optgroup>
-            ))}
+            {dansFamille.map((k) => <option key={k.id} value={k.id}>{k.libelle}</option>)}
           </Liste>
         ) : null}
       </div>
@@ -66,15 +66,15 @@ export function Cibles() {
               <div className="min-w-0">
                 <div className="truncate font-medium">{nomCible(c)}</div>
                 <div className="truncate text-xs text-muted-foreground">
-                  {[c.categorie?.libelle, c.situation && LIBELLES_SITUATION_PERSONNE[c.situation], c.telephone, c.zone?.nom].filter(Boolean).join(' · ') || '—'}
+                  {[situation(c.situation_id) ?? c.sous_type, c.telephone, c.zone?.nom].filter(Boolean).join(' · ') || '—'}
                 </div>
               </div>
-              <Badge variant="outline" className="shrink-0">{LIBELLES_TYPE_CIBLE[c.type]}</Badge>
+              <Badge variant="outline" className="max-w-[45%] shrink-0 truncate">{c.categorie?.libelle}</Badge>
             </Link>
           ))}
         </div>
       )}
-      <CibleForm ouvert={creation} fermer={() => setCreation(false)} typeInitial={type || undefined} />
+      <CibleForm ouvert={creation} fermer={() => setCreation(false)} />
       <ImportExcel ouvert={importer} fermer={() => setImporter(false)} />
     </>
   )

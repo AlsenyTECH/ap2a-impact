@@ -1,27 +1,21 @@
-import type { NatureApport, Role, Situation, SituationPersonne, StatutAction, StatutBeneficiaire, TypeCible, Vulnerabilite } from './types'
+import type { NatureApport, Role, Situation, StatutAction, StatutBeneficiaire, TypeCible } from './types'
 
 export const LIBELLES_ROLE: Record<Role, string> = {
   admin: 'Administrateur', bureau: 'Bureau', coordinateur: 'Coordinateur', membre: 'Membre',
 }
 export const LIBELLES_TYPE_CIBLE: Record<TypeCible, string> = {
-  personne: 'Personne', collectif: 'Groupe / association', structure: 'Établissement', lieu: 'Lieu / zone',
+  personne: 'Personne', menage: 'Ménage', collectif: 'Groupe / association', structure: 'Établissement', lieu: 'Lieu / zone',
 }
-/** Explication de chaque nature, affichée dans le formulaire. */
+/** Ce que chaque nature permet d'enregistrer (page Catégories). */
 export const AIDE_TYPE_CIBLE: Record<TypeCible, string> = {
-  personne: 'Un jeune, une femme, un malade…',
-  collectif: 'ASC, GIE, GPF, dahira, association… dont on enregistre les membres',
-  structure: 'École, daara, poste de santé, mairie…',
-  lieu: 'Marché, terrain, zone inondée…',
+  personne: 'Un individu : situation, métier, vulnérabilités',
+  menage: 'Une famille : son chef, sa taille, ses membres si besoin',
+  collectif: 'Un groupe dont on enregistre les membres',
+  structure: 'Un établissement (on peut y rattacher des personnes)',
+  lieu: 'Un endroit : marché, terrain, zone inondée…',
 }
-export const LIBELLES_SITUATION_PERSONNE: Record<SituationPersonne, string> = {
-  eleve_etudiant: 'Élève / étudiant', apprenti: 'Apprenti', recherche_emploi: "En recherche d'emploi",
-  independant: 'À son compte (artisan, commerçant)', salarie: 'Salarié', au_foyer: 'Au foyer',
-  retraite: 'Retraité', sans_activite: 'Sans activité',
-}
-export const LIBELLES_VULNERABILITE: Record<Vulnerabilite, string> = {
-  handicap: 'Handicap', maladie_chronique: 'Maladie chronique', veuvage: 'Veuf / veuve', orphelin: 'Orphelin',
-  femme_chef_menage: 'Femme chef de ménage', personne_agee_isolee: 'Personne âgée isolée', sinistre: 'Sinistré',
-}
+/** Rôles proposés dans un ménage. */
+export const ROLES_MENAGE = ['Chef de ménage', 'Conjoint(e)', 'Enfant', 'Parent', 'Autre membre']
 
 /** Tranche d'âge déduite de la date de naissance (rien à saisir en plus). */
 export function trancheAge(dateNaissance: string | null) {

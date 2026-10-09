@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase, verifier } from './supabase'
-import type { Action, Beneficiaire, CategorieCible, Cible, Membre, Partenaire, TypeAction, Zone } from './types'
+import type { Action, Beneficiaire, CategorieCible, Cible, FamilleCible, Membre, Partenaire, ProfilPersonne, TypeAction, Zone } from './types'
 
 // Référentiels : changent rarement, gardés en cache 10 minutes.
 const LONG = 10 * 60 * 1000
@@ -26,11 +26,27 @@ export const usePartenaires = () =>
     queryFn: async () => verifier(await supabase.from('partenaires').select('*').order('nom')) as Partenaire[],
   })
 
+// Référentiels des cibles : tout est chargé (y compris l'inactif, pour
+// afficher les anciennes fiches) ; les formulaires ne proposent que l'actif.
+export const useFamilles = () =>
+  useQuery({
+    queryKey: ['familles_cible'],
+    staleTime: LONG,
+    queryFn: async () => verifier(await supabase.from('familles_cible').select('*').order('ordre').order('nom')) as FamilleCible[],
+  })
+
 export const useCategories = () =>
   useQuery({
     queryKey: ['categories_cible'],
     staleTime: LONG,
-    queryFn: async () => verifier(await supabase.from('categories_cible').select('*').eq('actif', true).order('ordre')) as CategorieCible[],
+    queryFn: async () => verifier(await supabase.from('categories_cible').select('*').order('ordre').order('libelle')) as CategorieCible[],
+  })
+
+export const useProfils = () =>
+  useQuery({
+    queryKey: ['profils_personne'],
+    staleTime: LONG,
+    queryFn: async () => verifier(await supabase.from('profils_personne').select('*').order('ordre').order('libelle')) as ProfilPersonne[],
   })
 
 export const useMembres = () =>
@@ -39,15 +55,16 @@ export const useMembres = () =>
     queryFn: async () => verifier(await supabase.from('membres').select('*').order('nom').order('prenom')) as Membre[],
   })
 
-const CHAMPS_CIBLE = '*, zone:zones(chemin, nom), referent:membres!cibles_referent_id_fkey(prenom, nom), categorie:categories_cible(libelle, famille)'
+const CHAMPS_CIBLE = '*, zone:zones(chemin, nom), referent:membres!cibles_referent_id_fkey(prenom, nom), categorie:categories_cible(libelle, famille:familles_cible(nom))'
 
-export const useCibles = (recherche: string, type: string, categorie?: number | null) =>
+/** Recherche de cibles, filtrées par nature et/ou par une liste de catégories. */
+export const useCibles = (recherche: string, type: string, categories?: number[] | null) =>
   useQuery({
-    queryKey: ['cibles', recherche, type, categorie],
+    queryKey: ['cibles', recherche, type, categories],
     queryFn: async () => {
       let q = supabase.from('cibles').select(CHAMPS_CIBLE).order('cree_le', { ascending: false }).limit(200)
       if (type) q = q.eq('type', type)
-      if (categorie) q = q.eq('categorie_id', categorie)
+      if (categories) q = q.in('categorie_id', categories)
       const mots = recherche.trim()
       if (mots) {
         // Recherche sur le nom, le prénom ou le téléphone (chiffres seuls).
@@ -73,7 +90,7 @@ export const useParcours = (cibleId: string) =>
       verifier(
         await supabase
           .from('beneficiaires')
-          .select('*, action:actions(id, titre, date_debut, date_fin, statut, responsable_id, cree_par, type:types_action(libelle, code)), apports(*, partenaire:partenaires(nom, sigle)), suivis(*)')
+          .select('*, action:actions(id, titre, date_debut, date_fin, statut, responsable_id, cree_par, type:types_action(libelle, code)), apports(*, partenaire:partenaires(nom, sigle)), suivis(*), via:cibles!beneficiaires_via_collectif_id_fkey(id, nom)')
           .eq('cible_id', cibleId)
           .order('ajoute_le', { ascending: false }),
       ) as Beneficiaire[],

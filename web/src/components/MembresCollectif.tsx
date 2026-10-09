@@ -7,17 +7,17 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { CibleForm } from '@/components/CibleForm'
 import { ImportExcel } from '@/components/ImportExcel'
-import { nomCible, trancheAge } from '@/lib/format'
+import { date, nomCible, ROLES_MENAGE, SITUATION, SITUATIONS, trancheAge } from '@/lib/format'
 import { useCibles } from '@/lib/requetes'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
-import type { Cible } from '@/lib/types'
+import type { Cible, Situation } from '@/lib/types'
 
 interface Appartenance {
   role: string | null
   personne: Pick<Cible, 'id' | 'prenom' | 'nom' | 'telephone' | 'sexe' | 'date_naissance'>
 }
 
-/** Membres d'un collectif (ASC, GIE, GPF...) ou d'une structure (élèves d'une école...). */
+/** Membres d'un ménage, d'un collectif (ASC, GIE, GPF...) ou d'une structure (élèves d'une école...). */
 export function MembresCollectif({ collectif, gere }: { collectif: Cible; gere: boolean }) {
   const qc = useQueryClient()
   const [recherche, setRecherche] = useState('')
@@ -59,7 +59,9 @@ export function MembresCollectif({ collectif, gere }: { collectif: Cible; gere: 
 
   const femmes = membres.filter((m) => m.personne.sexe === 'F').length
   const jeunes = membres.filter((m) => trancheAge(m.personne.date_naissance)?.tranche === 'Jeune').length
-  const libelle = collectif.type === 'structure' ? 'Personnes rattachées (élèves, patients…)' : 'Membres'
+  const menage = collectif.type === 'menage'
+  const libelle = menage ? 'Membres du ménage' : collectif.type === 'structure' ? 'Personnes rattachées (élèves, patients…)' : 'Membres'
+  const roles = menage ? ROLES_MENAGE : ['Président(e)', 'Vice-président(e)', 'Secrétaire', 'Trésorier(e)', 'Membre']
 
   return (
     <section className="mb-6">
@@ -88,14 +90,15 @@ export function MembresCollectif({ collectif, gere }: { collectif: Cible; gere: 
               </div>
             ) : null}
           </div>
-          <Input placeholder="Rôle (président, trésorière…)" value={role} onChange={(e) => setRole(e.target.value)} />
+          <Input list={`roles-${collectif.id}`} placeholder={menage ? 'Lien (enfant, conjoint…)' : 'Rôle (président, trésorière…)'} value={role} onChange={(e) => setRole(e.target.value)} />
+          <datalist id={`roles-${collectif.id}`}>{roles.map((r) => <option key={r} value={r} />)}</datalist>
           <Button variant="secondary" onClick={() => setImporter(true)}><FileSpreadsheet className="size-4" /> Importer la liste</Button>
         </div>
       ) : null}
       {!membres.length ? (
         <p className="rounded-lg border border-dashed border-border p-5 text-center text-sm text-muted-foreground">
           <Users className="mx-auto mb-2 size-6" />
-          Aucun membre enregistré. Ajoutez-les un par un, ou importez la liste Excel du groupe.
+          {menage ? 'Seul le chef est obligatoire ; ajoutez les autres membres si utile.' : 'Aucun membre enregistré. Ajoutez-les un par un, ou importez la liste Excel du groupe.'}
         </p>
       ) : (
         <div className="divide-y divide-border rounded-lg border border-border bg-card">
@@ -104,6 +107,7 @@ export function MembresCollectif({ collectif, gere }: { collectif: Cible; gere: 
               <Link to={`/cibles/${m.personne.id}`} className="min-w-0 flex-1 truncate font-medium">{nomCible(m.personne)}</Link>
               {gere ? (
                 <Input
+                  list={`roles-${collectif.id}`}
                   className="h-8 w-36 text-xs"
                   defaultValue={m.role ?? ''}
                   placeholder="Rôle"
@@ -141,5 +145,65 @@ export function MembreDe({ personneId }: { personneId: string }) {
         </Link>
       ))}
     </div>
+  )
+}
+
+/**
+ * Ce que sont devenus les membres inscrits à une action au titre de ce
+ * groupe (en plus du suivi du groupe lui-même) : dernier suivi de chacun.
+ */
+export function SuiviMembres({ collectifId }: { collectifId: string }) {
+  const { data: lignes = [] } = useQuery({
+    queryKey: ['suivi_membres', collectifId],
+    queryFn: async () =>
+      verifier(await supabase.from('beneficiaires')
+        .select('id, cible:cibles!beneficiaires_cible_id_fkey(id, prenom, nom), action:actions(titre), suivis(fait_le, situation)')
+        .eq('via_collectif_id', collectifId)) as unknown as {
+        id: string
+        cible: { id: string; prenom: string | null; nom: string }
+        action: { titre: string }
+        suivis: { fait_le: string | null; situation: Situation | null }[]
+      }[],
+  })
+  if (!lignes.length) return null
+  const derniers = lignes.map((l) => ({
+    ...l,
+    dernier: l.suivis.filter((s) => s.fait_le && s.situation).sort((x, y) => y.fait_le!.localeCompare(x.fait_le!))[0],
+  }))
+  const suivis = derniers.filter((d) => d.dernier)
+  const compte = (s: Situation) => suivis.filter((d) => d.dernier!.situation === s).length
+
+  return (
+    <section className="mb-6">
+      <h2 className="mb-1 text-lg font-semibold">Suivi des membres</h2>
+      <p className="mb-2 text-sm text-muted-foreground">
+        {lignes.length} inscription(s) de membres aux actions via ce groupe · {suivis.length} déjà suivie(s)
+      </p>
+      {suivis.length ? (
+        <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          {SITUATIONS.map((s) => (
+            <span key={s.valeur} className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full" style={{ background: s.couleur }} /> {s.libelle} : <b>{compte(s.valeur)}</b>
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <div className="divide-y divide-border rounded-lg border border-border bg-card">
+        {derniers.map((d) => (
+          <div key={d.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+            <span className="min-w-0 truncate">
+              <Link to={`/cibles/${d.cible.id}`} className="font-medium">{nomCible(d.cible)}</Link>
+              <span className="text-muted-foreground"> · {d.action.titre}</span>
+            </span>
+            {d.dernier ? (
+              <span className="inline-flex shrink-0 items-center gap-1.5 text-xs">
+                <span className="size-2 rounded-full" style={{ background: SITUATION[d.dernier.situation!].couleur }} />
+                {SITUATION[d.dernier.situation!].libelle} · {date(d.dernier.fait_le)}
+              </span>
+            ) : <span className="shrink-0 text-xs text-muted-foreground">pas encore suivi</span>}
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }

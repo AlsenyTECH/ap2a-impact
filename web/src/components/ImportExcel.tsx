@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { useZones } from '@/lib/requetes'
+import { useCategories, useZones } from '@/lib/requetes'
 import { messageErreur, supabase } from '@/lib/supabase'
 
 interface Ligne { prenom: string; nom: string; telephone: string; sexe: 'F' | 'M' | null; date_naissance: string | null; zone: string; role: string }
@@ -41,6 +41,7 @@ function lireDate(v: unknown): string | null {
 export function ImportExcel({ ouvert, fermer, actionId, collectifId }: { ouvert: boolean; fermer: () => void; actionId?: string; collectifId?: string }) {
   const qc = useQueryClient()
   const { data: zones = [] } = useZones()
+  const { data: categories = [] } = useCategories()
   const [lignes, setLignes] = useState<Ligne[]>([])
   const [envoi, setEnvoi] = useState(false)
 
@@ -94,6 +95,8 @@ export function ImportExcel({ ouvert, fermer, actionId, collectifId }: { ouvert:
   async function importer() {
     setEnvoi(true)
     try {
+      const categoriePersonne = categories.find((k) => k.actif && k.nature === 'personne')?.id
+      if (!categoriePersonne) throw new Error('Aucune catégorie « Personne » active')
       const tels = [...new Set(lignes.map((l) => normaliserTel(l.telephone)).filter((t) => t.length >= 7))]
       const existantes = new Map<string, string>()
       if (tels.length) {
@@ -111,7 +114,7 @@ export function ImportExcel({ ouvert, fermer, actionId, collectifId }: { ouvert:
         else {
           rolesNouvelles.push(l.role || null)
           nouvelles.push({
-            type: 'personne', prenom: l.prenom, nom: l.nom, telephone: l.telephone || null, sexe: l.sexe,
+            categorie_id: categoriePersonne, prenom: l.prenom, nom: l.nom, telephone: l.telephone || null, sexe: l.sexe,
             date_naissance: l.date_naissance, zone_id: trouverZone(l.zone), adresse: l.zone || null,
           })
         }
