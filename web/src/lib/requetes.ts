@@ -65,7 +65,7 @@ export const useParcours = (cibleId: string) =>
       verifier(
         await supabase
           .from('beneficiaires')
-          .select('*, action:actions(id, titre, date_debut, date_fin, statut, type:types_action(libelle, code)), apports(*, partenaire:partenaires(nom, sigle))')
+          .select('*, action:actions(id, titre, date_debut, date_fin, statut, responsable_id, cree_par, type:types_action(libelle, code)), apports(*, partenaire:partenaires(nom, sigle)), suivis(*)')
           .eq('cible_id', cibleId)
           .order('ajoute_le', { ascending: false }),
       ) as Beneficiaire[],

@@ -1,14 +1,18 @@
+import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
-import { Handshake, Home, LogOut, Target, UsersRound, CalendarCheck } from 'lucide-react'
+import { BarChart3, CalendarCheck, Handshake, Home, ListChecks, LogOut, Menu, Target, UsersRound } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { LIBELLES_ROLE } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import logo from '@/assets/logo_AP2A.jpeg'
 
+// Les 5 premiers forment la barre du bas sur téléphone ; les autres sont dans le menu.
 const LIENS = [
   { vers: '/', libelle: 'Accueil', icone: Home },
   { vers: '/cibles', libelle: 'Cibles', icone: Target },
   { vers: '/actions', libelle: 'Actions', icone: CalendarCheck },
+  { vers: '/suivis', libelle: 'Suivis', icone: ListChecks },
+  { vers: '/impact', libelle: 'Impact', icone: BarChart3 },
   { vers: '/membres', libelle: 'Membres', icone: UsersRound },
   { vers: '/partenaires', libelle: 'Partenaires', icone: Handshake },
 ]
@@ -16,6 +20,7 @@ const LIENS = [
 /** Barre latérale sur ordinateur, barre du bas sur téléphone. */
 export function Layout() {
   const { membre, deconnecter } = useAuth()
+  const [menu, setMenu] = useState(false)
   return (
     <div className="min-h-dvh bg-background md:flex">
       <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-card md:flex">
@@ -51,9 +56,18 @@ export function Layout() {
           <img src={logo} alt="" className="h-8 w-11 rounded object-contain" />
           <span className="font-bold">AP2A</span>
         </div>
-        <button onClick={deconnecter} aria-label="Se déconnecter" className="p-2 text-muted-foreground">
-          <LogOut className="size-5" />
+        <button onClick={() => setMenu(!menu)} aria-label="Menu" aria-expanded={menu} className="p-2 text-muted-foreground">
+          <Menu className="size-5" />
         </button>
+        {menu ? (
+          <div className="absolute right-2 top-full z-30 w-56 rounded-md border border-border bg-popover p-1 shadow-lg" onClick={() => setMenu(false)}>
+            <div className="px-3 py-2 text-xs text-muted-foreground">{membre?.prenom} {membre?.nom} · {membre ? LIBELLES_ROLE[membre.role] : ''}</div>
+            {LIENS.slice(5).map(({ vers, libelle, icone: Icone }) => (
+              <NavLink key={vers} to={vers} className="flex items-center gap-3 rounded px-3 py-2 text-sm hover:bg-muted"><Icone className="size-4" /> {libelle}</NavLink>
+            ))}
+            <button onClick={deconnecter} className="flex w-full items-center gap-3 rounded px-3 py-2 text-sm hover:bg-muted"><LogOut className="size-4" /> Se déconnecter</button>
+          </div>
+        ) : null}
       </header>
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-24 pt-4 md:px-8 md:pb-8 md:pt-6">
@@ -61,7 +75,7 @@ export function Layout() {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] md:hidden">
-        {LIENS.map(({ vers, libelle, icone: Icone }) => (
+        {LIENS.slice(0, 5).map(({ vers, libelle, icone: Icone }) => (
           <NavLink
             key={vers}
             to={vers}

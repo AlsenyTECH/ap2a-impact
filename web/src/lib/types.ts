@@ -84,6 +84,7 @@ export interface Beneficiaire {
   cible?: Cible
   action?: Action
   apports?: Apport[]
+  suivis?: Suivi[]
 }
 
 export interface Apport {
@@ -98,4 +99,35 @@ export interface Apport {
   fichier_chemin: string | null
   date_remise: string
   partenaire?: Pick<Partenaire, 'nom' | 'sigle'> | null
+}
+
+export type Situation = 'reussi' | 'en_progres' | 'en_difficulte' | 'perdu_de_vue'
+
+export interface Suivi {
+  id: string
+  beneficiaire_id: string
+  echeance_mois: number | null
+  date_prevue: string
+  fait_le: string | null
+  situation: Situation | null
+  activite: string | null
+  revenu_mensuel_fcfa: number | null
+  emplois_crees: number | null
+  utilise_apport: boolean | null
+  commentaire: string | null
+  fichier_chemin: string | null
+  saisi_par: string | null
+}
+
+/** Ligne de la vue suivis_detail : le suivi, la cible et le membre chargé. */
+export interface SuiviDetail extends Suivi {
+  action_id: string
+  cible_id: string
+  action_titre: string
+  type_id: number
+  cible_type: TypeCible
+  cible_prenom: string | null
+  cible_nom: string
+  cible_telephone: string | null
+  charge_id: string | null
 }

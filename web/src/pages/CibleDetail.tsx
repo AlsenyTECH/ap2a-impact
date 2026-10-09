@@ -1,15 +1,17 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Paperclip, Pencil } from 'lucide-react'
+import { ArrowLeft, ListChecks, Paperclip, Pencil } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { CibleForm } from '@/components/CibleForm'
+import { SuiviForm } from '@/components/SuiviForm'
 import { ouvrirJustificatif } from '@/components/ApportForm'
 import { Chargement, EnTete, Erreur } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
-import { date, fcfa, LIBELLES_NATURE, LIBELLES_STATUT_BENEFICIAIRE, LIBELLES_TYPE_CIBLE, nomCible } from '@/lib/format'
+import { date, echeance, fcfa, LIBELLES_NATURE, SITUATION, LIBELLES_STATUT_BENEFICIAIRE, LIBELLES_TYPE_CIBLE, nomCible } from '@/lib/format'
 import { useCible, useParcours } from '@/lib/requetes'
+import type { Suivi } from '@/lib/types'
 
 export function CibleDetail() {
   const { id = '' } = useParams()
@@ -17,6 +19,8 @@ export function CibleDetail() {
   const { data: cible, isLoading, error } = useCible(id)
   const { data: parcours = [] } = useParcours(id)
   const [edition, setEdition] = useState(false)
+  const [suivi, setSuivi] = useState<{ suivi: Suivi | null; beneficiaireId: string } | null>(null)
+  const suit = a('admin', 'bureau', 'coordinateur')
 
   if (error) return <Erreur erreur={error} />
   if (isLoading || !cible) return <Chargement />
@@ -86,6 +90,12 @@ export function CibleDetail() {
                       </div>
                     </div>
                   ))}
+                  <Suivis suivis={b.suivis ?? []} ouvrir={suit ? (x) => setSuivi({ suivi: x, beneficiaireId: b.id }) : undefined} />
+                  {suit && b.action?.statut === 'terminee' ? (
+                    <Button size="sm" variant="ghost" className="text-primary" onClick={() => setSuivi({ suivi: null, beneficiaireId: b.id })}>
+                      <ListChecks className="size-4" /> Ajouter un suivi
+                    </Button>
+                  ) : null}
                 </CardContent>
               </Card>
             </li>
@@ -93,6 +103,7 @@ export function CibleDetail() {
         </ol>
       )}
       <CibleForm ouvert={edition} fermer={() => setEdition(false)} cible={cible} />
+      <SuiviForm ouvert={!!suivi} fermer={() => setSuivi(null)} suivi={suivi?.suivi} beneficiaireId={suivi?.beneficiaireId} titre={nomCible(cible)} />
     </>
   )
 }
@@ -102,6 +113,44 @@ function Info({ label, valeur }: { label: string; valeur: ReactNode }) {
     <div>
       <div className="text-xs text-muted-foreground">{label}</div>
       <div>{valeur ?? '—'}</div>
+    </div>
+  )
+}
+
+/** Suivis d'un bénéficiaire : faits (avec la situation) puis prévus. */
+function Suivis({ suivis, ouvrir }: { suivis: Suivi[]; ouvrir?: (s: Suivi) => void }) {
+  if (!suivis.length) return null
+  const tries = [...suivis].sort((x, y) => (x.fait_le ?? x.date_prevue).localeCompare(y.fait_le ?? y.date_prevue))
+  return (
+    <div className="space-y-1 border-t border-border pt-2">
+      {tries.map((x) => (
+        <button
+          key={x.id}
+          disabled={!ouvrir}
+          onClick={() => ouvrir?.(x)}
+          className="flex w-full items-start gap-2 rounded px-1 py-1 text-left text-sm enabled:hover:bg-muted/50"
+        >
+          <span
+            className="mt-1.5 size-2.5 shrink-0 rounded-full border border-border"
+            style={{ background: x.situation && x.fait_le ? SITUATION[x.situation].couleur : 'transparent' }}
+          />
+          <span className="min-w-0">
+            <span className="font-medium">{echeance(x.echeance_mois)}</span>
+            {x.fait_le && x.situation ? (
+              <>
+                {' '}· {SITUATION[x.situation].libelle} <span className="text-muted-foreground">({date(x.fait_le)})</span>
+                {x.activite || x.commentaire ? (
+                  <span className="block text-xs text-muted-foreground">
+                    {[x.activite, x.revenu_mensuel_fcfa != null ? `${fcfa(x.revenu_mensuel_fcfa)}/mois` : null, x.emplois_crees ? `${x.emplois_crees} emploi(s) créé(s)` : null, x.commentaire].filter(Boolean).join(' · ')}
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              <span className="text-muted-foreground"> · prévu le {date(x.date_prevue)}</span>
+            )}
+          </span>
+        </button>
+      ))}
     </div>
   )
 }

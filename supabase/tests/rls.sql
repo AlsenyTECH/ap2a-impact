@@ -108,5 +108,51 @@ select t.refuse($$update membres set role = 'membre' where email = 'admin@ap2a.s
 update membres set actif = false where email = 'coord2@ap2a.sn';
 select t.qui('coord2@ap2a.sn');
 select t.ok((select count(*) from actions) = 0, 'membre désactivé : plus aucun accès');
+
+-- ===== V2 : suivis d'impact =====
+-- Le bureau a clôturé l'action (fin le 31 mai 2026, type formation : 3, 6, 12 mois).
+select t.qui('admin@ap2a.sn');
+select t.ok((select count(*) from suivis) = 3, 'clôture : 3 suivis planifiés pour le bénéficiaire');
+select t.ok((select array_agg(date_prevue order by echeance_mois) from suivis) = '{2026-08-31,2026-11-30,2027-05-31}'::date[], 'dates prévues à 3, 6 et 12 mois après la fin');
+select t.ok((select charge_id from suivis_detail limit 1) = (select id from membres where email = 'coord@ap2a.sn'), 'chargé du suivi : le responsable de l''action (pas de référent)');
+update actions set date_fin = '2026-06-30';
+select t.ok((select min(date_prevue) from suivis) = '2026-09-30', 'date de fin modifiée : suivis non faits recalés');
+
+select t.qui('coord@ap2a.sn');
+update suivis set fait_le = '2026-09-02', situation = 'reussi', activite = 'Électricien à son compte',
+  revenu_mensuel_fcfa = 120000, emplois_crees = 1, utilise_apport = true
+  where echeance_mois = 3;
+select t.ok((select situation from suivis where echeance_mois = 3) = 'reussi', 'chargé du suivi : renseigne le suivi à 3 mois');
+select t.refuse($$update suivis set fait_le = current_date where echeance_mois = 6$$, 'suivi fait sans situation');
+insert into suivis (beneficiaire_id, fait_le, situation, commentaire)
+  values ((select id from beneficiaires), current_date, 'en_progres', 'Visite à l''atelier');
+select t.ok((select count(*) from suivis) = 4, 'suivi spontané ajouté');
+
+select t.qui('bureau@ap2a.sn');
+update actions set date_fin = '2026-07-15';
+select t.ok((select fait_le from suivis where echeance_mois = 3) = '2026-09-02' and (select date_prevue from suivis where echeance_mois = 3) = '2026-09-30', 'suivi déjà fait : jamais recalé');
+update beneficiaires set statut = 'abandon';
+select t.ok((select count(*) from suivis) = 2, 'abandon : suivis planifiés non faits supprimés, suivis faits conservés');
+update beneficiaires set statut = 'termine';
+select t.ok((select count(*) from suivis) = 4, 'retour : suivis replanifiés');
+
+-- Un coordinateur qui n'est ni responsable ni référent ne renseigne pas.
+reset role;
+update membres set actif = true where email = 'coord2@ap2a.sn';
+set role authenticated;
+select t.qui('coord2@ap2a.sn');
+update suivis set commentaire = 'piraté' where echeance_mois = 6;
+select t.ok((select commentaire from suivis where echeance_mois = 6) is null, 'autre coordinateur : ne renseigne pas le suivi');
+-- ... sauf s'il devient le référent de la cible.
+select t.qui('admin@ap2a.sn');
+update cibles set referent_id = (select id from membres where email = 'coord2@ap2a.sn');
+select t.qui('coord2@ap2a.sn');
+update suivis set commentaire = 'Appel fait' where echeance_mois = 6;
+select t.ok((select commentaire from suivis where echeance_mois = 6) = 'Appel fait', 'référent de la cible : renseigne le suivi');
+select t.ok((select count(*) from suivis_detail where charge_id = mon_membre_id()) = 4, 'vue : les suivis de la cible lui sont attribués');
+select t.qui('membre@ap2a.sn');
+select t.ok((select count(*) from suivis) = 4, 'coordinateur (ex-membre) : lit les suivis');
+select t.qui('inconnu@gmail.com');
+select t.ok((select count(*) from suivis_detail) = 0, 'inconnu : ne voit aucun suivi');
 reset role;
 \echo 'Tous les tests sont passés.'

@@ -21,6 +21,15 @@ Les droits sont appliqués **par la base de données** (Row Level Security), pas
 
 Un compte sans fiche membre active (même email) n'a accès à rien.
 
+## Suivi de l'impact (version 2)
+
+Quand une action est **clôturée**, des suivis sont planifiés pour chaque bénéficiaire
+(par défaut 3, 6 et 12 mois après la fin ; réglable par type d'action). Le **référent**
+de la cible — à défaut le responsable de l'action — les retrouve dans la page *Suivis*
+30 jours avant l'échéance, appelle ou écrit sur WhatsApp, et note la situation :
+Réussi / En progrès / En difficulté / Perdu de vue, avec activité, revenu, emplois créés
+et usage du kit. La page *Impact* agrège le dernier suivi de chaque bénéficiaire.
+
 ## En production
 
 - Base : projet Supabase `ap2a-impact` (réf. `mvdsoonjccvfkvvbqefn`, région Paris)

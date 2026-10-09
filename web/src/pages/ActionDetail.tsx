@@ -17,7 +17,7 @@ import { ImportExcel } from '@/components/ImportExcel'
 import { Chargement, EnTete, Erreur, Liste, ListeMembres } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
 import { date, fcfa, LIBELLES_NATURE, LIBELLES_STATUT_ACTION, LIBELLES_STATUT_BENEFICIAIRE, LIBELLES_TYPE_CIBLE, nomCible } from '@/lib/format'
-import { useAction, useCibles, usePartenaires } from '@/lib/requetes'
+import { useAction, useCibles, usePartenaires, useTypesAction } from '@/lib/requetes'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 import type { Beneficiaire, Cible, Membre, RolePartenaire, StatutAction, StatutBeneficiaire } from '@/lib/types'
 import { COULEUR_STATUT } from './Actions'
@@ -34,6 +34,7 @@ export function ActionDetail() {
   const qc = useQueryClient()
   const { membre, a } = useAuth()
   const { data: action, isLoading, error } = useAction(id)
+  const { data: types = [] } = useTypesAction()
   const [edition, setEdition] = useState(false)
 
   const { data: equipe = [] } = useQuery({
@@ -59,6 +60,10 @@ export function ActionDetail() {
     if (error) return toast.error(messageErreur(error))
     qc.invalidateQueries({ queryKey: ['action', id] })
     qc.invalidateQueries({ queryKey: ['actions'] })
+    if (statut === 'terminee') {
+      const mois = types.find((t) => t.id === action!.type_id)?.suivis_mois ?? []
+      toast.success(mois.length ? `Action clôturée : suivis des bénéficiaires planifiés à ${mois.join(', ')} mois` : 'Action clôturée')
+    }
   }
 
   return (

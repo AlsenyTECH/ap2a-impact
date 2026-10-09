@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarCheck, Coins, Target, Users } from 'lucide-react'
+import { CalendarCheck, Coins, ListChecks, Target, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAuth } from '@/lib/auth'
@@ -34,6 +34,19 @@ export function Accueil() {
     },
   })
 
+  // Suivis dont je suis chargé(e), en retard ou prévus dans la semaine.
+  const { data: aFaire } = useQuery({
+    queryKey: ['accueil', 'suivis', membre?.id],
+    enabled: voitTout,
+    queryFn: async () => {
+      const semaine = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10)
+      const { count, error } = await supabase.from('suivis_detail').select('id', { count: 'exact', head: true })
+        .eq('charge_id', membre!.id).is('fait_le', null).lte('date_prevue', semaine)
+      if (error) throw error
+      return count ?? 0
+    },
+  })
+
   const { data: prochaines = [] } = useQuery({
     queryKey: ['accueil', 'actions'],
     queryFn: async () =>
@@ -55,6 +68,16 @@ export function Accueil() {
     <>
       <h1 className="mb-1 text-xl font-bold md:text-2xl">Bonjour {membre?.prenom}</h1>
       <p className="mb-5 text-sm text-muted-foreground">Voici où en est l'association.</p>
+
+      {aFaire ? (
+        <Link to="/suivis" className="mb-4 flex items-center gap-3 rounded-lg border border-warning/50 bg-warning/10 p-4">
+          <ListChecks className="size-6 shrink-0 text-warning" />
+          <div>
+            <div className="font-medium">{aFaire} suivi(s) à faire cette semaine</div>
+            <div className="text-xs text-muted-foreground">Appelez les bénéficiaires et notez ce qu'ils sont devenus.</div>
+          </div>
+        </Link>
+      ) : null}
 
       {voitTout ? (
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">

@@ -12,7 +12,7 @@ import { messageErreur, supabase } from '@/lib/supabase'
 import type { NatureApport } from '@/lib/types'
 
 /** Réduit une photo de téléphone (plusieurs Mo) à ~1600 px en JPEG. */
-async function compresser(fichier: File): Promise<Blob> {
+export async function compresser(fichier: File): Promise<Blob> {
   if (!fichier.type.startsWith('image/')) return fichier
   const image = await createImageBitmap(fichier)
   const echelle = Math.min(1, 1600 / Math.max(image.width, image.height))

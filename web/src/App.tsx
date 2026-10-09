@@ -11,6 +11,8 @@ import { Actions } from '@/pages/Actions'
 import { ActionDetail } from '@/pages/ActionDetail'
 import { Membres } from '@/pages/Membres'
 import { Partenaires } from '@/pages/Partenaires'
+import { Suivis } from '@/pages/Suivis'
+import { Impact } from '@/pages/Impact'
 
 export function App() {
   const { session, membre, chargement, deconnecter } = useAuth()
@@ -32,6 +34,8 @@ export function App() {
         <Route path="cibles/:id" element={<CibleDetail />} />
         <Route path="actions" element={<Actions />} />
         <Route path="actions/:id" element={<ActionDetail />} />
+        <Route path="suivis" element={<Suivis />} />
+        <Route path="impact" element={<Impact />} />
         <Route path="membres" element={<Membres />} />
         <Route path="partenaires" element={<Partenaires />} />
         <Route path="*" element={<Navigate to="/" replace />} />
