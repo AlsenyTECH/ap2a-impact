@@ -154,6 +154,18 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
     qc.invalidateQueries({ queryKey: ['beneficiaires', actionId] })
   }
 
+  // Un groupe inscrit (ASC, GIE...) : inscrire aussi chacun de ses membres.
+  async function inscrireMembres(b: Beneficiaire) {
+    const { data, error } = await supabase.from('appartenances').select('personne_id').eq('collectif_id', b.cible_id)
+    if (error) return toast.error(messageErreur(error))
+    const nouveaux = data.map((m) => m.personne_id).filter((p) => !dejaInscrits.has(p))
+    if (!nouveaux.length) return toast.info(data.length ? 'Tous ses membres sont déjà inscrits' : "Ce groupe n'a pas encore de membres enregistrés")
+    const r = await supabase.from('beneficiaires').upsert(nouveaux.map((cible_id) => ({ action_id: actionId, cible_id })), { onConflict: 'action_id,cible_id', ignoreDuplicates: true })
+    if (r.error) return toast.error(messageErreur(r.error))
+    toast.success(`${nouveaux.length} membre(s) inscrit(s)`)
+    qc.invalidateQueries({ queryKey: ['beneficiaires', actionId] })
+  }
+
   async function terminerSelection() {
     const { error } = await supabase.from('beneficiaires').update({ statut: 'termine' }).in('id', selection)
     if (error) return toast.error(messageErreur(error))
@@ -228,6 +240,9 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
                     </>
                   ) : <Badge variant="secondary">{LIBELLES_STATUT_BENEFICIAIRE[b.statut]}</Badge>}
                 </div>
+                {gere && (b.cible?.type === 'collectif' || b.cible?.type === 'structure') ? (
+                  <button className="pl-7 text-xs text-primary" onClick={() => inscrireMembres(b)}>Inscrire aussi ses membres individuellement</button>
+                ) : null}
                 {b.apports?.length ? (
                   <div className="flex flex-wrap gap-1.5 pl-7">
                     {b.apports.map((x) => (

@@ -1,11 +1,34 @@
-import type { NatureApport, Role, Situation, StatutAction, StatutBeneficiaire, TypeCible } from './types'
+import type { NatureApport, Role, Situation, SituationPersonne, StatutAction, StatutBeneficiaire, TypeCible, Vulnerabilite } from './types'
 
 export const LIBELLES_ROLE: Record<Role, string> = {
   admin: 'Administrateur', bureau: 'Bureau', coordinateur: 'Coordinateur', membre: 'Membre',
 }
 export const LIBELLES_TYPE_CIBLE: Record<TypeCible, string> = {
-  personne: 'Personne', groupe: 'Groupe / GIE', asc: 'ASC', etablissement: 'École / établissement',
-  organisation: 'Organisation', zone_sinistree: 'Zone sinistrée',
+  personne: 'Personne', collectif: 'Groupe / association', structure: 'Établissement', lieu: 'Lieu / zone',
+}
+/** Explication de chaque nature, affichée dans le formulaire. */
+export const AIDE_TYPE_CIBLE: Record<TypeCible, string> = {
+  personne: 'Un jeune, une femme, un malade…',
+  collectif: 'ASC, GIE, GPF, dahira, association… dont on enregistre les membres',
+  structure: 'École, daara, poste de santé, mairie…',
+  lieu: 'Marché, terrain, zone inondée…',
+}
+export const LIBELLES_SITUATION_PERSONNE: Record<SituationPersonne, string> = {
+  eleve_etudiant: 'Élève / étudiant', apprenti: 'Apprenti', recherche_emploi: "En recherche d'emploi",
+  independant: 'À son compte (artisan, commerçant)', salarie: 'Salarié', au_foyer: 'Au foyer',
+  retraite: 'Retraité', sans_activite: 'Sans activité',
+}
+export const LIBELLES_VULNERABILITE: Record<Vulnerabilite, string> = {
+  handicap: 'Handicap', maladie_chronique: 'Maladie chronique', veuvage: 'Veuf / veuve', orphelin: 'Orphelin',
+  femme_chef_menage: 'Femme chef de ménage', personne_agee_isolee: 'Personne âgée isolée', sinistre: 'Sinistré',
+}
+
+/** Tranche d'âge déduite de la date de naissance (rien à saisir en plus). */
+export function trancheAge(dateNaissance: string | null) {
+  if (!dateNaissance) return null
+  const age = Math.floor((Date.now() - new Date(`${dateNaissance}T00:00:00`).getTime()) / 31_557_600_000)
+  const tranche = age < 15 ? 'Enfant' : age <= 35 ? 'Jeune' : age < 60 ? 'Adulte' : 'Senior'
+  return { age, tranche }
 }
 export const LIBELLES_STATUT_ACTION: Record<StatutAction, string> = {
   preparation: 'En préparation', en_cours: 'En cours', terminee: 'Terminée', annulee: 'Annulée',

@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useZones } from '@/lib/requetes'
 import { messageErreur, supabase } from '@/lib/supabase'
 
-interface Ligne { prenom: string; nom: string; telephone: string; sexe: 'F' | 'M' | null; date_naissance: string | null; zone: string }
+interface Ligne { prenom: string; nom: string; telephone: string; sexe: 'F' | 'M' | null; date_naissance: string | null; zone: string; role: string }
 
 const sansAccent = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 
@@ -18,6 +18,7 @@ const COLONNES: Record<keyof Ligne, string[]> = {
   sexe: ['sexe', 'genre'],
   date_naissance: ['date de naissance', 'naissance', 'ne le', 'date naissance'],
   zone: ['unite', 'quartier', 'zone', 'adresse'],
+  role: ['role', 'fonction', 'poste', 'qualite', 'responsabilite'],
 }
 
 const normaliserTel = (t: string) => {
@@ -37,7 +38,7 @@ function lireDate(v: unknown): string | null {
  * téléphone) ne sont pas recréées. Si `actionId` est donné, toutes sont
  * inscrites comme bénéficiaires de l'action.
  */
-export function ImportExcel({ ouvert, fermer, actionId }: { ouvert: boolean; fermer: () => void; actionId?: string }) {
+export function ImportExcel({ ouvert, fermer, actionId, collectifId }: { ouvert: boolean; fermer: () => void; actionId?: string; collectifId?: string }) {
   const qc = useQueryClient()
   const { data: zones = [] } = useZones()
   const [lignes, setLignes] = useState<Ligne[]>([])
@@ -70,6 +71,7 @@ export function ImportExcel({ ouvert, fermer, actionId }: { ouvert: boolean; fer
           sexe: s.startsWith('f') ? 'F' : s.startsWith('m') || s.startsWith('h') ? 'M' : null,
           date_naissance: lireDate(val(r, 'date_naissance')),
           zone: String(val(r, 'zone') ?? '').trim(),
+          role: String(val(r, 'role') ?? '').trim(),
         } as Ligne
       }).filter((l) => l.nom && l.prenom)
       if (!resultat.length) toast.error('Aucune ligne avec un prénom et un nom')
@@ -100,26 +102,37 @@ export function ImportExcel({ ouvert, fermer, actionId }: { ouvert: boolean; fer
         for (const c of data) existantes.set(c.telephone_normalise, c.id)
       }
       const ids: string[] = []
+      const roles: (string | null)[] = []
       const nouvelles = []
+      const rolesNouvelles: (string | null)[] = []
       for (const l of lignes) {
         const id = existantes.get(normaliserTel(l.telephone))
-        if (id) ids.push(id)
-        else nouvelles.push({
-          type: 'personne', prenom: l.prenom, nom: l.nom, telephone: l.telephone || null, sexe: l.sexe,
-          date_naissance: l.date_naissance, zone_id: trouverZone(l.zone), adresse: l.zone || null,
-        })
+        if (id) { ids.push(id); roles.push(l.role || null) }
+        else {
+          rolesNouvelles.push(l.role || null)
+          nouvelles.push({
+            type: 'personne', prenom: l.prenom, nom: l.nom, telephone: l.telephone || null, sexe: l.sexe,
+            date_naissance: l.date_naissance, zone_id: trouverZone(l.zone), adresse: l.zone || null,
+          })
+        }
       }
       if (nouvelles.length) {
         const { data, error } = await supabase.from('cibles').insert(nouvelles).select('id')
         if (error) throw error
         ids.push(...data.map((c) => c.id))
+        roles.push(...rolesNouvelles)
+      }
+      if (collectifId && ids.length) {
+        const liens = new Map(ids.map((id, i) => [id, { personne_id: id, collectif_id: collectifId, role: roles[i] }]))
+        const { error } = await supabase.from('appartenances').upsert([...liens.values()], { onConflict: 'personne_id,collectif_id', ignoreDuplicates: true })
+        if (error) throw error
       }
       if (actionId && ids.length) {
         const { error } = await supabase.from('beneficiaires')
           .upsert([...new Set(ids)].map((cible_id) => ({ action_id: actionId, cible_id })), { onConflict: 'action_id,cible_id', ignoreDuplicates: true })
         if (error) throw error
       }
-      toast.success(`${nouvelles.length} nouvelle(s) cible(s), ${lignes.length - nouvelles.length} déjà connue(s)${actionId ? ', toutes inscrites à l\'action' : ''}`)
+      toast.success(`${nouvelles.length} nouvelle(s) cible(s), ${lignes.length - nouvelles.length} déjà connue(s)${actionId ? ', toutes inscrites à l\'action' : ''}${collectifId ? ', toutes ajoutées au groupe' : ''}`)
       qc.invalidateQueries()
       setLignes([])
       fermer()
@@ -137,7 +150,7 @@ export function ImportExcel({ ouvert, fermer, actionId }: { ouvert: boolean; fer
           <DialogTitle>Importer une liste Excel</DialogTitle>
           <DialogDescription>
             Une ligne par personne, avec des colonnes <b>Prénom</b>, <b>Nom</b> et si possible <b>Téléphone</b>, <b>Sexe</b>,
-            <b> Date de naissance</b>, <b>Unité</b> (ex. « U17 » ou « Unité 17 »).
+            <b> Date de naissance</b>, <b>Unité</b> (ex. « U17 » ou « Unité 17 »){collectifId ? <>, <b>Rôle</b> (président, trésorière…)</> : null}.
           </DialogDescription>
         </DialogHeader>
         <input type="file" accept=".xlsx" onChange={(e) => e.target.files?.[0] && lire(e.target.files[0])} className="text-sm" />

@@ -5,16 +5,19 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Champ, ListeMembres, ListeZones, Pastilles } from '@/components/champs'
-import { LIBELLES_TYPE_CIBLE, nomCible } from '@/lib/format'
+import { Champ, Liste, ListeMembres, ListeZones, Pastilles } from '@/components/champs'
+import { AIDE_TYPE_CIBLE, LIBELLES_SITUATION_PERSONNE, LIBELLES_TYPE_CIBLE, LIBELLES_VULNERABILITE, nomCible } from '@/lib/format'
+import { useCategories } from '@/lib/requetes'
+import { cn } from '@/lib/utils'
 import { messageErreur, supabase } from '@/lib/supabase'
-import type { Cible, TypeCible } from '@/lib/types'
+import type { Cible, SituationPersonne, TypeCible, Vulnerabilite } from '@/lib/types'
 
-type Valeurs = Pick<Cible, 'type' | 'nom' | 'prenom' | 'sexe' | 'date_naissance' | 'telephone' | 'sous_type' | 'responsable' | 'effectif' | 'zone_id' | 'adresse' | 'referent_id' | 'notes'>
+type Valeurs = Pick<Cible, 'type' | 'nom' | 'prenom' | 'sexe' | 'date_naissance' | 'telephone' | 'sous_type' | 'responsable' | 'effectif' | 'zone_id' | 'adresse' | 'referent_id' | 'notes' | 'categorie_id' | 'situation' | 'vulnerabilites'>
 
 const VIDE: Valeurs = {
   type: 'personne', nom: '', prenom: '', sexe: null, date_naissance: null, telephone: '', sous_type: '',
   responsable: '', effectif: null, zone_id: null, adresse: '', referent_id: null, notes: '',
+  categorie_id: null, situation: null, vulnerabilites: [],
 }
 
 const normaliser = (t: string) => {
@@ -37,10 +40,11 @@ export function CibleForm({ ouvert, fermer, cible, typeInitial, apresCreation }:
   const [v, setV] = useState<Valeurs>(VIDE)
   const [doublons, setDoublons] = useState<Cible[]>([])
   const [envoi, setEnvoi] = useState(false)
+  const { data: categories = [] } = useCategories()
 
   useEffect(() => {
     if (ouvert) {
-      setV(cible ? { ...VIDE, ...cible } : { ...VIDE, type: typeInitial ?? 'personne' })
+      setV(cible ? { ...VIDE, ...cible, vulnerabilites: cible.vulnerabilites ?? [] } : { ...VIDE, type: typeInitial ?? 'personne' })
       setDoublons([])
     }
   }, [ouvert, cible, typeInitial])
@@ -73,8 +77,9 @@ export function CibleForm({ ouvert, fermer, cible, typeInitial, apresCreation }:
   async function enregistrer(e: FormEvent) {
     e.preventDefault()
     setEnvoi(true)
+    const { categorie: _c, zone: _z, referent: _r, ...propres } = v as Valeurs & Partial<Cible>
     const donnees = {
-      ...v,
+      ...propres,
       nom: v.nom.trim(),
       prenom: v.prenom?.trim() || null,
       telephone: v.telephone?.trim() || null,
@@ -121,8 +126,8 @@ export function CibleForm({ ouvert, fermer, cible, typeInitial, apresCreation }:
         ) : null}
         <form onSubmit={enregistrer} className="grid grid-cols-1 gap-4">
           {!cible ? (
-            <Champ label="Type">
-              <Pastilles<TypeCible> value={v.type} onChange={(t) => maj('type', t)} options={Object.entries(LIBELLES_TYPE_CIBLE) as [TypeCible, string][]} />
+            <Champ label="Nature" aide={AIDE_TYPE_CIBLE[v.type]}>
+              <Pastilles<TypeCible> value={v.type} onChange={(t) => setV((x) => ({ ...x, type: t, categorie_id: null }))} options={Object.entries(LIBELLES_TYPE_CIBLE) as [TypeCible, string][]} />
             </Champ>
           ) : null}
           {personne ? (
@@ -131,7 +136,19 @@ export function CibleForm({ ouvert, fermer, cible, typeInitial, apresCreation }:
               <Champ label="Nom"><Input required value={v.nom} onChange={(e) => maj('nom', e.target.value)} /></Champ>
             </div>
           ) : (
+            <>
+            <Champ label="Catégorie">
+              <Liste value={v.categorie_id ?? ''} onChange={(e) => maj('categorie_id', e.target.value ? Number(e.target.value) : null)}>
+                <option value="">— Choisir —</option>
+                {[...new Set(categories.filter((k) => k.type === v.type).map((k) => k.famille))].map((famille) => (
+                  <optgroup key={famille} label={famille}>
+                    {categories.filter((k) => k.type === v.type && k.famille === famille).map((k) => <option key={k.id} value={k.id}>{k.libelle}</option>)}
+                  </optgroup>
+                ))}
+              </Liste>
+            </Champ>
             <Champ label="Nom"><Input required value={v.nom} onChange={(e) => maj('nom', e.target.value)} placeholder="ASC Jappo, École Unité 15…" /></Champ>
+            </>
           )}
           <Champ label="Téléphone">
             <Input type="tel" inputMode="tel" value={v.telephone ?? ''} onChange={(e) => maj('telephone', e.target.value)} placeholder="77 123 45 67" />
@@ -144,15 +161,38 @@ export function CibleForm({ ouvert, fermer, cible, typeInitial, apresCreation }:
               <Champ label="Date de naissance">
                 <Input type="date" value={v.date_naissance ?? ''} onChange={(e) => maj('date_naissance', e.target.value)} />
               </Champ>
+              <Champ label="Situation" className="col-span-2">
+                <Liste value={v.situation ?? ''} onChange={(e) => maj('situation', (e.target.value || null) as SituationPersonne | null)}>
+                  <option value="">— Non précisée —</option>
+                  {Object.entries(LIBELLES_SITUATION_PERSONNE).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                </Liste>
+              </Champ>
+              <Champ label="Vulnérabilités (facultatif)" className="col-span-2">
+                <div className="flex flex-wrap gap-2">
+                  {(Object.entries(LIBELLES_VULNERABILITE) as [Vulnerabilite, string][]).map(([k, l]) => {
+                    const coche = v.vulnerabilites.includes(k)
+                    return (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => maj('vulnerabilites', coche ? v.vulnerabilites.filter((x) => x !== k) : [...v.vulnerabilites, k])}
+                        className={cn('rounded-full border px-3 py-1 text-xs', coche ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card')}
+                      >
+                        {coche ? '✓ ' : ''}{l}
+                      </button>
+                    )
+                  })}
+                </div>
+              </Champ>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <Champ label="Responsable / contact"><Input value={v.responsable ?? ''} onChange={(e) => maj('responsable', e.target.value)} /></Champ>
-              <Champ label="Effectif">
+              <Champ label="Effectif déclaré">
                 <Input type="number" min={0} inputMode="numeric" value={v.effectif ?? ''} onChange={(e) => maj('effectif', e.target.value ? Number(e.target.value) : null)} />
               </Champ>
               <Champ label="Précision" className="col-span-2">
-                <Input value={v.sous_type ?? ''} onChange={(e) => maj('sous_type', e.target.value)} placeholder="ASC de football, école élémentaire, GIE de couture…" />
+                <Input value={v.sous_type ?? ''} onChange={(e) => maj('sous_type', e.target.value)} placeholder="Football, couture, transformation de céréales…" />
               </Champ>
             </div>
           )}

@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { CibleForm } from '@/components/CibleForm'
 import { SuiviForm } from '@/components/SuiviForm'
+import { MembreDe, MembresCollectif } from '@/components/MembresCollectif'
 import { ouvrirJustificatif } from '@/components/ApportForm'
 import { Chargement, EnTete, Erreur } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
-import { date, echeance, fcfa, LIBELLES_NATURE, SITUATION, LIBELLES_STATUT_BENEFICIAIRE, LIBELLES_TYPE_CIBLE, nomCible } from '@/lib/format'
+import { date, echeance, fcfa, LIBELLES_NATURE, LIBELLES_SITUATION_PERSONNE, LIBELLES_STATUT_BENEFICIAIRE, LIBELLES_TYPE_CIBLE, LIBELLES_VULNERABILITE, nomCible, SITUATION, trancheAge } from '@/lib/format'
 import { useCible, useParcours } from '@/lib/requetes'
 import type { Suivi } from '@/lib/types'
 
@@ -25,14 +26,20 @@ export function CibleDetail() {
   if (error) return <Erreur erreur={error} />
   if (isLoading || !cible) return <Chargement />
   const total = parcours.flatMap((b) => b.apports ?? []).reduce((s, x) => s + (x.valeur_fcfa ?? 0), 0)
-  const age = cible.date_naissance ? Math.floor((Date.now() - new Date(cible.date_naissance).getTime()) / 31_557_600_000) : null
+  const age = trancheAge(cible.date_naissance)
 
   return (
     <>
       <Link to="/cibles" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground"><ArrowLeft className="size-4" /> Cibles</Link>
       <EnTete
         titre={nomCible(cible)}
-        sousTitre={<Badge variant="outline">{LIBELLES_TYPE_CIBLE[cible.type]}</Badge>}
+        sousTitre={
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            <Badge variant="outline">{cible.categorie?.libelle ?? LIBELLES_TYPE_CIBLE[cible.type]}</Badge>
+            {age ? <Badge variant="secondary">{age.tranche}</Badge> : null}
+            {cible.vulnerabilites?.map((v) => <Badge key={v} variant="secondary">{LIBELLES_VULNERABILITE[v]}</Badge>)}
+          </div>
+        }
         actions={a('admin', 'bureau', 'coordinateur') ? <Button variant="secondary" onClick={() => setEdition(true)}><Pencil className="size-4" /> Modifier</Button> : null}
       />
       <Card className="mb-6">
@@ -42,12 +49,13 @@ export function CibleDetail() {
           {cible.type === 'personne' ? (
             <>
               <Info label="Sexe" valeur={cible.sexe === 'F' ? 'Femme' : cible.sexe === 'M' ? 'Homme' : null} />
-              <Info label="Âge" valeur={age != null ? `${age} ans` : null} />
+              <Info label="Âge" valeur={age ? `${age.age} ans` : null} />
+              <Info label="Situation" valeur={cible.situation ? LIBELLES_SITUATION_PERSONNE[cible.situation] : null} />
             </>
           ) : (
             <>
               <Info label="Responsable" valeur={cible.responsable} />
-              <Info label="Effectif" valeur={cible.effectif} />
+              <Info label="Effectif déclaré" valeur={cible.effectif} />
               <Info label="Précision" valeur={cible.sous_type} />
             </>
           )}
@@ -55,6 +63,9 @@ export function CibleDetail() {
           {cible.notes ? <Info label="Notes" valeur={cible.notes} /> : null}
         </CardContent>
       </Card>
+
+      {cible.type === 'personne' ? <MembreDe personneId={cible.id} /> : null}
+      {cible.type === 'collectif' || cible.type === 'structure' ? <MembresCollectif collectif={cible} gere={suit} /> : null}
 
       <div className="mb-3 flex items-baseline justify-between">
         <h2 className="text-lg font-semibold">Parcours avec l'association</h2>

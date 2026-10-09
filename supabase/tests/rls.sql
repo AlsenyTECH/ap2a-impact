@@ -45,7 +45,7 @@ set role authenticated;
 select t.qui('inconnu@gmail.com');
 select t.ok((select count(*) from membres) = 0, 'inconnu : ne voit aucun membre');
 select t.ok((select count(*) from zones) = 0, 'inconnu : ne voit pas les référentiels');
-select t.refuse($$insert into cibles (type, nom) values ('groupe', 'GIE pirate')$$, 'inconnu : création de cible');
+select t.refuse($$insert into cibles (type, nom) values ('collectif', 'GIE pirate')$$, 'inconnu : création de cible');
 reset role;
 set role anon;
 select t.refuse($$select * from membres$$, 'anonyme : lecture des membres');
@@ -56,8 +56,17 @@ set role authenticated;
 select t.qui('coord@ap2a.sn');
 insert into cibles (type, nom, prenom, sexe, telephone, zone_id)
   values ('personne', 'Diop', 'Mamadou', 'M', '+221 77 000 11 22', (select id from zones where nom = 'Unité 17'));
-insert into cibles (type, nom, sous_type, effectif, prenom) values ('asc', 'ASC Jappo', 'football', 40, 'ignoré');
-select t.ok((select prenom from cibles where nom = 'ASC Jappo') is null, 'collectif : le prénom est effacé');
+insert into cibles (type, nom, sous_type, effectif, prenom, situation, categorie_id) values ('collectif', 'ASC Jappo', 'football', 40, 'ignoré', 'salarie', (select id from categories_cible where libelle like 'ASC%'));
+select t.ok((select prenom is null and situation is null from cibles where nom = 'ASC Jappo'), 'collectif : prénom et situation effacés');
+select t.refuse($$insert into cibles (type, nom, categorie_id) values ('lieu', 'X', (select id from categories_cible where libelle like 'ASC%'))$$, 'catégorie d''une autre nature');
+select t.refuse($$insert into cibles (type, nom, prenom, vulnerabilites) values ('personne', 'X', 'Y', '{inconnue}')$$, 'vulnérabilité hors liste');
+update cibles set situation = 'apprenti', vulnerabilites = '{orphelin}' where nom = 'Diop';
+select t.ok((select situation from cibles where nom = 'Diop') = 'apprenti', 'personne : situation et vulnérabilités');
+insert into appartenances (personne_id, collectif_id, role) values ((select id from cibles where nom = 'Diop'), (select id from cibles where nom = 'ASC Jappo'), 'trésorier');
+select t.ok((select count(*) from appartenances) = 1, 'coordinateur : ajoute un membre à l''ASC');
+select t.refuse($$insert into appartenances (personne_id, collectif_id) values ((select id from cibles where nom = 'ASC Jappo'), (select id from cibles where nom = 'Diop'))$$, 'un collectif membre d''une personne');
+select t.ok((select count(*) from categories_cible) > 30, 'référentiel des catégories lisible');
+select t.refuse($$insert into categories_cible (type, famille, libelle) values ('collectif', 'X', 'Y')$$, 'coordinateur : modifier les catégories');
 select t.ok((select cree_par from cibles where nom = 'Diop') = mon_membre_id(), 'coordinateur : auteur rempli automatiquement');
 select t.ok((select telephone_normalise from cibles where nom = 'Diop') = '770001122', 'téléphone normalisé à l''enregistrement');
 insert into actions (type_id, titre, date_debut, responsable_id)

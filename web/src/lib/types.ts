@@ -1,6 +1,10 @@
 // Types des tables (miroir de supabase/migrations).
 export type Role = 'admin' | 'bureau' | 'coordinateur' | 'membre'
-export type TypeCible = 'personne' | 'groupe' | 'asc' | 'etablissement' | 'organisation' | 'zone_sinistree'
+export type TypeCible = 'personne' | 'collectif' | 'structure' | 'lieu'
+export type SituationPersonne = 'eleve_etudiant' | 'apprenti' | 'recherche_emploi' | 'independant' | 'salarie' | 'au_foyer' | 'retraite' | 'sans_activite'
+export type Vulnerabilite = 'handicap' | 'maladie_chronique' | 'veuvage' | 'orphelin' | 'femme_chef_menage' | 'personne_agee_isolee' | 'sinistre'
+
+export interface CategorieCible { id: number; type: TypeCible; famille: string; libelle: string; ordre: number; actif: boolean }
 export type StatutAction = 'preparation' | 'en_cours' | 'terminee' | 'annulee'
 export type StatutBeneficiaire = 'inscrit' | 'termine' | 'abandon'
 export type NatureApport = 'formation' | 'certificat' | 'kit' | 'don' | 'soin' | 'financement' | 'autre'
@@ -50,6 +54,10 @@ export interface Cible {
   notes: string | null
   actif: boolean
   cree_le: string
+  categorie_id: number | null
+  situation: SituationPersonne | null
+  vulnerabilites: Vulnerabilite[]
+  categorie?: Pick<CategorieCible, 'libelle' | 'famille'> | null
   zone?: Pick<Zone, 'chemin' | 'nom'> | null
   referent?: Pick<Membre, 'prenom' | 'nom'> | null
 }

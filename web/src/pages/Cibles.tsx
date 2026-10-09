@@ -7,19 +7,21 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { CibleForm } from '@/components/CibleForm'
 import { ImportExcel } from '@/components/ImportExcel'
-import { Chargement, EnTete, Erreur, Pastilles } from '@/components/champs'
+import { Chargement, EnTete, Erreur, Liste, Pastilles } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
-import { LIBELLES_TYPE_CIBLE, nomCible } from '@/lib/format'
-import { useCibles } from '@/lib/requetes'
+import { LIBELLES_SITUATION_PERSONNE, LIBELLES_TYPE_CIBLE, nomCible } from '@/lib/format'
+import { useCategories, useCibles } from '@/lib/requetes'
 import type { TypeCible } from '@/lib/types'
 
 export function Cibles() {
   const { a } = useAuth()
   const [recherche, setRecherche] = useState('')
   const [type, setType] = useState<TypeCible | ''>('')
+  const [categorie, setCategorie] = useState<number | null>(null)
+  const { data: categories = [] } = useCategories()
   const [creation, setCreation] = useState(false)
   const [importer, setImporter] = useState(false)
-  const { data: cibles, isLoading, error } = useCibles(recherche, type)
+  const { data: cibles, isLoading, error } = useCibles(recherche, type, categorie)
   const peutCreer = a('admin', 'bureau', 'coordinateur')
 
   return (
@@ -41,9 +43,19 @@ export function Cibles() {
       <div className="mb-4">
         <Pastilles<TypeCible | ''>
           value={type}
-          onChange={(t) => setType(t === type ? '' : t)}
+          onChange={(t) => { setType(t === type ? '' : t); setCategorie(null) }}
           options={[['', 'Toutes'], ...(Object.entries(LIBELLES_TYPE_CIBLE) as [TypeCible, string][])]}
         />
+        {type && type !== 'personne' ? (
+          <Liste className="mt-2" value={categorie ?? ''} onChange={(e) => setCategorie(e.target.value ? Number(e.target.value) : null)}>
+            <option value="">Toutes les catégories</option>
+            {[...new Set(categories.filter((k) => k.type === type).map((k) => k.famille))].map((f) => (
+              <optgroup key={f} label={f}>
+                {categories.filter((k) => k.type === type && k.famille === f).map((k) => <option key={k.id} value={k.id}>{k.libelle}</option>)}
+              </optgroup>
+            ))}
+          </Liste>
+        ) : null}
       </div>
       {error ? <Erreur erreur={error} /> : isLoading ? <Chargement /> : !cibles?.length ? (
         <EmptyState icon={Target} title="Aucune cible" description={recherche ? 'Essayez une autre recherche.' : 'Ajoutez la première cible, ou importez une liste Excel.'} />
@@ -54,7 +66,7 @@ export function Cibles() {
               <div className="min-w-0">
                 <div className="truncate font-medium">{nomCible(c)}</div>
                 <div className="truncate text-xs text-muted-foreground">
-                  {[c.telephone, c.zone?.nom, c.sous_type].filter(Boolean).join(' · ') || '—'}
+                  {[c.categorie?.libelle, c.situation && LIBELLES_SITUATION_PERSONNE[c.situation], c.telephone, c.zone?.nom].filter(Boolean).join(' · ') || '—'}
                 </div>
               </div>
               <Badge variant="outline" className="shrink-0">{LIBELLES_TYPE_CIBLE[c.type]}</Badge>
