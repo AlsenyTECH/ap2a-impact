@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, ListChecks, Paperclip, Pencil } from 'lucide-react'
+import { ArrowLeft, ListChecks, MessageCircle, Paperclip, Pencil, Phone } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -8,9 +8,10 @@ import { CibleForm } from '@/components/CibleForm'
 import { SuiviForm } from '@/components/SuiviForm'
 import { MembreDe, MembresCollectif, SuiviMembres } from '@/components/MembresCollectif'
 import { ouvrirJustificatif } from '@/components/ApportForm'
-import { Chargement, EnTete, Erreur } from '@/components/champs'
+import { Chargement, Erreur } from '@/components/champs'
+import { Avatar } from '@/components/design'
 import { useAuth } from '@/lib/auth'
-import { date, echeance, fcfa, LIBELLES_NATURE, LIBELLES_STATUT_BENEFICIAIRE, nomCible, SITUATION, trancheAge } from '@/lib/format'
+import { date, echeance, fcfa, LIBELLES_NATURE, LIBELLES_STATUT_BENEFICIAIRE, lienWhatsApp, nomCible, SITUATION, trancheAge } from '@/lib/format'
 import { useCible, useParcours, useProfils } from '@/lib/requetes'
 import type { Suivi } from '@/lib/types'
 
@@ -29,34 +30,50 @@ export function CibleDetail() {
   if (isLoading || !cible) return <Chargement />
   const total = parcours.flatMap((b) => b.apports ?? []).reduce((s, x) => s + (x.valeur_fcfa ?? 0), 0)
   const age = trancheAge(cible.date_naissance)
+  // Situation la plus récente, tous suivis confondus.
+  const dernier = parcours.flatMap((b) => b.suivis ?? []).filter((x) => x.fait_le && x.situation)
+    .sort((x, y) => y.fait_le!.localeCompare(x.fait_le!))[0]
 
   return (
     <>
-      <Link to="/cibles" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground"><ArrowLeft className="size-4" /> Cibles</Link>
-      <EnTete
-        titre={nomCible(cible)}
-        sousTitre={
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            <Badge variant="outline">{cible.categorie?.famille?.nom} · {cible.categorie?.libelle}</Badge>
-            {age ? <Badge variant="secondary">{age.tranche}</Badge> : null}
-            {cible.vulnerabilites?.map((v) => <Badge key={v} variant="secondary">{profil(v)}</Badge>)}
+      <Link to="/cibles" className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Cibles</Link>
+      <Card className="mb-6 overflow-hidden">
+        <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center md:p-6">
+          <Avatar prenom={cible.prenom} nom={cible.nom} nature={cible.type} taille="lg" />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium text-muted-foreground">{cible.type === 'personne' || cible.type === 'menage' ? cible.categorie?.famille?.nom : `${cible.categorie?.famille?.nom} · ${cible.categorie?.libelle}`}</div>
+            <h1 className="mt-0.5 text-2xl font-semibold leading-tight md:text-[26px]">{nomCible(cible)}</h1>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {age ? <Badge variant="secondary">{age.tranche} · {age.age} ans</Badge> : null}
+              {dernier?.situation ? (
+                <Badge variant="outline"><span className="size-2 rounded-full" style={{ background: SITUATION[dernier.situation].couleur }} /> {SITUATION[dernier.situation].libelle}</Badge>
+              ) : null}
+              {cible.vulnerabilites?.map((v) => <Badge key={v} variant="warning">{profil(v)}</Badge>)}
+            </div>
           </div>
-        }
-        actions={a('admin', 'bureau', 'coordinateur') ? <Button variant="secondary" onClick={() => setEdition(true)}><Pencil className="size-4" /> Modifier</Button> : null}
-      />
-      <Card className="mb-6">
-        <CardContent className="grid grid-cols-1 gap-3 p-4 text-sm sm:grid-cols-2">
-          <Info label="Téléphone" valeur={cible.telephone ? <a className="text-primary" href={`tel:${cible.telephone}`}>{cible.telephone}</a> : null} />
-          <Info label="Zone" valeur={cible.zone?.chemin} />
+          <div className="flex flex-wrap gap-2 sm:flex-col sm:items-stretch">
+            {cible.telephone ? (
+              <div className="flex gap-2">
+                <Button asChild size="sm" variant="secondary"><a href={`tel:${cible.telephone}`}><Phone /> Appeler</a></Button>
+                <Button asChild size="sm" variant="secondary">
+                  <a target="_blank" rel="noreferrer" href={lienWhatsApp(cible.telephone, `Bonjour ${cible.prenom ?? ''}, c'est l'association AP2A.`)}><MessageCircle /> WhatsApp</a>
+                </Button>
+              </div>
+            ) : null}
+            {suit ? <Button size="sm" variant="secondary" onClick={() => setEdition(true)}><Pencil /> Modifier la fiche</Button> : null}
+          </div>
+        </div>
+        <dl className="grid grid-cols-2 gap-px border-t border-border/70 bg-border/70 md:grid-cols-4">
+          <Info label="Téléphone" valeur={cible.telephone} />
+          <Info label="Zone" valeur={cible.zone?.nom} />
           {cible.type === 'personne' ? (
             <>
-              <Info label="Sexe" valeur={cible.sexe === 'F' ? 'Femme' : cible.sexe === 'M' ? 'Homme' : null} />
-              <Info label="Âge" valeur={age ? `${age.age} ans` : null} />
               <Info label="Situation" valeur={profil(cible.situation_id)} />
               <Info label="Métier / domaine" valeur={cible.metier} />
+              <Info label="Sexe" valeur={cible.sexe === 'F' ? 'Femme' : cible.sexe === 'M' ? 'Homme' : null} />
             </>
           ) : cible.type === 'menage' ? (
-            <Info label="Taille du ménage" valeur={cible.effectif ? `${cible.effectif} personne(s)` : null} />
+            <Info label="Taille du ménage" valeur={cible.effectif ? `${cible.effectif} personnes` : null} />
           ) : cible.type === 'lieu' ? (
             <Info label="Précision" valeur={cible.sous_type} />
           ) : (
@@ -68,8 +85,9 @@ export function CibleDetail() {
           )}
           <Info label="Adresse / repère" valeur={cible.adresse} />
           <Info label="Référent du suivi" valeur={cible.referent ? `${cible.referent.prenom} ${cible.referent.nom}` : null} />
-          {cible.notes ? <Info label="Notes" valeur={cible.notes} /> : null}
-        </CardContent>
+          <Info label="Reçu de l'association" valeur={total ? fcfa(total) : null} />
+        </dl>
+        {cible.notes ? <p className="border-t border-border/70 px-5 py-3 text-sm text-muted-foreground md:px-6">{cible.notes}</p> : null}
       </Card>
 
       {cible.type === 'personne' ? <MembreDe personneId={cible.id} /> : null}
@@ -133,9 +151,9 @@ export function CibleDetail() {
 
 function Info({ label, valeur }: { label: string; valeur: ReactNode }) {
   return (
-    <div>
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div>{valeur ?? '—'}</div>
+    <div className="min-w-0 bg-card px-4 py-3 md:px-5">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="truncate text-sm font-medium">{valeur ?? '—'}</dd>
     </div>
   )
 }

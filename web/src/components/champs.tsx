@@ -2,6 +2,7 @@ import type { ReactNode, SelectHTMLAttributes } from 'react'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { useMembres, useZones } from '@/lib/requetes'
+import { Squelette } from '@/components/design'
 
 /** Libellé + champ, avec un texte d'aide optionnel. */
 export function Champ({ label, aide, children, className }: { label: string; aide?: string; children: ReactNode; className?: string }) {
@@ -19,7 +20,7 @@ export function Liste({ className, ...props }: SelectHTMLAttributes<HTMLSelectEl
   return (
     <select
       className={cn(
-        'flex h-10 w-full rounded-md border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'flex h-11 w-full rounded-lg border border-input bg-card px-3 text-[15px] transition-colors focus-visible:border-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15 sm:text-sm',
         className,
       )}
       {...props}
@@ -66,21 +67,25 @@ export function ListeMembres({ value, onChange, roles, vide = '— Aucun —' }:
 }
 
 /** Boutons à choix unique, plus rapides qu'une liste pour 2 à 6 options. */
-export function Pastilles<T extends string>({ options, value, onChange }: {
+export function Pastilles<T extends string>({ options, value, onChange, defilant }: {
   options: [T, string][]
   value: T | '' | null
   onChange: (v: T) => void
+  /** Sur une seule ligne qui défile (téléphone) plutôt que sur plusieurs. */
+  defilant?: boolean
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className={cn('flex gap-2', defilant ? 'w-max md:w-auto md:flex-wrap' : 'flex-wrap')}>
       {options.map(([v, libelle]) => (
         <button
           key={v}
           type="button"
           onClick={() => onChange(v)}
           className={cn(
-            'rounded-full border px-3 py-1.5 text-sm transition-colors',
-            value === v ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card hover:bg-accent',
+            'shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all active:scale-[0.97]',
+            value === v
+              ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+              : 'border-border bg-card text-foreground/80 hover:border-primary/40 hover:text-foreground',
           )}
         >
           {libelle}
@@ -91,12 +96,12 @@ export function Pastilles<T extends string>({ options, value, onChange }: {
 }
 
 export function Chargement() {
-  return <div className="py-12 text-center text-sm text-muted-foreground">Chargement…</div>
+  return <Squelette />
 }
 
 export function Erreur({ erreur }: { erreur: unknown }) {
   return (
-    <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+    <div className="rounded-xl border border-destructive/30 bg-[#fbe6e6] p-4 text-sm text-[#a32b2b]">
       {erreur instanceof Error ? erreur.message : 'Une erreur est survenue'}
     </div>
   )
@@ -104,10 +109,10 @@ export function Erreur({ erreur }: { erreur: unknown }) {
 
 export function EnTete({ titre, sousTitre, actions }: { titre: string; sousTitre?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3 md:mb-6">
       <div className="min-w-0">
-        <h1 className="text-xl font-bold md:text-2xl">{titre}</h1>
-        {sousTitre ? <div className="text-sm text-muted-foreground">{sousTitre}</div> : null}
+        <h1 className="text-2xl font-semibold tracking-tight md:text-[28px]">{titre}</h1>
+        {sousTitre ? <div className="mt-1 text-sm text-muted-foreground">{sousTitre}</div> : null}
       </div>
       {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
     </div>

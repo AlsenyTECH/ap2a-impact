@@ -1,19 +1,15 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarCheck, Plus } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { CalendarCheck, CalendarDays, MapPin, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ActionForm } from '@/components/ActionForm'
+import { Avatar, IconeType, StatutPastille } from '@/components/design'
 import { Chargement, EnTete, Erreur, Pastilles } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
 import { date, LIBELLES_STATUT_ACTION } from '@/lib/format'
 import { useActions } from '@/lib/requetes'
 import type { StatutAction } from '@/lib/types'
-
-export const COULEUR_STATUT: Record<StatutAction, 'secondary' | 'warning' | 'success' | 'outline'> = {
-  preparation: 'secondary', en_cours: 'warning', terminee: 'success', annulee: 'outline',
-}
 
 export function Actions() {
   const { a } = useAuth()
@@ -38,18 +34,34 @@ export function Actions() {
       {error ? <Erreur erreur={error} /> : isLoading ? <Chargement /> : !actions?.length ? (
         <EmptyState icon={CalendarCheck} title="Aucune action" />
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {actions.map((x) => (
-            <Link key={x.id} to={`/actions/${x.id}`} className="rounded-lg border border-border bg-card p-4 hover:border-primary/50">
-              <div className="flex items-start justify-between gap-2">
-                <div className="font-medium">{x.titre}</div>
-                <Badge variant={COULEUR_STATUT[x.statut]} className="shrink-0">{LIBELLES_STATUT_ACTION[x.statut]}</Badge>
+            <Link
+              key={x.id}
+              to={`/actions/${x.id}`}
+              className="group flex flex-col rounded-xl border border-border/80 bg-card p-4 shadow-carte transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-haute"
+            >
+              <div className="flex items-start gap-3">
+                <IconeType code={x.type?.code} />
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-medium text-muted-foreground">{x.type?.libelle}</div>
+                  <div className="mt-0.5 line-clamp-2 font-semibold leading-snug group-hover:text-primary">{x.titre}</div>
+                </div>
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {x.type?.libelle} · {date(x.date_debut)}{x.date_fin && x.date_fin !== x.date_debut ? ` → ${date(x.date_fin)}` : ''}
+              <div className="mb-4 mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5"><CalendarDays className="size-3.5" />
+                  {date(x.date_debut)}{x.date_fin && x.date_fin !== x.date_debut ? ` → ${date(x.date_fin)}` : ''}
+                </span>
+                {x.lieu || x.zone?.nom ? <span className="inline-flex min-w-0 items-center gap-1.5"><MapPin className="size-3.5 shrink-0" /><span className="truncate">{x.lieu || x.zone?.nom}</span></span> : null}
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {[x.lieu || x.zone?.nom, x.responsable && `Resp. ${x.responsable.prenom} ${x.responsable.nom}`].filter(Boolean).join(' · ')}
+              <div className="mt-auto flex items-center justify-between gap-2 border-t border-border/70 pt-3">
+                {x.responsable ? (
+                  <span className="inline-flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                    <Avatar prenom={x.responsable.prenom} nom={x.responsable.nom} taille="sm" className="size-6 text-[10px]" />
+                    <span className="truncate">{x.responsable.prenom} {x.responsable.nom}</span>
+                  </span>
+                ) : <span />}
+                <StatutPastille statut={x.statut} />
               </div>
             </Link>
           ))}

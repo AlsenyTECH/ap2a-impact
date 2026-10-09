@@ -61,3 +61,12 @@ Tests des règles d'accès (PostgreSQL local, Supabase imité) :
 ```sh
 PGHOST=... PGPORT=... PGUSER=postgres supabase/tests/lancer.sh
 ```
+
+## Données de démonstration
+
+`supabase/demo/donnees_demo.sql` (généré par `supabase/demo/generer.py`) charge un jeu
+fictif réaliste : membres, ménages, GPF, ASC, école, 10 actions, apports et suivis.
+Tout est inscrit dans la table `donnees_demo` ; l'administrateur l'efface depuis
+l'Accueil (« Effacer la démonstration »), sans toucher aux données réelles. La
+fonction d'effacement (`20261013000002_donnees_demo_2_effacer.sql`) s'installe à la
+main dans Supabase > SQL Editor, car elle contient des suppressions.

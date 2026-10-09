@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Chargement, Champ, EnTete, Erreur } from '@/components/champs'
+import { Avatar, Liste as Encadre } from '@/components/design'
 import { useAuth } from '@/lib/auth'
 import { usePartenaires } from '@/lib/requetes'
 import { messageErreur, supabase } from '@/lib/supabase'
@@ -27,16 +28,19 @@ export function Partenaires() {
         actions={gestion ? <Button onClick={() => setEdition('nouveau')}><Plus className="size-4" /> Nouveau</Button> : null}
       />
       {error ? <Erreur erreur={error} /> : isLoading ? <Chargement /> : (
-        <div className="divide-y divide-border rounded-lg border border-border bg-card">
+        <Encadre>
           {partenaires?.map((p) => (
-            <button key={p.id} disabled={!gestion} onClick={() => setEdition(p)} className="w-full px-4 py-3 text-left enabled:hover:bg-muted/50">
+            <button key={p.id} disabled={!gestion} onClick={() => setEdition(p)} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors enabled:hover:bg-muted/50">
+              <Avatar nom={p.sigle || p.nom} nature="structure" />
+              <div className="min-w-0 flex-1">
               <div className={p.actif ? 'font-medium' : 'font-medium text-muted-foreground line-through'}>
                 {p.sigle ? `${p.sigle} — ` : ''}{p.nom}
               </div>
-              <div className="text-xs text-muted-foreground">{[p.domaine, p.contact_nom, p.telephone].filter(Boolean).join(' · ') || '—'}</div>
+              <div className="truncate text-xs text-muted-foreground">{[p.domaine, p.contact_nom, p.telephone].filter(Boolean).join(' · ') || '—'}</div>
+              </div>
             </button>
           ))}
-        </div>
+        </Encadre>
       )}
       <PartenaireForm partenaire={edition} fermer={() => setEdition(null)} />
     </>

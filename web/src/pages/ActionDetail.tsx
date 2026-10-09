@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, FileSpreadsheet, Gift, Paperclip, Pencil, Plus, Trash2, UserPlus } from 'lucide-react'
+import { ArrowLeft, CalendarDays, FileSpreadsheet, Gift, MapPin, Paperclip, Pencil, Plus, Trash2, UserPlus, UserRound, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,13 +14,13 @@ import { ActionForm } from '@/components/ActionForm'
 import { ApportForm, ouvrirJustificatif } from '@/components/ApportForm'
 import { CibleForm } from '@/components/CibleForm'
 import { ImportExcel } from '@/components/ImportExcel'
-import { Chargement, EnTete, Erreur, Liste, ListeMembres } from '@/components/champs'
+import { Chargement, Erreur, Liste, ListeMembres } from '@/components/champs'
+import { Avatar, IconeType, StatutPastille } from '@/components/design'
 import { useAuth } from '@/lib/auth'
-import { date, fcfa, LIBELLES_NATURE, LIBELLES_STATUT_ACTION, LIBELLES_STATUT_BENEFICIAIRE, nomCible } from '@/lib/format'
+import { date, fcfa, LIBELLES_NATURE, LIBELLES_STATUT_BENEFICIAIRE, nomCible } from '@/lib/format'
 import { useAction, useCibles, usePartenaires, useTypesAction } from '@/lib/requetes'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 import type { Beneficiaire, Cible, Membre, RolePartenaire, StatutAction, StatutBeneficiaire } from '@/lib/types'
-import { COULEUR_STATUT } from './Actions'
 
 const SUITE: Partial<Record<StatutAction, [StatutAction, string][]>> = {
   preparation: [['en_cours', "Démarrer l'action"], ['annulee', 'Annuler']],
@@ -68,33 +68,50 @@ export function ActionDetail() {
 
   return (
     <>
-      <Link to="/actions" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground"><ArrowLeft className="size-4" /> Actions</Link>
-      <EnTete
-        titre={action.titre}
-        sousTitre={
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <Badge variant={COULEUR_STATUT[action.statut]}>{LIBELLES_STATUT_ACTION[action.statut]}</Badge>
-            <span>{action.type?.libelle} · {date(action.date_debut)}{action.date_fin && action.date_fin !== action.date_debut ? ` → ${date(action.date_fin)}` : ''}</span>
+      <Link to="/actions" className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Actions</Link>
+      <Card className="mb-6 overflow-hidden">
+        <div className="flex flex-col gap-4 p-5 md:flex-row md:items-start md:p-6">
+          <IconeType code={action.type?.code} className="size-12 [&_svg]:size-6" />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground">{action.type?.libelle}</span>
+              <StatutPastille statut={action.statut} />
+            </div>
+            <h1 className="mt-1 text-2xl font-semibold leading-tight md:text-[26px]">{action.titre}</h1>
+            {action.description ? <p className="mt-2 max-w-3xl whitespace-pre-line text-sm text-muted-foreground">{action.description}</p> : null}
           </div>
-        }
-        actions={gere ? (
-          <>
-            {SUITE[action.statut]?.map(([s, libelle]) => (
-              <Button key={s} variant={s === 'annulee' ? 'ghost' : 'default'} size="sm" onClick={() => changerStatut(s)}>{libelle}</Button>
-            ))}
-            <Button variant="secondary" size="sm" onClick={() => setEdition(true)}><Pencil className="size-4" /></Button>
-          </>
-        ) : null}
-      />
-      <div className="mb-4 grid grid-cols-1 gap-1 text-sm text-muted-foreground sm:grid-cols-3">
-        <span>Lieu : <b className="text-foreground">{action.lieu || action.zone?.chemin || '—'}</b></span>
-        <span>Responsable : <b className="text-foreground">{action.responsable ? `${action.responsable.prenom} ${action.responsable.nom}` : '—'}</b></span>
-        <span>Budget : <b className="text-foreground">{fcfa(action.budget_fcfa)}</b></span>
-      </div>
-      {action.description ? <p className="mb-4 whitespace-pre-line text-sm">{action.description}</p> : null}
+          {gere ? (
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              {SUITE[action.statut]?.map(([s, libelle]) => (
+                <Button key={s} variant={s === 'annulee' ? 'ghost' : 'default'} size="sm" onClick={() => changerStatut(s)}>{libelle}</Button>
+              ))}
+              <Button variant="secondary" size="sm" onClick={() => setEdition(true)}><Pencil /> Modifier</Button>
+            </div>
+          ) : null}
+        </div>
+        <dl className="grid grid-cols-2 border-t border-border/70 bg-muted/30 md:grid-cols-4">
+          {[
+            [CalendarDays, 'Dates', `${date(action.date_debut)}${action.date_fin && action.date_fin !== action.date_debut ? ` → ${date(action.date_fin)}` : ''}`],
+            [MapPin, 'Lieu', action.lieu || action.zone?.nom || '—'],
+            [UserRound, 'Responsable', action.responsable ? `${action.responsable.prenom} ${action.responsable.nom}` : '—'],
+            [Wallet, 'Budget', fcfa(action.budget_fcfa)],
+          ].map(([Icone, libelle, valeur], i) => {
+            const I = Icone as typeof MapPin
+            return (
+              <div key={i} className={`flex gap-2.5 p-4 ${i % 2 ? '' : 'border-r'} border-border/70 md:border-r ${i === 3 ? 'md:border-r-0' : ''} ${i < 2 ? 'border-b md:border-b-0' : ''}`}>
+                <I className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0">
+                  <dt className="text-xs text-muted-foreground">{libelle as string}</dt>
+                  <dd className="text-sm font-medium leading-snug">{valeur as string}</dd>
+                </div>
+              </div>
+            )
+          })}
+        </dl>
+      </Card>
 
       <Tabs defaultValue={voitBeneficiaires ? 'beneficiaires' : 'equipe'}>
-        <TabsList className="mb-4 w-full justify-start overflow-x-auto">
+        <TabsList className="mb-4">
           {voitBeneficiaires ? <TabsTrigger value="beneficiaires">Bénéficiaires</TabsTrigger> : null}
           <TabsTrigger value="equipe">Équipe ({equipe.length})</TabsTrigger>
           <TabsTrigger value="partenaires">Partenaires ({partenairesAction.length})</TabsTrigger>
@@ -209,11 +226,10 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
         </div>
       ) : null}
 
-      <div className="mb-2 flex items-center justify-between text-sm text-muted-foreground">
-        <span>{liste.length} bénéficiaire(s)</span>
-        {total ? <span>Valeur remise : <b className="text-foreground">{fcfa(total)}</b></span> : null}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm text-muted-foreground">
+        <span><b className="text-foreground">{liste.length}</b> bénéficiaire{liste.length > 1 ? 's' : ''}{total ? <> · <b className="text-foreground">{fcfa(total)}</b> remis</> : null}</span>
         {gere && liste.length ? (
-          <button className="text-primary" onClick={() => setSelection(selection.length === liste.length ? [] : liste.map((b) => b.id))}>
+          <button className="font-medium text-primary" onClick={() => setSelection(selection.length === liste.length ? [] : liste.map((b) => b.id))}>
             {selection.length === liste.length ? 'Tout désélectionner' : 'Tout sélectionner'}
           </button>
         ) : null}
@@ -229,6 +245,7 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
               <CardContent className="space-y-2 p-3">
                 <div className="flex items-center gap-3">
                   {gere ? <Checkbox checked={selection.includes(b.id)} onCheckedChange={() => basculer(b.id)} /> : null}
+                  {b.cible ? <Avatar prenom={b.cible.prenom} nom={b.cible.nom} nature={b.cible.type} taille="sm" /> : null}
                   <Link to={`/cibles/${b.cible_id}`} className="min-w-0 flex-1 truncate font-medium">
                     {b.cible ? nomCible(b.cible) : '—'}
                     {b.via ? <span className="block truncate text-xs font-normal text-muted-foreground">avec {b.via.nom}</span> : null}

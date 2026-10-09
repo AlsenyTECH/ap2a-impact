@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SuiviForm } from '@/components/SuiviForm'
+import { Avatar } from '@/components/design'
 import { Chargement, EnTete, Erreur, Pastilles } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
 import { aujourdhui, date, echeance, lienWhatsApp, nomCible, SITUATION } from '@/lib/format'
@@ -62,14 +63,15 @@ export function Suivis() {
       {error ? <Erreur erreur={error} /> : isLoading ? <Chargement /> : !suivis?.length ? (
         <EmptyState icon={CheckCircle2} title={vue === 'faits' ? 'Aucun suivi fait pour l\'instant' : 'Rien à faire pour le moment'} description={vue === 'faits' ? undefined : 'Les suivis apparaissent ici quand leur date approche (30 jours avant).'} />
       ) : (
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {suivis.map((s) => {
             const nom = nomCible({ prenom: s.cible_prenom, nom: s.cible_nom })
             const j = jours(s.date_prevue)
             return (
-              <div key={s.id} className="rounded-lg border border-border bg-card p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
+              <div key={s.id} className="rounded-xl border border-border/80 bg-card p-4 shadow-carte">
+                <div className="flex items-start gap-3">
+                  <Avatar prenom={s.cible_prenom} nom={s.cible_nom} nature={s.cible_type} />
+                  <div className="min-w-0 flex-1">
                     <Link to={`/cibles/${s.cible_id}`} className="font-medium">{nom}</Link>
                     <div className="truncate text-xs text-muted-foreground">
                       {echeance(s.echeance_mois)} · <Link to={`/actions/${s.action_id}`}>{s.action_titre}</Link>
@@ -87,11 +89,11 @@ export function Suivis() {
                   )}
                 </div>
                 {s.fait_le ? (
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-2 text-sm text-muted-foreground sm:pl-[52px]">
                     {date(s.fait_le)}{s.activite ? ` · ${s.activite}` : ''}{s.commentaire ? ` · ${s.commentaire}` : ''}
                   </p>
                 ) : null}
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-2 sm:pl-[52px]">
                   {s.cible_telephone && !s.fait_le ? (
                     <>
                       <Button asChild size="sm" variant="secondary"><a href={`tel:${s.cible_telephone}`}><Phone className="size-4" /> Appeler</a></Button>

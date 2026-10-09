@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Champ, Pastilles } from '@/components/champs'
+import { Champ } from '@/components/champs'
 import { messageErreur, supabase } from '@/lib/supabase'
 import logo from '@/assets/logo_AP2A.jpeg'
 
@@ -46,29 +46,66 @@ export function Connexion() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
-        <CardContent className="space-y-5 p-6">
-          <div className="flex flex-col items-center gap-2 text-center">
-            <img src={logo} alt="AP2A" className="h-20 object-contain" />
-            <p className="text-sm text-muted-foreground">Actions et suivi de l'association</p>
+    <div className="grid min-h-dvh bg-background lg:grid-cols-[1.1fr_1fr]">
+      {/* Présentation (ordinateur) */}
+      <div className="relative hidden overflow-hidden bg-gradient-to-br from-[#0b7a57] via-[#0a5f45] to-[#0c2a20] p-12 text-white lg:flex lg:flex-col lg:justify-between">
+        <svg aria-hidden className="absolute -bottom-24 -right-24 size-[28rem] opacity-[0.07]" viewBox="0 0 200 200">
+          <circle cx="100" cy="100" r="90" fill="none" stroke="white" strokeWidth="14" />
+          <circle cx="100" cy="100" r="58" fill="none" stroke="white" strokeWidth="14" />
+          <circle cx="100" cy="100" r="26" fill="none" stroke="white" strokeWidth="14" />
+        </svg>
+        <div className="relative flex items-center gap-3">
+          <img src={logo} alt="" className="h-12 w-16 rounded-lg bg-white object-contain p-1" />
+          <div className="font-heading text-xl font-semibold">AP2A</div>
+        </div>
+        <div className="relative max-w-md">
+          <h1 className="text-4xl font-semibold leading-tight text-white">Agir pour les Parcelles,<br />et savoir ce que ça change.</h1>
+          <ul className="mt-8 space-y-4 text-white/85">
+            {[
+              ['Organiser', 'cibles, actions, équipes et partenaires au même endroit'],
+              ['Suivre', 'ce que deviennent les jeunes formés, les familles aidées'],
+              ['Montrer', "l'impact réel de l'association aux membres et aux financeurs"],
+            ].map(([titre, texte]) => (
+              <li key={titre} className="flex gap-3">
+                <span className="mt-1 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-or text-[11px] font-bold text-[#3d2c00]">✓</span>
+                <span><b className="font-semibold text-white">{titre}</b> {texte}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <p className="relative text-sm text-white/60">Association Parcelles Assainies en Action — Dakar</p>
+      </div>
+
+      {/* Formulaire */}
+      <div className="flex items-center justify-center p-5 sm:p-10">
+        <div className="w-full max-w-sm">
+          <div className="mb-8 flex flex-col items-center text-center lg:hidden">
+            <img src={logo} alt="AP2A" className="h-20 rounded-xl bg-white object-contain p-2 shadow-carte" />
           </div>
-          <Pastilles<Mode>
-            value={mode}
-            onChange={setMode}
-            options={[['connexion', 'Se connecter'], ['activation', 'Première connexion']]}
-          />
-          {mode === 'activation' ? (
-            <p className="rounded-md bg-accent p-3 text-xs text-accent-foreground">
-              Utilisez l'adresse email que le bureau a enregistrée sur votre fiche de membre, puis choisissez votre mot de passe.
-            </p>
+          <h2 className="text-2xl font-semibold">{mode === 'oubli' ? 'Mot de passe oublié' : mode === 'activation' ? 'Activer mon accès' : 'Bon retour parmi nous'}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {mode === 'oubli' ? 'Recevez un lien pour choisir un nouveau mot de passe.' : mode === 'activation' ? "Votre fiche de membre doit déjà exister, avec cette adresse email." : 'Connectez-vous pour accéder aux actions et aux suivis.'}
+          </p>
+          {mode !== 'oubli' ? (
+            <div className="mt-6 grid grid-cols-2 rounded-xl bg-muted p-1">
+              {([['connexion', 'Se connecter'], ['activation', 'Première connexion']] as [Mode, string][]).map(([m, libelle]) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMode(m)}
+                  className={`h-9 rounded-lg text-sm font-semibold transition-all ${mode === m ? 'bg-card text-foreground shadow-carte' : 'text-muted-foreground'}`}
+                >
+                  {libelle}
+                </button>
+              ))}
+            </div>
           ) : null}
-          <form onSubmit={valider} className="space-y-4">
+          <form onSubmit={valider} className="mt-6 space-y-4">
             <Champ label="Email">
-              <Input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="prenom@exemple.sn" />
             </Champ>
             {mode !== 'oubli' ? (
-              <Champ label={mode === 'activation' ? 'Choisissez un mot de passe (8 caractères au moins)' : 'Mot de passe'}>
+              <Champ label={mode === 'activation' ? 'Choisissez un mot de passe' : 'Mot de passe'} aide={mode === 'activation' ? '8 caractères au moins' : undefined}>
                 <Input
                   type="password"
                   required
@@ -79,19 +116,19 @@ export function Connexion() {
                 />
               </Champ>
             ) : null}
-            <Button type="submit" className="w-full" disabled={envoi}>
-              {mode === 'connexion' ? 'Se connecter' : mode === 'activation' ? 'Activer mon accès' : 'Recevoir un lien'}
+            <Button type="submit" size="lg" className="w-full" disabled={envoi}>
+              {envoi ? 'Patientez…' : mode === 'connexion' ? 'Se connecter' : mode === 'activation' ? 'Activer mon accès' : 'Recevoir un lien'}
             </Button>
           </form>
           <button
             type="button"
-            className="w-full text-center text-xs text-muted-foreground underline"
+            className="mt-5 w-full text-center text-sm font-medium text-primary hover:underline"
             onClick={() => setMode(mode === 'oubli' ? 'connexion' : 'oubli')}
           >
-            {mode === 'oubli' ? 'Retour à la connexion' : 'Mot de passe oublié ?'}
+            {mode === 'oubli' ? '← Retour à la connexion' : 'Mot de passe oublié ?'}
           </button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

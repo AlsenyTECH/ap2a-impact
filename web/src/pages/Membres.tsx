@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Chargement, Champ, EnTete, Erreur, Pastilles } from '@/components/champs'
+import { Avatar, Liste as Encadre } from '@/components/design'
 import { useAuth } from '@/lib/auth'
 import { LIBELLES_ROLE } from '@/lib/format'
 import { useMembres } from '@/lib/requetes'
@@ -32,15 +33,16 @@ export function Membres() {
       />
       <Input className="mb-4" placeholder="Rechercher…" value={recherche} onChange={(e) => setRecherche(e.target.value)} />
       {error ? <Erreur erreur={error} /> : isLoading ? <Chargement /> : (
-        <div className="divide-y divide-border rounded-lg border border-border bg-card">
+        <Encadre>
           {liste.map((m) => (
             <button
               key={m.id}
               disabled={!gestion}
               onClick={() => setEdition(m)}
-              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left enabled:hover:bg-muted/50"
+              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors enabled:hover:bg-muted/50"
             >
-              <div className="min-w-0">
+              <Avatar prenom={m.prenom} nom={m.nom} />
+              <div className="min-w-0 flex-1">
                 <div className={m.actif ? 'font-medium' : 'font-medium text-muted-foreground line-through'}>{m.prenom} {m.nom}</div>
                 <div className="truncate text-xs text-muted-foreground">
                   {[m.numero_adherent, m.fonction, m.telephone].filter(Boolean).join(' · ')}
@@ -52,7 +54,7 @@ export function Membres() {
               </div>
             </button>
           ))}
-        </div>
+        </Encadre>
       )}
       <MembreForm membre={edition} fermer={() => setEdition(null)} />
     </>
