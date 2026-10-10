@@ -148,7 +148,13 @@
   .sans-barre::-webkit-scrollbar { display: none; }
 }
 
+/* Impression des rapports : A4, couleurs conservées, rien que le rapport. */
+@page { size: A4; margin: 12mm; }
 @media print {
   aside, header, nav, .no-print { display: none !important; }
-  body { background: #fff !important; }
+  html, body { background: #fff !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rapport { box-shadow: none !important; border: 0 !important; margin: 0 !important; padding: 0 !important; max-width: none !important; }
+  .rapport section { break-inside: avoid; }
+  .rapport tr { break-inside: avoid; }
 }

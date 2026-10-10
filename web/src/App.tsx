@@ -14,6 +14,8 @@ import { Partenaires } from '@/pages/Partenaires'
 import { Suivis } from '@/pages/Suivis'
 import { Impact } from '@/pages/Impact'
 import { Categories } from '@/pages/Categories'
+import { RapportAction } from '@/pages/RapportAction'
+import { RapportAnnuel } from '@/pages/RapportAnnuel'
 
 export function App() {
   const { session, membre, chargement, deconnecter } = useAuth()
@@ -29,6 +31,9 @@ export function App() {
 
   return (
     <Routes>
+      {/* Rapports : pleine page, sans menu, prêts à imprimer */}
+      <Route path="actions/:id/rapport" element={<RapportAction />} />
+      <Route path="rapport" element={<RapportAnnuel />} />
       <Route element={<Layout />}>
         <Route index element={<Accueil />} />
         <Route path="cibles" element={<Cibles />} />

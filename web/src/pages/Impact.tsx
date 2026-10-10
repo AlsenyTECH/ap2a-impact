@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { BarChart3 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { BarChart3, FileSpreadsheet, FileText } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { exporterExcel } from '@/lib/export'
 import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Chargement, EnTete, Erreur, Liste, Pastilles } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
-import { fcfa, SITUATIONS } from '@/lib/format'
+import { echeance, fcfa, nomCible, SITUATION, SITUATIONS } from '@/lib/format'
 import { useTypesAction } from '@/lib/requetes'
 import { supabase, verifier } from '@/lib/supabase'
-import type { Situation } from '@/lib/types'
+import type { Situation, SuiviDetail } from '@/lib/types'
 
 interface LigneBenef { id: string; action: { type_id: number; statut: string; date_debut: string }; cible: { categorie: { famille: { nom: string } | null } | null } | null }
 interface LigneSuivi { beneficiaire_id: string; fait_le: string; situation: Situation; emplois_crees: number | null; revenu_mensuel_fcfa: number | null; utilise_apport: boolean | null }
@@ -99,17 +102,41 @@ export function Impact() {
   const actifs = total.situations.reussi + total.situations.en_progres
   const revenuMedian = mediane(total.revenus)
 
+  async function exporterSuivis() {
+    const lignes = verifier(await supabase.from('suivis_detail').select('*').order('date_prevue')) as SuiviDetail[]
+    await exporterExcel(`suivis-ap2a-${new Date().toISOString().slice(0, 10)}`, lignes, [
+      { titre: 'Bénéficiaire', valeur: (s) => nomCible({ prenom: s.cible_prenom, nom: s.cible_nom }), largeur: 26 },
+      { titre: 'Téléphone', valeur: (s) => s.cible_telephone, largeur: 16 },
+      { titre: 'Action', valeur: (s) => s.action_titre, largeur: 36 },
+      { titre: 'Échéance', valeur: (s) => echeance(s.echeance_mois), largeur: 14 },
+      { titre: 'Prévu le', valeur: (s) => s.date_prevue },
+      { titre: 'Fait le', valeur: (s) => s.fait_le },
+      { titre: 'Situation', valeur: (s) => (s.situation ? SITUATION[s.situation].libelle : null), largeur: 15 },
+      { titre: 'Activité', valeur: (s) => s.activite, largeur: 32 },
+      { titre: 'Revenu mensuel (FCFA)', valeur: (s) => s.revenu_mensuel_fcfa, format: '#,##0', largeur: 18 },
+      { titre: 'Emplois créés', valeur: (s) => s.emplois_crees },
+      { titre: 'Utilise le matériel', valeur: (s) => (s.utilise_apport == null ? null : s.utilise_apport ? 'Oui' : 'Non') },
+      { titre: 'Commentaire', valeur: (s) => s.commentaire, largeur: 36 },
+    ], 'Suivis')
+  }
+
   return (
     <>
       <EnTete
         titre="Impact"
         sousTitre="Ce que sont devenus les bénéficiaires, d'après leur dernier suivi"
-        actions={annees.length > 1 ? (
-          <Liste className="w-auto" value={annee} onChange={(e) => setAnnee(e.target.value)} aria-label="Année des actions">
-            <option value="">Toutes les années</option>
-            {annees.map((x) => <option key={x} value={x}>Actions de {x}</option>)}
-          </Liste>
-        ) : null}
+        actions={
+          <>
+            {annees.length > 1 ? (
+              <Liste className="w-auto" value={annee} onChange={(e) => setAnnee(e.target.value)} aria-label="Année des actions">
+                <option value="">Toutes les années</option>
+                {annees.map((x) => <option key={x} value={x}>Actions de {x}</option>)}
+              </Liste>
+            ) : null}
+            <Button variant="secondary" onClick={exporterSuivis}><FileSpreadsheet /> Suivis</Button>
+            <Button asChild><Link to={`/rapport?annee=${annee || new Date().getFullYear()}`}><FileText /> Bilan annuel</Link></Button>
+          </>
+        }
       />
 
       {!total.beneficiaires ? (

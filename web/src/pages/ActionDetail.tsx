@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, CalendarDays, FileSpreadsheet, Gift, MapPin, Paperclip, Pencil, Plus, Trash2, UserPlus, UserRound, Wallet } from 'lucide-react'
+import { ArrowLeft, CalendarDays, FileSpreadsheet, FileText, Gift, MapPin, Paperclip, Pencil, Plus, Trash2, UserPlus, UserRound, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -86,7 +86,10 @@ export function ActionDetail() {
                 <Button key={s} variant={s === 'annulee' ? 'ghost' : 'default'} size="sm" onClick={() => changerStatut(s)}>{libelle}</Button>
               ))}
               <Button variant="secondary" size="sm" onClick={() => setEdition(true)}><Pencil /> Modifier</Button>
+              <Button asChild variant="secondary" size="sm"><Link to={`/actions/${id}/rapport`}><FileText /> Rapport</Link></Button>
             </div>
+          ) : voitBeneficiaires ? (
+            <Button asChild variant="secondary" size="sm"><Link to={`/actions/${id}/rapport`}><FileText /> Rapport</Link></Button>
           ) : null}
         </div>
         <dl className="grid grid-cols-2 border-t border-border/70 bg-muted/30 md:grid-cols-4">

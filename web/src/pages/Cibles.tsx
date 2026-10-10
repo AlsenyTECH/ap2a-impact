@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { FileSpreadsheet, Plus, Search, Target } from 'lucide-react'
+import { FileSpreadsheet, Plus, Search, Target, Upload } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -10,7 +10,8 @@ import { ImportExcel } from '@/components/ImportExcel'
 import { Chargement, EnTete, Erreur, Liste, Pastilles } from '@/components/champs'
 import { Avatar, Liste as Encadre } from '@/components/design'
 import { useAuth } from '@/lib/auth'
-import { nomCible } from '@/lib/format'
+import { nomCible, trancheAge } from '@/lib/format'
+import { exporterExcel } from '@/lib/export'
 import { useCategories, useCibles, useFamilles, useProfils } from '@/lib/requetes'
 
 export function Cibles() {
@@ -27,6 +28,26 @@ export function Cibles() {
   const filtre = categorie ? [categorie] : famille ? dansFamille.map((k) => k.id) : null
   const { data: cibles, isLoading, error } = useCibles(recherche, '', filtre)
   const situation = (id: number | null) => profils.find((p) => p.id === id)?.libelle
+
+  // Exporte la liste affichée (recherche et filtres compris).
+  async function exporter() {
+    await exporterExcel(`cibles-ap2a-${new Date().toISOString().slice(0, 10)}`, cibles ?? [], [
+      { titre: 'Famille', valeur: (c) => c.categorie?.famille?.nom, largeur: 20 },
+      { titre: 'Catégorie', valeur: (c) => c.categorie?.libelle, largeur: 24 },
+      { titre: 'Nom', valeur: (c) => nomCible(c), largeur: 28 },
+      { titre: 'Sexe', valeur: (c) => c.sexe },
+      { titre: 'Âge', valeur: (c) => trancheAge(c.date_naissance)?.age },
+      { titre: 'Situation', valeur: (c) => situation(c.situation_id), largeur: 22 },
+      { titre: 'Métier', valeur: (c) => c.metier, largeur: 16 },
+      { titre: 'Vulnérabilités', valeur: (c) => c.vulnerabilites.map((v) => profils.find((p) => p.id === v)?.libelle).filter(Boolean).join(', '), largeur: 24 },
+      { titre: 'Téléphone', valeur: (c) => c.telephone, largeur: 16 },
+      { titre: 'Zone', valeur: (c) => c.zone?.nom },
+      { titre: 'Adresse', valeur: (c) => c.adresse, largeur: 24 },
+      { titre: 'Effectif', valeur: (c) => c.effectif },
+      { titre: 'Responsable', valeur: (c) => c.responsable, largeur: 20 },
+      { titre: 'Référent du suivi', valeur: (c) => (c.referent ? `${c.referent.prenom} ${c.referent.nom}` : null), largeur: 20 },
+    ], 'Cibles')
+  }
   const peutCreer = a('admin', 'bureau', 'coordinateur')
 
   return (
@@ -36,7 +57,8 @@ export function Cibles() {
         sousTitre="Personnes et collectifs accompagnés par l'association"
         actions={peutCreer ? (
           <>
-            <Button variant="secondary" onClick={() => setImporter(true)}><FileSpreadsheet className="size-4" /> Excel</Button>
+            <Button variant="secondary" onClick={() => setImporter(true)}><Upload className="size-4" /> Importer</Button>
+            <Button variant="secondary" onClick={exporter} disabled={!cibles?.length}><FileSpreadsheet className="size-4" /> Exporter</Button>
             <Button onClick={() => setCreation(true)}><Plus className="size-4" /> Nouvelle</Button>
           </>
         ) : null}
