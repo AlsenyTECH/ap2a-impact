@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase, verifier } from './supabase'
-import { normaliser } from './recherche'
+import { normaliser, trier } from './recherche'
 import type { Action, Beneficiaire, CategorieCible, Cible, FamilleCible, Membre, Partenaire, ProfilPersonne, TypeAction, Zone } from './types'
 
 // Référentiels : changent rarement, gardés en cache 10 minutes.
@@ -58,9 +58,9 @@ export const useMembres = () =>
 
 const CHAMPS_CIBLE = '*, zone:zones(chemin, nom), referent:membres!cibles_referent_id_fkey(prenom, nom, numero_adherent), categorie:categories_cible(libelle, famille:familles_cible(nom))'
 
-export type TriCibles = 'recentes' | 'nom' | 'prenom' | 'jeunes' | 'ages' | 'groupe'
+export type TriCibles = 'recentes' | 'anciennes' | 'nom' | 'prenom' | 'jeunes' | 'ages' | 'groupe'
 const ORDRES: Record<TriCibles, [string, boolean]> = {
-  recentes: ['cree_le', false], nom: ['nom', true], prenom: ['prenom', true],
+  recentes: ['cree_le', false], anciennes: ['cree_le', true], nom: ['nom', true], prenom: ['prenom', true],
   jeunes: ['date_naissance', false], ages: ['date_naissance', true], groupe: ['groupes', true],
 }
 
@@ -69,20 +69,28 @@ const ORDRES: Record<TriCibles, [string, boolean]> = {
  * La recherche porte sur le nom, le prénom, le téléphone, le métier et les
  * groupes (un membre du « GPF Jigeen » se trouve en tapant « jigeen »).
  */
-export const useCibles = (recherche: string, type: string, categories?: number[] | null, tri: TriCibles = 'recentes') =>
+export const useCibles = (recherche: string, type: string, categories?: number[] | null, tri: TriCibles = 'recentes', ids?: string[] | null) =>
   useQuery({
-    queryKey: ['cibles', recherche, type, categories, tri],
+    queryKey: ['cibles', recherche, type, categories, tri, ids],
     queryFn: async () => {
       const [colonne, croissant] = ORDRES[tri]
-      let q = supabase.from('cibles').select(CHAMPS_CIBLE).order(colonne, { ascending: croissant, nullsFirst: false }).order('nom').limit(300)
-      if (type) q = q.eq('type', type)
-      if (categories) q = q.in('categorie_id', categories)
       // Un numéro tapé avec des espaces (« 77 123 45 ») est cherché en chiffres ;
       // sinon chaque mot doit apparaître (sans accents ni majuscules).
       const telephone = /^[\d\s+]+$/.test(recherche.trim()) ? recherche.replace(/\D/g, '').replace(/^(00)?221(?=\d{9}$)/, '') : ''
       const mots = telephone ? [telephone] : normaliser(recherche).replace(/[%_,()]/g, ' ').split(/\s+/).filter(Boolean)
-      for (const mot of mots) q = q.like('recherche', `%${mot}%`)
-      return verifier(await q) as Cible[]
+      const requete = (lot?: string[]) => {
+        let q = supabase.from('cibles').select(CHAMPS_CIBLE).order(colonne, { ascending: croissant, nullsFirst: false }).order('nom').limit(300)
+        if (type) q = q.eq('type', type)
+        if (categories) q = q.in('categorie_id', categories)
+        if (lot) q = q.in('id', lot)
+        for (const mot of mots) q = q.like('recherche', `%${mot}%`)
+        return q
+      }
+      if (!ids) return verifier(await requete()) as Cible[]
+      // Personnes d'un import : lues par lots de 100 (longueur d'adresse), puis triées.
+      const lots = Array.from({ length: Math.ceil(ids.length / 100) }, (_, i) => ids.slice(i * 100, i * 100 + 100))
+      const toutes = (await Promise.all(lots.map(async (lot) => verifier(await requete(lot)) as Cible[]))).flat()
+      return trier(toutes, (c) => (c as unknown as Record<string, string | number | null>)[colonne], croissant ? 'asc' : 'desc')
     },
   })
 
@@ -106,7 +114,7 @@ export const useParcours = (cibleId: string) =>
       ) as Beneficiaire[],
   })
 
-const CHAMPS_ACTION = '*, type:types_action(libelle, code), responsable:membres!actions_responsable_id_fkey(prenom, nom, numero_adherent), zone:zones(chemin, nom)'
+const CHAMPS_ACTION = '*, type:types_action(libelle, code), responsable:membres!actions_responsable_id_fkey(prenom, nom, numero_adherent), zone:zones(chemin, nom), seances(count)'
 
 export const useActions = (statut: string) =>
   useQuery({

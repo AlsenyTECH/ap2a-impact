@@ -5,7 +5,9 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Champ } from '@/components/champs'
+import { Champ, Pastilles } from '@/components/champs'
+import { OutilsListe } from '@/components/OutilsListe'
+import { correspond, trier } from '@/lib/recherche'
 import { Avatar, BlocDate } from '@/components/design'
 import { aujourdhui, date, nomCible } from '@/lib/format'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
@@ -15,6 +17,30 @@ import { cn } from '@/lib/utils'
 interface Inscrit { id: string; statut: StatutBeneficiaire; cible: { prenom: string | null; nom: string; type: TypeCible } }
 
 const JOURS: [number, string][] = [[1, 'Lun'], [2, 'Mar'], [3, 'Mer'], [4, 'Jeu'], [5, 'Ven'], [6, 'Sam'], [0, 'Dim']]
+
+/** Chaque jour coché entre deux dates (120 au plus). */
+export function datesEntre(du: string, au: string, jours: number[]) {
+  if (!du || !au || au < du) return []
+  const liste: string[] = []
+  for (let d = new Date(`${du}T12:00:00`); d <= new Date(`${au}T12:00:00`) && liste.length < 120; d.setDate(d.getDate() + 1)) {
+    if (jours.includes(d.getDay())) liste.push(d.toISOString().slice(0, 10))
+  }
+  return liste
+}
+
+/** Choix des jours de la semaine (lun, mer, ven…). */
+export function ChoixJours({ jours, setJours }: { jours: number[]; setJours: (j: number[]) => void }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {JOURS.map(([n, l]) => (
+        <button key={n} type="button" onClick={() => setJours(jours.includes(n) ? jours.filter((x) => x !== n) : [...jours, n])}
+          className={cn('h-9 w-12 rounded-lg border text-sm font-medium', jours.includes(n) ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card')}>
+          {l}
+        </button>
+      ))}
+    </div>
+  )
+}
 const heure = (h: string | null) => (h ? h.slice(0, 5).replace(':', 'h') : null)
 
 /**
@@ -22,7 +48,15 @@ const heure = (h: string | null) => (h ? h.slice(0, 5).replace(':', 'h') : null)
  * présences. `planifier` : créer et retirer des séances ; `appel` : faire
  * l'appel (responsable et équipe de terrain).
  */
-export function Seances({ actionId, planifier, appel, voitBeneficiaires }: { actionId: string; planifier: boolean; appel: boolean; voitBeneficiaires: boolean }) {
+export function Seances({ actionId, planifier, appel, voitBeneficiaires, debut, fin }: {
+  actionId: string
+  planifier: boolean
+  appel: boolean
+  voitBeneficiaires: boolean
+  /** Dates de l'action, proposées par défaut pour planifier les séances. */
+  debut?: string
+  fin?: string | null
+}) {
   const qc = useQueryClient()
   const [ajout, setAjout] = useState<'une' | 'plusieurs' | null>(null)
   const [appelDe, setAppelDe] = useState<Seance | null>(null)
@@ -56,6 +90,20 @@ export function Seances({ actionId, planifier, appel, voitBeneficiaires }: { act
     rafraichir()
   }
 
+  // Numéro chronologique, conservé quel que soit le tri choisi.
+  const numero = new Map(seances.map((s, i) => [s.id, i + 1]))
+  const [tri, setTri] = useState<'chrono' | 'recentes' | 'presence'>('chrono')
+  const [etat, setEtat] = useState<'' | 'venir' | 'appel' | 'faites'>('')
+  const [filtre, setFiltre] = useState('')
+  const tauxSeance = (id: string) => {
+    const ps = presences.filter((p) => p.seance_id === id)
+    return ps.length ? ps.filter((p) => p.present).length / ps.length : null
+  }
+  const appelFait = (id: string) => presences.some((p) => p.seance_id === id)
+  const retenues = seances.filter((s) => correspond(filtre, s.theme, s.lieu, s.notes, `seance ${numero.get(s.id)}`)
+    && (!etat || (etat === 'venir' ? s.date > aujourdhui() : etat === 'faites' ? appelFait(s.id) : s.date <= aujourdhui() && !appelFait(s.id))))
+  const affichees = tri === 'chrono' ? retenues : tri === 'recentes' ? [...retenues].reverse() : trier(retenues, (s) => tauxSeance(s.id), 'desc')
+
   const faites = seances.filter((s) => presences.some((p) => p.seance_id === s.id)).length
   const moyenne = presences.length ? Math.round((100 * presences.filter((p) => p.present).length) / presences.length) : null
 
@@ -80,8 +128,26 @@ export function Seances({ actionId, planifier, appel, voitBeneficiaires }: { act
           Pas de séance planifiée. Une formation sur plusieurs jours ? Ajoutez ses séances pour faire l'appel à chacune.
         </p>
       ) : (
+        <>
+        {seances.length > 1 ? (
+          <OutilsListe
+            recherche={filtre}
+            setRecherche={setFiltre}
+            placeholder="Chercher une séance : thème, lieu…"
+            tris={[['chrono', 'Ordre chronologique'], ['recentes', 'Plus récentes d\'abord'], ['presence', 'Meilleure présence']]}
+            tri={tri}
+            setTri={setTri}
+            total={affichees.length}
+          >
+            <Pastilles<'' | 'venir' | 'appel' | 'faites'>
+              value={etat}
+              onChange={(v) => setEtat(v === etat ? '' : v)}
+              options={[['', 'Toutes'], ['venir', 'À venir'], ['appel', 'Appel à faire'], ['faites', 'Appel fait']]}
+            />
+          </OutilsListe>
+        ) : null}
         <div className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/80 bg-card shadow-carte">
-          {seances.map((s, i) => {
+          {affichees.map((s) => {
             const ps = presences.filter((p) => p.seance_id === s.id)
             const presents = ps.filter((p) => p.present).length
             const passee = s.date <= aujourdhui()
@@ -89,7 +155,7 @@ export function Seances({ actionId, planifier, appel, voitBeneficiaires }: { act
               <div key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
                 <BlocDate date={s.date} />
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium">Séance {i + 1}{s.theme ? ` — ${s.theme}` : ''}</div>
+                  <div className="font-medium">Séance {numero.get(s.id)}{s.theme ? ` — ${s.theme}` : ''}</div>
                   <div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
                     {s.heure_debut ? <span className="inline-flex items-center gap-1"><Clock className="size-3.5" />{heure(s.heure_debut)}{s.heure_fin ? ` – ${heure(s.heure_fin)}` : ''}</span> : null}
                     {s.lieu ? <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" />{s.lieu}</span> : null}
@@ -110,15 +176,23 @@ export function Seances({ actionId, planifier, appel, voitBeneficiaires }: { act
             )
           })}
         </div>
+        </>
       )}
 
-      <AjoutSeances mode={ajout} fermer={() => setAjout(null)} actionId={actionId} apres={rafraichir} />
+      <AjoutSeances mode={ajout} fermer={() => setAjout(null)} actionId={actionId} apres={rafraichir} debutAction={debut} finAction={fin} />
       <Appel seance={appelDe} fermer={() => setAppelDe(null)} inscrits={inscrits} presences={presences} apres={rafraichir} />
     </>
   )
 }
 
-function AjoutSeances({ mode, fermer, actionId, apres }: { mode: 'une' | 'plusieurs' | null; fermer: () => void; actionId: string; apres: () => void }) {
+function AjoutSeances({ mode, fermer, actionId, apres, debutAction, finAction }: {
+  mode: 'une' | 'plusieurs' | null
+  fermer: () => void
+  actionId: string
+  apres: () => void
+  debutAction?: string
+  finAction?: string | null
+}) {
   const [jour, setJour] = useState(aujourdhui())
   const [fin, setFin] = useState('')
   const [jours, setJours] = useState<number[]>([1, 3, 5])
@@ -128,17 +202,14 @@ function AjoutSeances({ mode, fermer, actionId, apres }: { mode: 'une' | 'plusie
   const [lieu, setLieu] = useState('')
   const [envoi, setEnvoi] = useState(false)
 
-  useEffect(() => { if (mode) { setJour(aujourdhui()); setFin(''); setTheme('') } }, [mode])
+  useEffect(() => {
+    if (mode) { setJour(mode === 'plusieurs' && debutAction ? debutAction : aujourdhui()); setFin(finAction ?? ''); setTheme('') }
+  }, [mode, debutAction, finAction])
 
   // Dates des séances : une seule, ou chaque jour coché entre deux dates.
   const dates = (() => {
     if (mode === 'une') return [jour]
-    if (!jour || !fin || fin < jour) return []
-    const liste: string[] = []
-    for (let d = new Date(`${jour}T12:00:00`); d <= new Date(`${fin}T12:00:00`) && liste.length < 120; d.setDate(d.getDate() + 1)) {
-      if (jours.includes(d.getDay())) liste.push(d.toISOString().slice(0, 10))
-    }
-    return liste
+    return datesEntre(jour, fin, jours)
   })()
 
   async function enregistrer(e: FormEvent) {
@@ -169,14 +240,7 @@ function AjoutSeances({ mode, fermer, actionId, apres }: { mode: 'une' | 'plusie
           </div>
           {mode === 'plusieurs' ? (
             <Champ label="Jours de la semaine">
-              <div className="flex flex-wrap gap-1.5">
-                {JOURS.map(([n, l]) => (
-                  <button key={n} type="button" onClick={() => setJours(jours.includes(n) ? jours.filter((x) => x !== n) : [...jours, n])}
-                    className={cn('h-9 w-12 rounded-lg border text-sm font-medium', jours.includes(n) ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card')}>
-                    {l}
-                  </button>
-                ))}
-              </div>
+              <ChoixJours jours={jours} setJours={setJours} />
             </Champ>
           ) : null}
           <div className="grid grid-cols-2 gap-3">

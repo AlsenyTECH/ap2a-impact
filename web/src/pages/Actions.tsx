@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarCheck, CalendarDays, MapPin, Plus } from 'lucide-react'
+import { CalendarCheck, CalendarDays, CalendarRange, MapPin, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ActionForm } from '@/components/ActionForm'
@@ -86,6 +86,7 @@ export function Actions() {
                   {date(x.date_debut)}{x.date_fin && x.date_fin !== x.date_debut ? ` → ${date(x.date_fin)}` : ''}
                 </span>
                 {x.lieu || x.zone?.nom ? <span className="inline-flex min-w-0 items-center gap-1.5"><MapPin className="size-3.5 shrink-0" /><span className="truncate">{x.lieu || x.zone?.nom}</span></span> : null}
+                {x.seances?.[0]?.count ? <span className="inline-flex items-center gap-1.5 font-medium text-primary"><CalendarRange className="size-3.5" />{x.seances[0].count} séance{x.seances[0].count > 1 ? 's' : ''}</span> : null}
               </div>
               <div className="mt-auto flex items-center justify-between gap-2 border-t border-border/70 pt-3">
                 {x.responsable ? (

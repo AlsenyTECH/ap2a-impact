@@ -160,7 +160,7 @@ export function ActionDetail() {
           </TabsContent>
         ) : null}
         <TabsContent value="seances">
-          <Seances actionId={id} planifier={modifiable} appel={(gere || dansEquipe) && !cloturee} voitBeneficiaires={voitBeneficiaires} />
+          <Seances actionId={id} planifier={modifiable} appel={(gere || dansEquipe) && !cloturee} voitBeneficiaires={voitBeneficiaires} debut={action.date_debut} fin={action.date_fin} />
         </TabsContent>
         <TabsContent value="equipe"><OngletEquipe actionId={id} gere={modifiable} equipe={equipe} /></TabsContent>
         <TabsContent value="partenaires"><OngletPartenaires actionId={id} gere={modifiable} liste={partenairesAction} /></TabsContent>
@@ -186,7 +186,7 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
     queryFn: async () =>
       verifier(await supabase.from('beneficiaires')
         .select('*, cible:cibles!beneficiaires_cible_id_fkey(*), via:cibles!beneficiaires_via_collectif_id_fkey(id, nom), apports(*, partenaire:partenaires(nom, sigle))')
-        .eq('action_id', actionId).order('ajoute_le')) as Beneficiaire[],
+        .eq('action_id', actionId).order('ajoute_le', { ascending: false })) as Beneficiaire[],
   })
   const dejaInscrits = new Set(liste.map((b) => b.cible_id))
   const total = liste.flatMap((b) => b.apports ?? []).reduce((s, x) => s + (x.valeur_fcfa ?? 0), 0)
@@ -204,11 +204,15 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
 
   const [filtre, setFiltre] = useState('')
   const [statutFiltre, setStatutFiltre] = useState<StatutBeneficiaire | ''>('')
-  const [tri, setTri] = useState<'ajout' | 'nom' | 'groupe' | 'statut' | 'presence'>('ajout')
-  const retenus = liste.filter((b) => (!statutFiltre || b.statut === statutFiltre)
+  const [tri, setTri] = useState<'recents' | 'anciens' | 'nom' | 'prenom' | 'groupe' | 'statut' | 'presence'>('recents')
+  // Après un import Excel, on n'affiche que les personnes importées.
+  const [importes, setImportes] = useState<Set<string> | null>(null)
+  const retenus = liste.filter((b) => (!importes || importes.has(b.cible_id)) && (!statutFiltre || b.statut === statutFiltre)
     && correspond(filtre, b.cible?.prenom, b.cible?.nom, b.cible?.telephone, groupe(b), b.apports?.map((x) => x.description).join(' ')))
-  const affiches = tri === 'ajout' ? retenus
-    : tri === 'nom' ? trier(retenus, (b) => b.cible?.nom)
+  const affiches = tri === 'recents' ? retenus
+    : tri === 'anciens' ? [...retenus].reverse()
+    : tri === 'nom' ? trier(retenus, (b) => `${b.cible?.nom} ${b.cible?.prenom}`)
+    : tri === 'prenom' ? trier(retenus, (b) => `${b.cible?.prenom} ${b.cible?.nom}`)
     : tri === 'groupe' ? trier(retenus, groupe)
     : tri === 'statut' ? trier(retenus, (b) => b.statut)
     : trier(retenus, (b) => assiduite(b.id), 'desc')
@@ -297,12 +301,18 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
           </button>
         ) : null}
       </div>
-      {liste.length > 3 ? (
+      {importes ? (
+        <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+          <span><b>{importes.size}</b> personne(s) importée(s) à l'instant — seules elles sont affichées.</span>
+          <Button size="sm" variant="ghost" onClick={() => setImportes(null)}>Tout afficher</Button>
+        </div>
+      ) : null}
+      {liste.length ? (
         <OutilsListe
           recherche={filtre}
           setRecherche={setFiltre}
           placeholder="Chercher : nom, groupe, ce qui a été remis…"
-          tris={[['ajout', "Ordre d'inscription"], ['nom', 'Nom A → Z'], ['groupe', 'Par groupe'], ['statut', 'Par statut'], ['presence', 'Meilleure assiduité']]}
+          tris={[['recents', 'Derniers inscrits'], ['anciens', 'Premiers inscrits'], ['nom', 'Nom A → Z'], ['prenom', 'Prénom A → Z'], ['groupe', 'Par groupe'], ['statut', 'Par statut'], ['presence', 'Meilleure assiduité']]}
           tri={tri}
           setTri={setTri}
           total={affiches.length}
@@ -365,7 +375,7 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
       )}
       <ApportForm ouvert={!!apportPour} fermer={() => { setApportPour(null); setSelection([]) }} beneficiaires={apportPour ?? []} partenaireParDefaut={partenaireParDefaut} />
       <CibleForm ouvert={creation} fermer={() => setCreation(false)} apresCreation={ajouter} />
-      <ImportExcel ouvert={importer} fermer={() => setImporter(false)} actionId={actionId} />
+      <ImportExcel ouvert={importer} fermer={() => setImporter(false)} actionId={actionId} onTermine={(ids) => setImportes(new Set(ids))} />
     </>
   )
 }

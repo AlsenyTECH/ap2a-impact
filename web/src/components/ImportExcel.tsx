@@ -38,7 +38,14 @@ function lireDate(v: unknown): string | null {
  * téléphone) ne sont pas recréées. Si `actionId` est donné, toutes sont
  * inscrites comme bénéficiaires de l'action.
  */
-export function ImportExcel({ ouvert, fermer, actionId, collectifId }: { ouvert: boolean; fermer: () => void; actionId?: string; collectifId?: string }) {
+export function ImportExcel({ ouvert, fermer, actionId, collectifId, onTermine }: {
+  ouvert: boolean
+  fermer: () => void
+  actionId?: string
+  collectifId?: string
+  /** Reçoit les identifiants des cibles importées, pour les afficher à part. */
+  onTermine?: (ids: string[]) => void
+}) {
   const qc = useQueryClient()
   const { data: zones = [] } = useZones()
   const { data: categories = [] } = useCategories()
@@ -135,6 +142,7 @@ export function ImportExcel({ ouvert, fermer, actionId, collectifId }: { ouvert:
           .upsert([...new Set(ids)].map((cible_id) => ({ action_id: actionId, cible_id })), { onConflict: 'action_id,cible_id', ignoreDuplicates: true })
         if (error) throw error
       }
+      onTermine?.([...new Set(ids)])
       toast.success(`${nouvelles.length} nouvelle(s) cible(s), ${lignes.length - nouvelles.length} déjà connue(s)${actionId ? ', toutes inscrites à l\'action' : ''}${collectifId ? ', toutes ajoutées au groupe' : ''}`)
       qc.invalidateQueries()
       setLignes([])

@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { CibleForm } from '@/components/CibleForm'
 import { ImportExcel } from '@/components/ImportExcel'
+import { OutilsListe } from '@/components/OutilsListe'
+import { correspond, trier } from '@/lib/recherche'
 import { date, nomCible, ROLES_MENAGE, SITUATION, SITUATIONS, trancheAge } from '@/lib/format'
 import { useCibles } from '@/lib/requetes'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
@@ -14,6 +16,7 @@ import type { Cible, Situation } from '@/lib/types'
 
 interface Appartenance {
   role: string | null
+  ajoute_le: string
   personne: Pick<Cible, 'id' | 'prenom' | 'nom' | 'telephone' | 'sexe' | 'date_naissance'>
 }
 
@@ -31,9 +34,19 @@ export function MembresCollectif({ collectif, gere }: { collectif: Cible; gere: 
     queryKey: cle,
     queryFn: async () =>
       verifier(await supabase.from('appartenances')
-        .select('role, personne:cibles!appartenances_personne_id_fkey(id, prenom, nom, telephone, sexe, date_naissance)')
-        .eq('collectif_id', collectif.id).order('ajoute_le')) as unknown as Appartenance[],
+        .select('role, ajoute_le, personne:cibles!appartenances_personne_id_fkey(id, prenom, nom, telephone, sexe, date_naissance)')
+        .eq('collectif_id', collectif.id).order('ajoute_le', { ascending: false })) as unknown as Appartenance[],
   })
+  const [filtre, setFiltre] = useState('')
+  const [tri, setTri] = useState<'recents' | 'anciens' | 'nom' | 'prenom' | 'role' | 'jeunes'>('recents')
+  const [importes, setImportes] = useState<Set<string> | null>(null)
+  const retenus = membres.filter((m) => (!importes || importes.has(m.personne.id)) && correspond(filtre, m.personne.prenom, m.personne.nom, m.personne.telephone, m.role))
+  const affiches = tri === 'recents' ? retenus
+    : tri === 'anciens' ? [...retenus].reverse()
+    : tri === 'nom' ? trier(retenus, (m) => `${m.personne.nom} ${m.personne.prenom}`)
+    : tri === 'prenom' ? trier(retenus, (m) => `${m.personne.prenom} ${m.personne.nom}`)
+    : tri === 'role' ? trier(retenus, (m) => m.role)
+    : trier(retenus, (m) => m.personne.date_naissance, 'desc')
   const dejaMembres = new Set(membres.map((m) => m.personne.id))
 
   async function ajouter(p: Cible) {
@@ -101,8 +114,24 @@ export function MembresCollectif({ collectif, gere }: { collectif: Cible; gere: 
           {menage ? 'Seul le chef est obligatoire ; ajoutez les autres membres si utile.' : 'Aucun membre enregistré. Ajoutez-les un par un, ou importez la liste Excel du groupe.'}
         </p>
       ) : (
+        <>
+        {importes ? (
+          <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+            <span><b>{importes.size}</b> personne(s) importée(s) à l'instant — seules elles sont affichées.</span>
+            <Button size="sm" variant="ghost" onClick={() => setImportes(null)}>Tout afficher</Button>
+          </div>
+        ) : null}
+        <OutilsListe
+          recherche={filtre}
+          setRecherche={setFiltre}
+          placeholder="Chercher un membre : nom, téléphone, rôle…"
+          tris={[['recents', 'Derniers ajoutés'], ['anciens', 'Premiers ajoutés'], ['nom', 'Nom A → Z'], ['prenom', 'Prénom A → Z'], ['role', 'Par rôle'], ['jeunes', 'Plus jeunes']]}
+          tri={tri}
+          setTri={setTri}
+          total={affiches.length}
+        />
         <div className="divide-y divide-border rounded-lg border border-border bg-card">
-          {membres.map((m) => (
+          {affiches.map((m) => (
             <div key={m.personne.id} className="flex items-center gap-2 px-3 py-2 text-sm">
               <Link to={`/cibles/${m.personne.id}`} className="min-w-0 flex-1 truncate font-medium">{nomCible(m.personne)}</Link>
               {gere ? (
@@ -119,9 +148,10 @@ export function MembresCollectif({ collectif, gere }: { collectif: Cible; gere: 
             </div>
           ))}
         </div>
+        </>
       )}
       <CibleForm ouvert={creation} fermer={() => setCreation(false)} typeInitial="personne" apresCreation={ajouter} />
-      <ImportExcel ouvert={importer} fermer={() => setImporter(false)} collectifId={collectif.id} />
+      <ImportExcel ouvert={importer} fermer={() => setImporter(false)} collectifId={collectif.id} onTermine={(ids) => setImportes(new Set(ids))} />
     </section>
   )
 }

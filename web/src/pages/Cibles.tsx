@@ -25,9 +25,11 @@ export function Cibles() {
   const { data: profils = [] } = useProfils()
   const [creation, setCreation] = useState(false)
   const [importer, setImporter] = useState(false)
+  // Après un import Excel, on n'affiche que les personnes importées.
+  const [importes, setImportes] = useState<string[] | null>(null)
   const dansFamille = categories.filter((k) => k.famille_id === famille)
   const filtre = categorie ? [categorie] : famille ? dansFamille.map((k) => k.id) : null
-  const { data: cibles, isLoading, error } = useCibles(recherche, '', filtre, tri)
+  const { data: cibles, isLoading, error } = useCibles(recherche, '', filtre, tri, importes)
   const situation = (id: number | null) => profils.find((p) => p.id === id)?.libelle
 
   // Exporte la liste affichée (recherche et filtres compris).
@@ -68,10 +70,17 @@ export function Cibles() {
         recherche={recherche}
         setRecherche={setRecherche}
         placeholder="Nom, téléphone, métier ou groupe (GPF, ASC…)"
-        tris={[['recentes', 'Plus récentes'], ['nom', 'Nom A → Z'], ['prenom', 'Prénom A → Z'], ['jeunes', 'Plus jeunes'], ['ages', 'Plus âgés'], ['groupe', 'Par groupe']]}
+        tris={[['recentes', 'Ajoutées récemment'], ['anciennes', 'Ajoutées en premier'], ['nom', 'Nom A → Z'], ['prenom', 'Prénom A → Z'], ['jeunes', 'Plus jeunes'], ['ages', 'Plus âgés'], ['groupe', 'Par groupe']]}
         tri={tri}
         setTri={setTri}
+        total={cibles?.length}
       />
+      {importes ? (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+          <span><b>{importes.length}</b> personne(s) importée(s) à l'instant — seules elles sont affichées.</span>
+          <Button size="sm" variant="ghost" onClick={() => setImportes(null)}>Tout afficher</Button>
+        </div>
+      ) : null}
       <div className="sans-barre -mx-4 mb-5 overflow-x-auto px-4 md:mx-0 md:px-0">
         <Pastilles<string>
           defilant
@@ -106,7 +115,7 @@ export function Cibles() {
         </Encadre>
       )}
       <CibleForm ouvert={creation} fermer={() => setCreation(false)} />
-      <ImportExcel ouvert={importer} fermer={() => setImporter(false)} />
+      <ImportExcel ouvert={importer} fermer={() => setImporter(false)} onTermine={(ids) => { setImportes(ids); setRecherche(''); setFamille(null); setCategorie(null) }} />
     </>
   )
 }

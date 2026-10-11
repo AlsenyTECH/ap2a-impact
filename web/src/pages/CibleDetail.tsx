@@ -13,7 +13,8 @@ import { Avatar } from '@/components/design'
 import { useAuth } from '@/lib/auth'
 import { date, echeance, fcfa, LIBELLES_NATURE, LIBELLES_STATUT_BENEFICIAIRE, lienWhatsApp, nomCible, SITUATION, trancheAge } from '@/lib/format'
 import { useCible, useParcours, useProfils } from '@/lib/requetes'
-import { membreAvecNumero } from '@/lib/recherche'
+import { correspond, membreAvecNumero, trier } from '@/lib/recherche'
+import { OutilsListe } from '@/components/OutilsListe'
 import type { Suivi } from '@/lib/types'
 
 export function CibleDetail() {
@@ -21,6 +22,11 @@ export function CibleDetail() {
   const { a } = useAuth()
   const { data: cible, isLoading, error } = useCible(id)
   const { data: parcours = [] } = useParcours(id)
+  const [filtre, setFiltre] = useState('')
+  const [tri, setTri] = useState<'recentes' | 'anciennes' | 'valeur'>('recentes')
+  const recu = (b: (typeof parcours)[number]) => (b.apports ?? []).reduce((s, x) => s + (x.valeur_fcfa ?? 0), 0)
+  const parcoursFiltre = parcours.filter((b) => correspond(filtre, b.action?.titre, b.action?.type?.libelle, b.via?.nom, b.apports?.map((x) => x.description).join(' ')))
+  const parcoursAffiche = tri === 'valeur' ? trier(parcoursFiltre, recu, 'desc') : trier(parcoursFiltre, (b) => b.action?.date_debut, tri === 'recentes' ? 'desc' : 'asc')
   const { data: profils = [] } = useProfils()
   const profil = (pid: number | null) => profils.find((p) => p.id === pid)?.libelle
   const [edition, setEdition] = useState(false)
@@ -102,8 +108,20 @@ export function CibleDetail() {
       {!parcours.length ? (
         <p className="text-sm text-muted-foreground">N'a encore bénéficié d'aucune action.</p>
       ) : (
+        <>
+        {parcours.length > 1 ? (
+          <OutilsListe
+            recherche={filtre}
+            setRecherche={setFiltre}
+            placeholder="Chercher une action, un apport…"
+            tris={[['recentes', 'Actions récentes'], ['anciennes', 'Actions anciennes'], ['valeur', 'Plus reçu']]}
+            tri={tri}
+            setTri={setTri}
+            total={parcoursAffiche.length}
+          />
+        ) : null}
         <ol className="space-y-3 border-l-2 border-primary/30 pl-4">
-          {parcours.map((b) => (
+          {parcoursAffiche.map((b) => (
             <li key={b.id}>
               <Card>
                 <CardContent className="space-y-2 p-4">
@@ -143,6 +161,7 @@ export function CibleDetail() {
             </li>
           ))}
         </ol>
+        </>
       )}
       <CibleForm ouvert={edition} fermer={() => setEdition(false)} cible={cible} />
       <SuiviForm ouvert={!!suivi} fermer={() => setSuivi(null)} suivi={suivi?.suivi} beneficiaireId={suivi?.beneficiaireId} titre={nomCible(cible)} />

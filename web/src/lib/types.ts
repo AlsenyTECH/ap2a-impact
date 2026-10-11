@@ -84,6 +84,7 @@ export interface Action {
   cree_par: string | null
   type?: Pick<TypeAction, 'libelle' | 'code'> | null
   responsable?: Pick<Membre, 'prenom' | 'nom' | 'numero_adherent'> | null
+  seances?: { count: number }[]
   zone?: Pick<Zone, 'chemin' | 'nom'> | null
 }
 

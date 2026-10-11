@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Champ, Liste, ListeMembres, ListeZones } from '@/components/champs'
+import { ChoixJours, datesEntre } from '@/components/Seances'
+import { Switch } from '@/components/ui/switch'
 import { useAuth } from '@/lib/auth'
 import { aujourdhui } from '@/lib/format'
 import { useTypesAction } from '@/lib/requetes'
@@ -22,6 +24,10 @@ export function ActionForm({ ouvert, fermer, action }: { ouvert: boolean; fermer
   const { data: types = [] } = useTypesAction()
   const [v, setV] = useState<Valeurs>({} as Valeurs)
   const [envoi, setEnvoi] = useState(false)
+  // Formation sur plusieurs jours : séances créées en même temps que l'action.
+  const [seances, setSeances] = useState(false)
+  const [jours, setJours] = useState<number[]>([1, 2, 3, 4, 5])
+  const [heures, setHeures] = useState({ debut: '09:00', fin: '12:00' })
 
   useEffect(() => {
     if (ouvert) {
@@ -29,6 +35,7 @@ export function ActionForm({ ouvert, fermer, action }: { ouvert: boolean; fermer
         type_id: 0, titre: '', description: '', date_debut: aujourdhui(), date_fin: null, lieu: '',
         zone_id: null, responsable_id: membre?.id ?? null, budget_fcfa: null,
       })
+      setSeances(false)
     }
   }, [ouvert, action, membre])
 
@@ -36,6 +43,8 @@ export function ActionForm({ ouvert, fermer, action }: { ouvert: boolean; fermer
 
   async function enregistrer(e: FormEvent) {
     e.preventDefault()
+    const dates = seances ? datesEntre(v.date_debut, v.date_fin ?? '', jours) : []
+    if (seances && !dates.length) return toast.error('Indiquez une date de fin et au moins un jour de séance')
     setEnvoi(true)
     const donnees = {
       type_id: v.type_id, titre: v.titre.trim(), description: v.description?.trim() || null,
@@ -45,11 +54,17 @@ export function ActionForm({ ouvert, fermer, action }: { ouvert: boolean; fermer
     const r = action
       ? await supabase.from('actions').update(donnees).eq('id', action.id).select('id').single()
       : await supabase.from('actions').insert(donnees).select('id').single()
+    if (r.error) { setEnvoi(false); return toast.error(messageErreur(r.error)) }
+    if (dates.length) {
+      const { error } = await supabase.from('seances').insert(dates.map((d) => ({
+        action_id: r.data.id, date: d, heure_debut: heures.debut || null, heure_fin: heures.fin || null, lieu: donnees.lieu,
+      })))
+      if (error) toast.error(`Action créée, mais les séances n'ont pas pu être ajoutées : ${messageErreur(error)}`)
+    }
     setEnvoi(false)
-    if (r.error) return toast.error(messageErreur(r.error))
     qc.invalidateQueries({ queryKey: ['actions'] })
     qc.invalidateQueries({ queryKey: ['action'] })
-    toast.success(action ? 'Action modifiée' : 'Action créée')
+    toast.success(action ? 'Action modifiée' : dates.length ? `Action créée avec ${dates.length} séances` : 'Action créée')
     fermer()
     if (!action) navigate(`/actions/${r.data.id}`)
   }
@@ -73,6 +88,26 @@ export function ActionForm({ ouvert, fermer, action }: { ouvert: boolean; fermer
             <Champ label="Début"><Input type="date" required value={v.date_debut} onChange={(e) => maj('date_debut', e.target.value)} /></Champ>
             <Champ label="Fin"><Input type="date" min={v.date_debut} value={v.date_fin ?? ''} onChange={(e) => maj('date_fin', e.target.value)} /></Champ>
           </div>
+          {!action ? (
+            <div className="rounded-lg border border-border bg-muted/30 p-3">
+              <label className="flex items-center justify-between gap-3 text-sm font-medium">
+                <span>Se déroule en plusieurs séances<span className="block text-xs font-normal text-muted-foreground">Formation, atelier sur plusieurs jours… L'appel se fera à chaque séance.</span></span>
+                <Switch checked={seances} onCheckedChange={setSeances} />
+              </label>
+              {seances ? (
+                <div className="mt-3 grid gap-3">
+                  <Champ label="Jours de séance"><ChoixJours jours={jours} setJours={setJours} /></Champ>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Champ label="De"><Input type="time" value={heures.debut} onChange={(e) => setHeures({ ...heures, debut: e.target.value })} /></Champ>
+                    <Champ label="À"><Input type="time" value={heures.fin} onChange={(e) => setHeures({ ...heures, fin: e.target.value })} /></Champ>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {v.date_fin ? <><b className="text-foreground">{datesEntre(v.date_debut, v.date_fin, jours).length}</b> séance(s) entre le début et la fin. Vous pourrez en ajouter ou en retirer ensuite.</> : 'Indiquez la date de fin ci-dessus.'}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <Champ label="Lieu"><Input value={v.lieu ?? ''} onChange={(e) => maj('lieu', e.target.value)} placeholder="Centre 3FPT, École Unité 15…" /></Champ>
           <Champ label="Zone"><ListeZones value={v.zone_id} onChange={(z) => maj('zone_id', z)} /></Champ>
           <Champ label="Responsable">
