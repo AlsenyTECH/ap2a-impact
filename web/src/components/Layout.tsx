@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { BarChart3, CalendarCheck, Handshake, Home, ListChecks, LogOut, Menu, Shapes, Target, UsersRound, X } from 'lucide-react'
+import { BarChart3, BellRing, CalendarCheck, Handshake, Home, ListChecks, LogOut, Menu, Shapes, Target, UsersRound, X } from 'lucide-react'
+import { MonProfil } from '@/components/MonProfil'
 import { useAuth } from '@/lib/auth'
 import { LIBELLES_ROLE } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -33,6 +34,7 @@ const BAS = ['/', '/cibles', '/actions', '/suivis', '/impact'].map((v) => TOUS.f
 
 export function Layout() {
   const { membre, deconnecter } = useAuth()
+  const [profil, setProfil] = useState(false)
   const [menu, setMenu] = useState(false)
   const { pathname } = useLocation()
   useEffect(() => { setMenu(false); window.scrollTo(0, 0) }, [pathname])
@@ -78,12 +80,14 @@ export function Layout() {
             </div>
           ))}
         </nav>
-        <div className="m-3 flex items-center gap-3 rounded-xl bg-white/5 p-3">
-          {membre ? <Avatar prenom={membre.prenom} nom={membre.nom} taille="sm" /> : null}
-          <div className="min-w-0 flex-1 leading-tight">
-            <div className="truncate text-sm font-medium">{membre?.prenom} {membre?.nom}</div>
-            <div className="text-[11px] text-sidebar-muted">{membre ? LIBELLES_ROLE[membre.role] : ''}</div>
-          </div>
+        <div className="m-3 flex items-center gap-1 rounded-xl bg-white/5 p-1.5">
+          <button onClick={() => setProfil(true)} title="Mon profil et mes rappels" className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1.5 text-left hover:bg-white/10">
+            {membre ? <Avatar prenom={membre.prenom} nom={membre.nom} taille="sm" /> : null}
+            <div className="min-w-0 flex-1 leading-tight">
+              <div className="truncate text-sm font-medium">{membre?.prenom} {membre?.nom}</div>
+              <div className="truncate text-[11px] text-sidebar-muted">{membre ? `${LIBELLES_ROLE[membre.role]} · ${membre.numero_adherent}` : ''}</div>
+            </div>
+          </button>
           <button onClick={deconnecter} title="Se déconnecter" className="rounded-lg p-2 text-sidebar-muted hover:bg-white/10 hover:text-white">
             <LogOut className="size-4" />
           </button>
@@ -117,7 +121,10 @@ export function Layout() {
                   </NavLink>
                 ))}
               </div>
-              <button onClick={deconnecter} className="flex w-full items-center gap-3 rounded-lg border-t border-border px-3 py-2.5 text-sm font-medium text-destructive hover:bg-muted">
+              <button onClick={() => { setMenu(false); setProfil(true) }} className="flex w-full items-center gap-3 rounded-lg border-t border-border px-3 py-2.5 text-sm font-medium hover:bg-muted">
+                <BellRing className="size-[18px] text-muted-foreground" /> Mon profil et mes rappels
+              </button>
+              <button onClick={deconnecter} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-muted">
                 <LogOut className="size-[18px]" /> Se déconnecter
               </button>
             </div>
@@ -146,6 +153,7 @@ export function Layout() {
           ))}
         </div>
       </nav>
+      <MonProfil ouvert={profil} fermer={() => setProfil(false)} />
     </div>
   )
 }

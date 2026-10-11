@@ -220,4 +220,21 @@ select t.ok((select count(*) from suivis) = 4, 'coordinateur (ex-membre) : lit l
 select t.qui('inconnu@gmail.com');
 select t.ok((select count(*) from suivis_detail) = 0, 'inconnu : ne voit aucun suivi');
 reset role;
+-- ===== Rappels par email =====
+set role authenticated;
+select t.qui('coord2@ap2a.sn');
+select t.refuse($$select donnees_rappels('hebdo')$$, 'membre : ne lit pas le contenu des rappels');
+reset role;
+update suivis set date_prevue = current_date - 20 where echeance_mois = 6;
+select t.ok((select jsonb_array_length(x->'suivis') from jsonb_array_elements(donnees_rappels('hebdo')) x where x->>'email' = 'coord2@ap2a.sn') = 1, 'rappel hebdo : le suivi en retard va à son chargé');
+select t.ok((select (x->'suivis'->0->>'retard')::int from jsonb_array_elements(donnees_rappels('hebdo')) x where x->>'email' = 'coord2@ap2a.sn') = 20, 'rappel hebdo : nombre de jours de retard');
+select t.ok((select jsonb_array_length(x->'retards') from jsonb_array_elements(donnees_rappels('hebdo')) x where x->>'email' = 'admin@ap2a.sn') = 1, 'rappel hebdo : l''admin est alerté des retards de plus de 15 jours');
+select t.ok((select x->'retards' from jsonb_array_elements(donnees_rappels('hebdo')) x where x->>'email' = 'coord2@ap2a.sn') <> '[]', 'rappel hebdo : les coordinateurs sont aussi alertés des retards');
+set role authenticated;
+select t.qui('coord2@ap2a.sn');
+select regler_rappels(false);
+reset role;
+select t.ok(not exists (select 1 from jsonb_array_elements(donnees_rappels('hebdo')) x where x->>'email' = 'coord2@ap2a.sn'), 'rappels désactivés : plus d''email');
+select t.ok(jsonb_array_length(donnees_rappels('hebdo', (select id from membres where email = 'coord2@ap2a.sn'))) = 1, 'aperçu : envoyé même si les rappels sont désactivés');
+select t.ok(donnees_rappels('seances') = '[]', 'rappel séances : aucune séance aujourd''hui');
 \echo 'Tous les tests sont passés.'
