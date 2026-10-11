@@ -113,9 +113,10 @@ function emailSeances(d: Destinataire) {
 function secret(nom: string) {
   const simple = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s-]+/g, '_').toUpperCase()
   const exact = Deno.env.get(nom)
-  if (exact) return exact.trim()
-  const trouve = Object.entries(Deno.env.toObject()).find(([k]) => simple(k) === nom)
-  return trouve?.[1]?.trim() || undefined
+  // Valeur collée avec des guillemets ou des espaces : on les retire.
+  const propre = (v?: string) => v?.trim().replace(/^["'«\s]+|["'»\s]+$/g, '') || undefined
+  if (exact) return propre(exact)
+  return propre(Object.entries(Deno.env.toObject()).find(([k]) => simple(k) === nom)?.[1])
 }
 
 async function envoyer(a: string, sujet: string, html: string) {
@@ -123,6 +124,9 @@ async function envoyer(a: string, sujet: string, html: string) {
   if (!expediteur) throw new Error('Secret EXPEDITEUR_EMAIL manquant')
   const brevo = secret('BREVO_API_KEY')
   const resend = secret('RESEND_API_KEY')
+  if (brevo?.startsWith('xsmtpsib-')) {
+    throw new Error("BREVO_API_KEY contient une clé SMTP (xsmtpsib-…). Il faut une clé API (xkeysib-…) : Brevo → SMTP & API → onglet « Clés API ».")
+  }
   const r = brevo
     ? await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
@@ -137,7 +141,13 @@ async function envoyer(a: string, sujet: string, html: string) {
     })
     : null
   if (!r) throw new Error('Aucun service d\'envoi configuré (BREVO_API_KEY ou RESEND_API_KEY)')
-  if (!r.ok) throw new Error(`Envoi refusé (${r.status}) : ${(await r.text()).slice(0, 300)}`)
+  if (!r.ok) {
+    const detail = (await r.text()).slice(0, 300)
+    if (brevo && r.status === 401) {
+      throw new Error(`Brevo ne reconnaît pas la clé API (elle commence par « ${brevo.slice(0, 8)}… », ${brevo.length} caractères). Générez une nouvelle clé API (xkeysib-…) et remplacez le secret BREVO_API_KEY. Détail : ${detail}`)
+    }
+    throw new Error(`Envoi refusé (${r.status}) : ${detail}`)
+  }
 }
 
 const repondre = (corps: unknown, statut = 200) =>
