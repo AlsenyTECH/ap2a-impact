@@ -13,6 +13,9 @@ begin
   if not public.a_role('admin') then
     raise exception 'Réservé à l''administrateur' using errcode = '42501';
   end if;
+  -- Les actions clôturées sont verrouillées : le verrou est levé le temps
+  -- de cet effacement (et le journal ne l'enregistre pas).
+  perform set_config('ap2a.purge_demo', 'on', true);
   -- Une cible ou un partenaire de démonstration ajouté depuis à une
   -- action réelle en est d'abord retiré.
   delete from public.beneficiaires

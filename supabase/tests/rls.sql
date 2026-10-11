@@ -76,6 +76,11 @@ select t.ok((select role from appartenances a join cibles c on c.id = a.collecti
 select t.refuse($$insert into appartenances (personne_id, collectif_id, role) values ((select id from cibles where nom = 'Diop'), (select id from cibles where type = 'menage'), 'Chef de ménage')$$ , 'deux chefs pour un ménage');
 insert into appartenances (personne_id, collectif_id, role) values ((select id from cibles where nom = 'Diop'), (select id from cibles where type = 'menage'), 'Enfant');
 select t.ok((select count(*) from appartenances a join cibles c on c.id = a.collectif_id where c.type = 'menage') = 2, 'autre membre du ménage ajouté');
+select t.ok((select groupes from cibles where nom = 'Diop') = 'ASC Jappo, Ménage Coumba Ndiaye', 'groupes de la personne tenus à jour');
+select t.ok((select count(*) from cibles where type = 'personne' and recherche like '%asc jappo%') = 1, 'recherche par le nom du groupe (sans accents ni majuscules)');
+select t.ok((select count(*) from cibles where type = 'personne' and recherche like '%menage coumba%') = 2, 'recherche sans accents');
+update cibles set nom = 'ASC Jappo Unité 17' where nom = 'ASC Jappo';
+select t.ok((select groupes from cibles where nom = 'Diop') like 'ASC Jappo Unité 17%', 'groupe renommé : membres mis à jour');
 select t.ok((select count(*) from familles_cible) = 11 and (select count(*) from categories_cible) > 40, 'familles et catégories lisibles');
 select t.refuse($$insert into familles_cible (nom) values ('X')$$, 'coordinateur : ajouter une famille');
 select t.refuse($$insert into profils_personne (genre, libelle) values ('situation', 'X')$$, 'coordinateur : ajouter une situation');
@@ -117,10 +122,43 @@ delete from action_equipe;
 set role authenticated;
 select t.ok((select count(*) from cibles) = 0 and (select count(*) from apports) = 0, 'membre hors équipe : ne voit aucune donnée personnelle');
 
+-- ===== Séances et présences (action en cours) =====
+select t.qui('coord@ap2a.sn');
+insert into seances (action_id, date, heure_debut, heure_fin, theme) values
+  ((select id from actions), '2026-03-02', '09:00', '12:00', 'Sécurité électrique'),
+  ((select id from actions), '2026-03-03', '09:00', '12:00', 'Schémas électriques');
+insert into action_equipe values ((select id from actions), (select id from membres where email = 'membre@ap2a.sn'), 'Appel');
+select t.ok((select count(*) from seances) = 2, 'responsable : planifie les séances');
+select t.qui('membre@ap2a.sn');
+insert into presences (seance_id, beneficiaire_id, present) select id, (select id from beneficiaires), true from seances;
+select t.ok((select count(*) from presences where present) = 2, 'membre de l''équipe : fait l''appel');
+select t.refuse($$insert into seances (action_id, date) values ((select id from actions), current_date)$$, 'membre de l''équipe : créer une séance');
+select t.qui('coord2@ap2a.sn');
+update presences set present = false;
+select t.ok((select count(*) from presences where not present) = 0, 'autre coordinateur : ne modifie pas l''appel');
+
 -- ===== Bureau et admin =====
 select t.qui('bureau@ap2a.sn');
 update actions set statut = 'terminee', date_fin = '2026-05-31';
 select t.ok((select statut from actions) = 'terminee', 'bureau : gère toutes les actions');
+-- Action clôturée : tout est figé, sauf le bilan.
+select t.refuse($$insert into beneficiaires (action_id, cible_id) values ((select id from actions), (select id from cibles where prenom = 'Coumba'))$$, 'clôturée : ajouter un bénéficiaire');
+select t.refuse($$update beneficiaires set statut = 'abandon'$$, 'clôturée : changer le statut d''un bénéficiaire');
+select t.refuse($$delete from beneficiaires$$, 'clôturée : retirer un bénéficiaire');
+select t.refuse($$insert into apports (beneficiaire_id, nature, description) values ((select id from beneficiaires), 'don', 'x')$$, 'clôturée : ajouter un apport');
+select t.refuse($$delete from apports$$, 'clôturée : retirer un apport');
+select t.refuse($$insert into action_equipe values ((select id from actions), (select id from membres where email = 'coord2@ap2a.sn'), null)$$, 'clôturée : modifier l''équipe');
+select t.refuse($$insert into seances (action_id, date) values ((select id from actions), current_date)$$, 'clôturée : ajouter une séance');
+select t.refuse($$update presences set present = false$$, 'clôturée : modifier l''appel');
+select t.refuse($$update actions set titre = 'Autre titre'$$, 'clôturée : modifier l''action');
+update actions set bilan = 'Promotion réussie';
+select t.ok((select bilan from actions) = 'Promotion réussie', 'clôturée : le bilan peut être complété');
+select t.refuse($$update actions set statut = 'en_cours'$$, 'bureau : rouvrir une action clôturée');
+-- Journal
+select t.ok(exists (select 1 from journal where table_nom = 'actions' and details->'statut'->>1 = 'terminee' and membre_id = mon_membre_id()), 'journal : clôture enregistrée avec son auteur');
+select t.ok(exists (select 1 from journal where table_nom = 'beneficiaires' and operation = 'INSERT' and libelle = 'Mamadou Diop'), 'journal : ajout de bénéficiaire enregistré avec son nom');
+select t.ok(exists (select 1 from journal where table_nom = 'action_equipe' and libelle like 'Aminata Ba (AP2A-%)'), 'journal : membre d''équipe identifié par son numéro');
+select t.refuse($$insert into journal (table_nom, operation) values ('x', 'y')$$, 'journal : écriture directe interdite');
 select t.refuse($$update membres set role = 'bureau' where email = 'membre@ap2a.sn'$$, 'bureau : changer un rôle');
 select t.qui('admin@ap2a.sn');
 update membres set role = 'coordinateur' where email = 'membre@ap2a.sn';
@@ -136,8 +174,11 @@ select t.qui('admin@ap2a.sn');
 select t.ok((select count(*) from suivis) = 3, 'clôture : 3 suivis planifiés pour le bénéficiaire');
 select t.ok((select array_agg(date_prevue order by echeance_mois) from suivis) = '{2026-08-31,2026-11-30,2027-05-31}'::date[], 'dates prévues à 3, 6 et 12 mois après la fin');
 select t.ok((select charge_id from suivis_detail limit 1) = (select id from membres where email = 'coord@ap2a.sn'), 'chargé du suivi : le responsable de l''action (pas de référent)');
+update actions set statut = 'en_cours';
+select t.ok((select statut from actions) = 'en_cours', 'admin : rouvre une action clôturée');
 update actions set date_fin = '2026-06-30';
-select t.ok((select min(date_prevue) from suivis) = '2026-09-30', 'date de fin modifiée : suivis non faits recalés');
+update actions set statut = 'terminee';
+select t.ok((select min(date_prevue) from suivis) = '2026-09-30', 'date de fin modifiée puis reclôture : suivis non faits recalés');
 
 select t.qui('coord@ap2a.sn');
 update suivis set fait_le = '2026-09-02', situation = 'reussi', activite = 'Électricien à son compte',
@@ -149,13 +190,16 @@ insert into suivis (beneficiaire_id, fait_le, situation, commentaire)
   values ((select id from beneficiaires), current_date, 'en_progres', 'Visite à l''atelier');
 select t.ok((select count(*) from suivis) = 4, 'suivi spontané ajouté');
 
-select t.qui('bureau@ap2a.sn');
+select t.qui('admin@ap2a.sn');
+update actions set statut = 'en_cours';
 update actions set date_fin = '2026-07-15';
-select t.ok((select fait_le from suivis where echeance_mois = 3) = '2026-09-02' and (select date_prevue from suivis where echeance_mois = 3) = '2026-09-30', 'suivi déjà fait : jamais recalé');
 update beneficiaires set statut = 'abandon';
 select t.ok((select count(*) from suivis) = 2, 'abandon : suivis planifiés non faits supprimés, suivis faits conservés');
 update beneficiaires set statut = 'termine';
-select t.ok((select count(*) from suivis) = 4, 'retour : suivis replanifiés');
+update actions set statut = 'terminee';
+select t.ok((select count(*) from suivis) = 4, 'retour puis reclôture : suivis replanifiés');
+select t.ok((select fait_le from suivis where echeance_mois = 3) = '2026-09-02' and (select date_prevue from suivis where echeance_mois = 3) = '2026-09-30', 'suivi déjà fait : jamais recalé');
+select t.ok((select cible_groupes from suivis_detail limit 1) like 'ASC Jappo%' and (select charge_numero from suivis_detail limit 1) like 'AP2A-%', 'vue des suivis : groupes et numéro du chargé');
 
 -- Un coordinateur qui n'est ni responsable ni référent ne renseigne pas.
 reset role;
