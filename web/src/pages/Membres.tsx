@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Chargement, Champ, EnTete, Erreur, Pastilles } from '@/components/champs'
+import { OutilsListe } from '@/components/OutilsListe'
+import { correspond, trier } from '@/lib/recherche'
 import { Avatar, Liste as Encadre } from '@/components/design'
 import { useAuth } from '@/lib/auth'
 import { LIBELLES_ROLE } from '@/lib/format'
@@ -21,8 +23,16 @@ export function Membres() {
   const [edition, setEdition] = useState<Membre | 'nouveau' | null>(null)
   const [recherche, setRecherche] = useState('')
   const gestion = a('admin', 'bureau')
-  const filtre = recherche.trim().toLowerCase()
-  const liste = (membres ?? []).filter((m) => !filtre || `${m.prenom} ${m.nom} ${m.telephone ?? ''} ${m.numero_adherent}`.toLowerCase().includes(filtre))
+  const [tri, setTri] = useState<'nom' | 'numero' | 'role' | 'recents'>('nom')
+  const [role, setRole] = useState<Role | ''>('')
+  const [inactifs, setInactifs] = useState(false)
+  const retenus = (membres ?? []).filter((m) => (inactifs || m.actif) && (!role || m.role === role)
+    && correspond(recherche, m.prenom, m.nom, m.telephone, m.email, m.numero_adherent, m.fonction, LIBELLES_ROLE[m.role]))
+  const ORDRE_ROLES: Role[] = ['admin', 'bureau', 'coordinateur', 'membre']
+  const liste = tri === 'nom' ? trier(retenus, (m) => `${m.nom} ${m.prenom}`)
+    : tri === 'numero' ? trier(retenus, (m) => m.numero_adherent)
+    : tri === 'role' ? trier(retenus, (m) => ORDRE_ROLES.indexOf(m.role))
+    : trier(retenus, (m) => m.date_adhesion, 'desc')
 
   return (
     <>
@@ -31,7 +41,20 @@ export function Membres() {
         sousTitre={`${membres?.filter((m) => m.actif).length ?? 0} membres actifs`}
         actions={gestion ? <Button onClick={() => setEdition('nouveau')}><Plus className="size-4" /> Nouveau</Button> : null}
       />
-      <Input className="mb-4" placeholder="Rechercher…" value={recherche} onChange={(e) => setRecherche(e.target.value)} />
+      <OutilsListe
+        recherche={recherche}
+        setRecherche={setRecherche}
+        placeholder="Nom, n° d'adhérent, téléphone, fonction…"
+        tris={[['nom', 'Nom A → Z'], ['numero', "N° d'adhérent"], ['role', 'Par rôle'], ['recents', 'Adhésions récentes']]}
+        tri={tri}
+        setTri={setTri}
+        total={membres ? liste.length : undefined}
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <Pastilles<Role | ''> value={role} onChange={(r) => setRole(r === role ? '' : r)} options={[['', 'Tous'], ...(Object.entries(LIBELLES_ROLE) as [Role, string][])]} />
+          <label className="flex items-center gap-2 text-sm text-muted-foreground"><Switch checked={inactifs} onCheckedChange={setInactifs} /> Inclure les inactifs</label>
+        </div>
+      </OutilsListe>
       {error ? <Erreur erreur={error} /> : isLoading ? <Chargement /> : (
         <Encadre>
           {liste.map((m) => (

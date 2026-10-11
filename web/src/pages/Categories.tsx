@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Chargement, EnTete, Liste } from '@/components/champs'
+import { OutilsListe } from '@/components/OutilsListe'
+import { correspond } from '@/lib/recherche'
 import { useAuth } from '@/lib/auth'
 import { AIDE_TYPE_CIBLE, LIBELLES_TYPE_CIBLE } from '@/lib/format'
 import { useCategories, useFamilles, useProfils } from '@/lib/requetes'
@@ -108,11 +110,16 @@ function FamillesEtCategories({ gere }: { gere: boolean }) {
   const { data: categories = [] } = useCategories()
   const enregistrer = useReferentiel()
   const [nouvelleFamille, setNouvelleFamille] = useState('')
+  const [recherche, setRecherche] = useState('')
 
   if (isLoading || !familles) return <Chargement />
+  // Une famille s'affiche si son nom ou l'une de ses catégories correspond.
+  const visible = (k: { libelle: string; famille_id: number }) => correspond(recherche, k.libelle, familles.find((f) => f.id === k.famille_id)?.nom)
+  const famillesVisibles = familles.filter((f) => correspond(recherche, f.nom) || categories.some((k) => k.famille_id === f.id && visible(k)))
   return (
     <div className="space-y-4">
-      {familles.map((f) => (
+      <OutilsListe recherche={recherche} setRecherche={setRecherche} placeholder="Chercher une famille ou une catégorie (dahira, GIE, école…)" />
+      {famillesVisibles.map((f) => (
         <Card key={f.id}>
           <CardContent className="p-0">
             <div className="border-b border-border bg-muted/40 font-semibold">
@@ -126,7 +133,7 @@ function FamillesEtCategories({ gere }: { gere: boolean }) {
               />
             </div>
             <div className="divide-y divide-border">
-              {categories.filter((k) => k.famille_id === f.id).map((k) => (
+              {categories.filter((k) => k.famille_id === f.id && (correspond(recherche, f.nom) || visible(k))).map((k) => (
                 <Ligne
                   key={k.id}
                   libelle={k.libelle}

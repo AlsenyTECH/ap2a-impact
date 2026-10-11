@@ -59,9 +59,11 @@ export interface Cible {
   situation_id: number | null
   vulnerabilites: number[]
   metier: string | null
+  /** Groupes dont la personne est membre (ménage, GPF, ASC...), séparés par des virgules. */
+  groupes?: string | null
   categorie?: { libelle: string; famille: { nom: string } | null } | null
   zone?: Pick<Zone, 'chemin' | 'nom'> | null
-  referent?: Pick<Membre, 'prenom' | 'nom'> | null
+  referent?: Pick<Membre, 'prenom' | 'nom' | 'numero_adherent'> | null
 }
 
 export interface TypeAction { id: number; code: string; libelle: string; suivis_mois: number[]; actif: boolean }
@@ -81,7 +83,7 @@ export interface Action {
   bilan: string | null
   cree_par: string | null
   type?: Pick<TypeAction, 'libelle' | 'code'> | null
-  responsable?: Pick<Membre, 'prenom' | 'nom'> | null
+  responsable?: Pick<Membre, 'prenom' | 'nom' | 'numero_adherent'> | null
   zone?: Pick<Zone, 'chemin' | 'nom'> | null
 }
 
@@ -142,4 +144,37 @@ export interface SuiviDetail extends Suivi {
   cible_nom: string
   cible_telephone: string | null
   charge_id: string | null
+  cible_metier: string | null
+  cible_groupes: string | null
+  cible_sexe: 'F' | 'M' | null
+  cible_naissance: string | null
+  cible_zone: string | null
+  cible_categorie: string | null
+  cible_famille: string | null
+  action_type: string | null
+  charge_nom: string | null
+  charge_numero: string | null
+}
+
+export interface Seance {
+  id: string
+  action_id: string
+  date: string
+  heure_debut: string | null
+  heure_fin: string | null
+  theme: string | null
+  lieu: string | null
+  notes: string | null
+}
+
+export interface Presence { seance_id: string; beneficiaire_id: string; present: boolean; note: string | null }
+
+export interface LigneJournal {
+  id: number
+  quand: string
+  table_nom: string
+  operation: 'INSERT' | 'UPDATE' | 'DELETE'
+  libelle: string | null
+  details: Record<string, [unknown, unknown]> | null
+  membre: Pick<Membre, 'prenom' | 'nom' | 'numero_adherent'> | null
 }

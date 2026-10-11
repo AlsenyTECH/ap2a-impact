@@ -1,0 +1,266 @@
+import { useEffect, useState, type FormEvent } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { CalendarPlus, CalendarRange, Check, ClipboardCheck, Clock, MapPin, Trash2, X } from 'lucide-react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Champ } from '@/components/champs'
+import { Avatar, BlocDate } from '@/components/design'
+import { aujourdhui, date, nomCible } from '@/lib/format'
+import { messageErreur, supabase, verifier } from '@/lib/supabase'
+import type { Presence, Seance, StatutBeneficiaire, TypeCible } from '@/lib/types'
+import { cn } from '@/lib/utils'
+
+interface Inscrit { id: string; statut: StatutBeneficiaire; cible: { prenom: string | null; nom: string; type: TypeCible } }
+
+const JOURS: [number, string][] = [[1, 'Lun'], [2, 'Mar'], [3, 'Mer'], [4, 'Jeu'], [5, 'Ven'], [6, 'Sam'], [0, 'Dim']]
+const heure = (h: string | null) => (h ? h.slice(0, 5).replace(':', 'h') : null)
+
+/**
+ * Séances d'une action (une formation sur plusieurs jours) et appel des
+ * présences. `planifier` : créer et retirer des séances ; `appel` : faire
+ * l'appel (responsable et équipe de terrain).
+ */
+export function Seances({ actionId, planifier, appel, voitBeneficiaires }: { actionId: string; planifier: boolean; appel: boolean; voitBeneficiaires: boolean }) {
+  const qc = useQueryClient()
+  const [ajout, setAjout] = useState<'une' | 'plusieurs' | null>(null)
+  const [appelDe, setAppelDe] = useState<Seance | null>(null)
+
+  const { data: seances = [] } = useQuery({
+    queryKey: ['seances', actionId],
+    queryFn: async () => verifier(await supabase.from('seances').select('*').eq('action_id', actionId).order('date').order('heure_debut')) as Seance[],
+  })
+  const { data: presences = [] } = useQuery({
+    queryKey: ['presences', actionId],
+    enabled: voitBeneficiaires,
+    queryFn: async () => verifier(await supabase.from('presences').select('seance_id, beneficiaire_id, present, note, seance:seances!inner(action_id)').eq('seance.action_id', actionId)) as unknown as Presence[],
+  })
+  const { data: inscrits = [] } = useQuery({
+    queryKey: ['inscrits-appel', actionId],
+    enabled: voitBeneficiaires,
+    queryFn: async () =>
+      verifier(await supabase.from('beneficiaires').select('id, statut, cible:cibles!beneficiaires_cible_id_fkey(prenom, nom, type)')
+        .eq('action_id', actionId).neq('statut', 'abandon').order('ajoute_le')) as unknown as Inscrit[],
+  })
+
+  const rafraichir = () => {
+    qc.invalidateQueries({ queryKey: ['seances', actionId] })
+    qc.invalidateQueries({ queryKey: ['presences', actionId] })
+  }
+
+  async function retirer(s: Seance) {
+    if (!confirm(`Retirer la séance du ${date(s.date)} ?${presences.some((p) => p.seance_id === s.id) ? ' Son appel sera perdu.' : ''}`)) return
+    const { error } = await supabase.from('seances').delete().eq('id', s.id)
+    if (error) return toast.error(messageErreur(error))
+    rafraichir()
+  }
+
+  const faites = seances.filter((s) => presences.some((p) => p.seance_id === s.id)).length
+  const moyenne = presences.length ? Math.round((100 * presences.filter((p) => p.present).length) / presences.length) : null
+
+  return (
+    <>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm text-muted-foreground">
+          <b className="text-foreground">{seances.length}</b> séance{seances.length > 1 ? 's' : ''}
+          {seances.length ? <> · appel fait pour <b className="text-foreground">{faites}</b></> : null}
+          {moyenne != null ? <> · présence moyenne <b className="text-foreground">{moyenne} %</b></> : null}
+        </div>
+        {planifier ? (
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setAjout('plusieurs')}><CalendarRange /> Plusieurs séances</Button>
+            <Button size="sm" onClick={() => setAjout('une')}><CalendarPlus /> Ajouter une séance</Button>
+          </div>
+        ) : null}
+      </div>
+
+      {!seances.length ? (
+        <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          Pas de séance planifiée. Une formation sur plusieurs jours ? Ajoutez ses séances pour faire l'appel à chacune.
+        </p>
+      ) : (
+        <div className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/80 bg-card shadow-carte">
+          {seances.map((s, i) => {
+            const ps = presences.filter((p) => p.seance_id === s.id)
+            const presents = ps.filter((p) => p.present).length
+            const passee = s.date <= aujourdhui()
+            return (
+              <div key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                <BlocDate date={s.date} />
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium">Séance {i + 1}{s.theme ? ` — ${s.theme}` : ''}</div>
+                  <div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                    {s.heure_debut ? <span className="inline-flex items-center gap-1"><Clock className="size-3.5" />{heure(s.heure_debut)}{s.heure_fin ? ` – ${heure(s.heure_fin)}` : ''}</span> : null}
+                    {s.lieu ? <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" />{s.lieu}</span> : null}
+                  </div>
+                </div>
+                {ps.length ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e2f4e2] px-2.5 py-0.5 text-xs font-semibold text-[#0b6b0b] chiffres">
+                    <Check className="size-3.5" /> {presents}/{ps.length} présents
+                  </span>
+                ) : passee ? <span className="text-xs text-muted-foreground">appel à faire</span> : null}
+                <div className="flex gap-1">
+                  {appel && voitBeneficiaires && inscrits.length ? (
+                    <Button size="sm" variant={ps.length ? 'ghost' : 'secondary'} onClick={() => setAppelDe(s)}><ClipboardCheck /> {ps.length ? 'Modifier' : "Faire l'appel"}</Button>
+                  ) : null}
+                  {planifier ? <Button size="sm" variant="ghost" onClick={() => retirer(s)} aria-label="Retirer la séance"><Trash2 className="text-muted-foreground" /></Button> : null}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <AjoutSeances mode={ajout} fermer={() => setAjout(null)} actionId={actionId} apres={rafraichir} />
+      <Appel seance={appelDe} fermer={() => setAppelDe(null)} inscrits={inscrits} presences={presences} apres={rafraichir} />
+    </>
+  )
+}
+
+function AjoutSeances({ mode, fermer, actionId, apres }: { mode: 'une' | 'plusieurs' | null; fermer: () => void; actionId: string; apres: () => void }) {
+  const [jour, setJour] = useState(aujourdhui())
+  const [fin, setFin] = useState('')
+  const [jours, setJours] = useState<number[]>([1, 3, 5])
+  const [debut, setDebut] = useState('09:00')
+  const [finHeure, setFinHeure] = useState('12:00')
+  const [theme, setTheme] = useState('')
+  const [lieu, setLieu] = useState('')
+  const [envoi, setEnvoi] = useState(false)
+
+  useEffect(() => { if (mode) { setJour(aujourdhui()); setFin(''); setTheme('') } }, [mode])
+
+  // Dates des séances : une seule, ou chaque jour coché entre deux dates.
+  const dates = (() => {
+    if (mode === 'une') return [jour]
+    if (!jour || !fin || fin < jour) return []
+    const liste: string[] = []
+    for (let d = new Date(`${jour}T12:00:00`); d <= new Date(`${fin}T12:00:00`) && liste.length < 120; d.setDate(d.getDate() + 1)) {
+      if (jours.includes(d.getDay())) liste.push(d.toISOString().slice(0, 10))
+    }
+    return liste
+  })()
+
+  async function enregistrer(e: FormEvent) {
+    e.preventDefault()
+    if (!dates.length) return toast.error('Aucune date ne correspond')
+    setEnvoi(true)
+    const { error } = await supabase.from('seances').insert(dates.map((d) => ({
+      action_id: actionId, date: d, heure_debut: debut || null, heure_fin: finHeure || null, theme: theme.trim() || null, lieu: lieu.trim() || null,
+    })))
+    setEnvoi(false)
+    if (error) return toast.error(messageErreur(error))
+    toast.success(dates.length > 1 ? `${dates.length} séances ajoutées` : 'Séance ajoutée')
+    apres()
+    fermer()
+  }
+
+  return (
+    <Dialog open={!!mode} onOpenChange={(o) => !o && fermer()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{mode === 'plusieurs' ? 'Planifier plusieurs séances' : 'Nouvelle séance'}</DialogTitle>
+          {mode === 'plusieurs' ? <DialogDescription>Par exemple : chaque lundi, mercredi et vendredi pendant un mois.</DialogDescription> : null}
+        </DialogHeader>
+        <form onSubmit={enregistrer} className="grid gap-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Champ label={mode === 'plusieurs' ? 'Du' : 'Date'}><Input type="date" required value={jour} onChange={(e) => setJour(e.target.value)} /></Champ>
+            {mode === 'plusieurs' ? <Champ label="Au"><Input type="date" required min={jour} value={fin} onChange={(e) => setFin(e.target.value)} /></Champ> : <span />}
+          </div>
+          {mode === 'plusieurs' ? (
+            <Champ label="Jours de la semaine">
+              <div className="flex flex-wrap gap-1.5">
+                {JOURS.map(([n, l]) => (
+                  <button key={n} type="button" onClick={() => setJours(jours.includes(n) ? jours.filter((x) => x !== n) : [...jours, n])}
+                    className={cn('h-9 w-12 rounded-lg border text-sm font-medium', jours.includes(n) ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card')}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </Champ>
+          ) : null}
+          <div className="grid grid-cols-2 gap-3">
+            <Champ label="Début"><Input type="time" value={debut} onChange={(e) => setDebut(e.target.value)} /></Champ>
+            <Champ label="Fin"><Input type="time" value={finHeure} onChange={(e) => setFinHeure(e.target.value)} /></Champ>
+          </div>
+          <Champ label="Thème (facultatif)"><Input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="Sécurité électrique, schémas…" /></Champ>
+          <Champ label="Lieu (si différent de l'action)"><Input value={lieu} onChange={(e) => setLieu(e.target.value)} /></Champ>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm text-muted-foreground">{mode === 'plusieurs' ? `${dates.length} séance${dates.length > 1 ? 's' : ''}` : ''}</span>
+            <div className="flex gap-2">
+              <Button type="button" variant="ghost" onClick={fermer}>Annuler</Button>
+              <Button type="submit" disabled={envoi || !dates.length}>Enregistrer</Button>
+            </div>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Appel d'une séance : présent / absent pour chaque inscrit. */
+function Appel({ seance, fermer, inscrits, presences, apres }: {
+  seance: Seance | null
+  fermer: () => void
+  inscrits: Inscrit[]
+  presences: Presence[]
+  apres: () => void
+}) {
+  const [etat, setEtat] = useState<Record<string, boolean>>({})
+  const [envoi, setEnvoi] = useState(false)
+
+  useEffect(() => {
+    if (!seance) return
+    const deja = presences.filter((p) => p.seance_id === seance.id)
+    // Par défaut tout le monde est présent : on ne touche que les absents.
+    setEtat(Object.fromEntries(inscrits.map((b) => [b.id, deja.find((p) => p.beneficiaire_id === b.id)?.present ?? true])))
+  }, [seance, inscrits, presences])
+
+  async function enregistrer() {
+    setEnvoi(true)
+    const { error } = await supabase.from('presences').upsert(
+      inscrits.map((b) => ({ seance_id: seance!.id, beneficiaire_id: b.id, present: etat[b.id] ?? true })),
+      { onConflict: 'seance_id,beneficiaire_id' },
+    )
+    setEnvoi(false)
+    if (error) return toast.error(messageErreur(error))
+    toast.success('Appel enregistré')
+    apres()
+    fermer()
+  }
+
+  const presents = Object.values(etat).filter(Boolean).length
+  return (
+    <Dialog open={!!seance} onOpenChange={(o) => !o && fermer()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Appel du {seance ? date(seance.date) : ''}</DialogTitle>
+          <DialogDescription>Touchez un nom pour le marquer absent. {presents} présent{presents > 1 ? 's' : ''} sur {inscrits.length}.</DialogDescription>
+        </DialogHeader>
+        <div className="flex gap-2">
+          <Button size="sm" variant="secondary" onClick={() => setEtat(Object.fromEntries(inscrits.map((b) => [b.id, true])))}>Tous présents</Button>
+          <Button size="sm" variant="ghost" onClick={() => setEtat(Object.fromEntries(inscrits.map((b) => [b.id, false])))}>Tous absents</Button>
+        </div>
+        <div className="max-h-[50dvh] divide-y divide-border/70 overflow-y-auto rounded-xl border border-border">
+          {inscrits.map((b) => {
+            const present = etat[b.id] ?? true
+            return (
+              <button key={b.id} type="button" onClick={() => setEtat({ ...etat, [b.id]: !present })}
+                className={cn('flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors', !present && 'bg-[#fbe6e6]/60')}>
+                <Avatar prenom={b.cible.prenom} nom={b.cible.nom} nature={b.cible.type} taille="sm" />
+                <span className={cn('flex-1 text-sm font-medium', !present && 'text-muted-foreground line-through')}>{nomCible(b.cible)}</span>
+                <span className={cn('inline-flex size-7 items-center justify-center rounded-full', present ? 'bg-[#e2f4e2] text-[#0b6b0b]' : 'bg-[#fbe6e6] text-[#a32b2b]')}>
+                  {present ? <Check className="size-4" /> : <X className="size-4" />}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={fermer}>Annuler</Button>
+          <Button onClick={enregistrer} disabled={envoi}>Enregistrer l'appel</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}

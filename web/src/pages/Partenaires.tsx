@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Chargement, Champ, EnTete, Erreur } from '@/components/champs'
+import { OutilsListe } from '@/components/OutilsListe'
+import { correspond, trier } from '@/lib/recherche'
 import { Avatar, Liste as Encadre } from '@/components/design'
 import { useAuth } from '@/lib/auth'
 import { usePartenaires } from '@/lib/requetes'
@@ -17,7 +19,11 @@ const VIDE = { nom: '', sigle: '', domaine: '', contact_nom: '', telephone: '', 
 
 export function Partenaires() {
   const { a } = useAuth()
-  const { data: partenaires, isLoading, error } = usePartenaires()
+  const { data: tous, isLoading, error } = usePartenaires()
+  const [recherche, setRecherche] = useState('')
+  const [tri, setTri] = useState<'nom' | 'domaine'>('nom')
+  const retenus = (tous ?? []).filter((p) => correspond(recherche, p.nom, p.sigle, p.domaine, p.contact_nom, p.telephone))
+  const partenaires = tri === 'nom' ? trier(retenus, (p) => p.sigle || p.nom) : trier(retenus, (p) => p.domaine)
   const [edition, setEdition] = useState<Partenaire | 'nouveau' | null>(null)
   const gestion = a('admin', 'bureau')
   return (
@@ -26,6 +32,15 @@ export function Partenaires() {
         titre="Partenaires"
         sousTitre="Centres de formation, structures de santé, financeurs…"
         actions={gestion ? <Button onClick={() => setEdition('nouveau')}><Plus className="size-4" /> Nouveau</Button> : null}
+      />
+      <OutilsListe
+        recherche={recherche}
+        setRecherche={setRecherche}
+        placeholder="Nom, sigle, domaine, contact…"
+        tris={[['nom', 'Nom A → Z'], ['domaine', 'Par domaine']]}
+        tri={tri}
+        setTri={setTri}
+        total={tous ? partenaires.length : undefined}
       />
       {error ? <Erreur erreur={error} /> : isLoading ? <Chargement /> : (
         <Encadre>

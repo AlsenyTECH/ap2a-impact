@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase, verifier } from './supabase'
+import { normaliser } from './recherche'
 import type { Action, Beneficiaire, CategorieCible, Cible, FamilleCible, Membre, Partenaire, ProfilPersonne, TypeAction, Zone } from './types'
 
 // Référentiels : changent rarement, gardés en cache 10 minutes.
@@ -55,23 +56,32 @@ export const useMembres = () =>
     queryFn: async () => verifier(await supabase.from('membres').select('*').order('nom').order('prenom')) as Membre[],
   })
 
-const CHAMPS_CIBLE = '*, zone:zones(chemin, nom), referent:membres!cibles_referent_id_fkey(prenom, nom), categorie:categories_cible(libelle, famille:familles_cible(nom))'
+const CHAMPS_CIBLE = '*, zone:zones(chemin, nom), referent:membres!cibles_referent_id_fkey(prenom, nom, numero_adherent), categorie:categories_cible(libelle, famille:familles_cible(nom))'
 
-/** Recherche de cibles, filtrées par nature et/ou par une liste de catégories. */
-export const useCibles = (recherche: string, type: string, categories?: number[] | null) =>
+export type TriCibles = 'recentes' | 'nom' | 'prenom' | 'jeunes' | 'ages' | 'groupe'
+const ORDRES: Record<TriCibles, [string, boolean]> = {
+  recentes: ['cree_le', false], nom: ['nom', true], prenom: ['prenom', true],
+  jeunes: ['date_naissance', false], ages: ['date_naissance', true], groupe: ['groupes', true],
+}
+
+/**
+ * Recherche de cibles, filtrées par nature et/ou par une liste de catégories.
+ * La recherche porte sur le nom, le prénom, le téléphone, le métier et les
+ * groupes (un membre du « GPF Jigeen » se trouve en tapant « jigeen »).
+ */
+export const useCibles = (recherche: string, type: string, categories?: number[] | null, tri: TriCibles = 'recentes') =>
   useQuery({
-    queryKey: ['cibles', recherche, type, categories],
+    queryKey: ['cibles', recherche, type, categories, tri],
     queryFn: async () => {
-      let q = supabase.from('cibles').select(CHAMPS_CIBLE).order('cree_le', { ascending: false }).limit(200)
+      const [colonne, croissant] = ORDRES[tri]
+      let q = supabase.from('cibles').select(CHAMPS_CIBLE).order(colonne, { ascending: croissant, nullsFirst: false }).order('nom').limit(300)
       if (type) q = q.eq('type', type)
       if (categories) q = q.in('categorie_id', categories)
-      const mots = recherche.trim()
-      if (mots) {
-        // Recherche sur le nom, le prénom ou le téléphone (chiffres seuls).
-        const motif = `%${mots.replace(/[%_,()]/g, ' ')}%`
-        const chiffres = mots.replace(/\D/g, '')
-        q = q.or([`nom.ilike.${motif}`, `prenom.ilike.${motif}`, ...(chiffres.length >= 3 ? [`telephone_normalise.like.%${chiffres}%`] : [])].join(','))
-      }
+      // Un numéro tapé avec des espaces (« 77 123 45 ») est cherché en chiffres ;
+      // sinon chaque mot doit apparaître (sans accents ni majuscules).
+      const telephone = /^[\d\s+]+$/.test(recherche.trim()) ? recherche.replace(/\D/g, '').replace(/^(00)?221(?=\d{9}$)/, '') : ''
+      const mots = telephone ? [telephone] : normaliser(recherche).replace(/[%_,()]/g, ' ').split(/\s+/).filter(Boolean)
+      for (const mot of mots) q = q.like('recherche', `%${mot}%`)
       return verifier(await q) as Cible[]
     },
   })
@@ -96,13 +106,14 @@ export const useParcours = (cibleId: string) =>
       ) as Beneficiaire[],
   })
 
-const CHAMPS_ACTION = '*, type:types_action(libelle, code), responsable:membres!actions_responsable_id_fkey(prenom, nom), zone:zones(chemin, nom)'
+const CHAMPS_ACTION = '*, type:types_action(libelle, code), responsable:membres!actions_responsable_id_fkey(prenom, nom, numero_adherent), zone:zones(chemin, nom)'
 
 export const useActions = (statut: string) =>
   useQuery({
     queryKey: ['actions', statut],
     queryFn: async () => {
-      let q = supabase.from('actions').select(CHAMPS_ACTION).order('date_debut', { ascending: false }).limit(200)
+      // Des plus récentes aux plus anciennes.
+      let q = supabase.from('actions').select(CHAMPS_ACTION).order('date_debut', { ascending: false }).order('cree_le', { ascending: false }).limit(500)
       if (statut) q = q.eq('statut', statut)
       return verifier(await q) as Action[]
     },

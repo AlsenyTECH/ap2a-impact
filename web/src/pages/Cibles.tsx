@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { FileSpreadsheet, Plus, Search, Target, Upload } from 'lucide-react'
+import { FileSpreadsheet, Plus, Target, Upload } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Input } from '@/components/ui/input'
 import { CibleForm } from '@/components/CibleForm'
 import { ImportExcel } from '@/components/ImportExcel'
 import { Chargement, EnTete, Erreur, Liste, Pastilles } from '@/components/champs'
@@ -12,11 +11,13 @@ import { Avatar, Liste as Encadre } from '@/components/design'
 import { useAuth } from '@/lib/auth'
 import { nomCible, trancheAge } from '@/lib/format'
 import { exporterExcel } from '@/lib/export'
-import { useCategories, useCibles, useFamilles, useProfils } from '@/lib/requetes'
+import { useCategories, useCibles, useFamilles, useProfils, type TriCibles } from '@/lib/requetes'
+import { OutilsListe } from '@/components/OutilsListe'
 
 export function Cibles() {
   const { a } = useAuth()
   const [recherche, setRecherche] = useState('')
+  const [tri, setTri] = useState<TriCibles>('recentes')
   const [famille, setFamille] = useState<number | null>(null)
   const [categorie, setCategorie] = useState<number | null>(null)
   const { data: familles = [] } = useFamilles()
@@ -26,7 +27,7 @@ export function Cibles() {
   const [importer, setImporter] = useState(false)
   const dansFamille = categories.filter((k) => k.famille_id === famille)
   const filtre = categorie ? [categorie] : famille ? dansFamille.map((k) => k.id) : null
-  const { data: cibles, isLoading, error } = useCibles(recherche, '', filtre)
+  const { data: cibles, isLoading, error } = useCibles(recherche, '', filtre, tri)
   const situation = (id: number | null) => profils.find((p) => p.id === id)?.libelle
 
   // Exporte la liste affichée (recherche et filtres compris).
@@ -63,10 +64,14 @@ export function Cibles() {
           </>
         ) : null}
       />
-      <div className="relative mb-3">
-        <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input className="pl-10" placeholder="Nom, prénom ou téléphone" value={recherche} onChange={(e) => setRecherche(e.target.value)} />
-      </div>
+      <OutilsListe<TriCibles>
+        recherche={recherche}
+        setRecherche={setRecherche}
+        placeholder="Nom, téléphone, métier ou groupe (GPF, ASC…)"
+        tris={[['recentes', 'Plus récentes'], ['nom', 'Nom A → Z'], ['prenom', 'Prénom A → Z'], ['jeunes', 'Plus jeunes'], ['ages', 'Plus âgés'], ['groupe', 'Par groupe']]}
+        tri={tri}
+        setTri={setTri}
+      />
       <div className="sans-barre -mx-4 mb-5 overflow-x-auto px-4 md:mx-0 md:px-0">
         <Pastilles<string>
           defilant
@@ -93,6 +98,7 @@ export function Cibles() {
                 <div className="truncate text-xs text-muted-foreground">
                   {[situation(c.situation_id) ?? c.sous_type, c.telephone, c.zone?.nom].filter(Boolean).join(' · ') || '—'}
                 </div>
+                {c.groupes ? <div className="truncate text-xs font-medium text-primary">Membre de : {c.groupes}</div> : null}
               </div>
               <Badge variant="outline" className="hidden max-w-[40%] shrink-0 truncate sm:inline-flex">{c.categorie?.libelle}</Badge>
             </Link>

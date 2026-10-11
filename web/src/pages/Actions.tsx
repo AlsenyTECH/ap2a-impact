@@ -5,17 +5,33 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ActionForm } from '@/components/ActionForm'
 import { Avatar, IconeType, StatutPastille } from '@/components/design'
-import { Chargement, EnTete, Erreur, Pastilles } from '@/components/champs'
+import { Chargement, EnTete, Erreur, Liste, Pastilles } from '@/components/champs'
+import { OutilsListe } from '@/components/OutilsListe'
+import { correspond, trier } from '@/lib/recherche'
 import { useAuth } from '@/lib/auth'
 import { date, LIBELLES_STATUT_ACTION } from '@/lib/format'
-import { useActions } from '@/lib/requetes'
+import { useActions, useTypesAction } from '@/lib/requetes'
 import type { StatutAction } from '@/lib/types'
+
+type Tri = 'recentes' | 'anciennes' | 'titre' | 'budget'
 
 export function Actions() {
   const { a } = useAuth()
   const [statut, setStatut] = useState<StatutAction | ''>('')
+  const [type, setType] = useState('')
+  const [recherche, setRecherche] = useState('')
+  const [tri, setTri] = useState<Tri>('recentes')
   const [creation, setCreation] = useState(false)
-  const { data: actions, isLoading, error } = useActions(statut)
+  const { data: toutes, isLoading, error } = useActions('')
+  const { data: types = [] } = useTypesAction()
+
+  const filtrees = (toutes ?? []).filter((x) =>
+    (!statut || x.statut === statut) && (!type || String(x.type_id) === type)
+    && correspond(recherche, x.titre, x.lieu, x.zone?.nom, x.type?.libelle, x.responsable?.prenom, x.responsable?.nom, x.responsable?.numero_adherent))
+  const actions = tri === 'recentes' ? filtrees // déjà triées par la base
+    : tri === 'anciennes' ? trier(filtrees, (x) => x.date_debut, 'asc')
+    : tri === 'titre' ? trier(filtrees, (x) => x.titre)
+    : trier(filtrees, (x) => x.budget_fcfa, 'desc')
 
   return (
     <>
@@ -24,15 +40,32 @@ export function Actions() {
         sousTitre="Formations, dépistages, distributions, journées de nettoyage…"
         actions={a('admin', 'bureau', 'coordinateur') ? <Button onClick={() => setCreation(true)}><Plus className="size-4" /> Nouvelle</Button> : null}
       />
-      <div className="mb-4">
+      <OutilsListe<Tri>
+        recherche={recherche}
+        setRecherche={setRecherche}
+        placeholder="Titre, lieu, responsable ou n° de membre…"
+        tris={[['recentes', 'Plus récentes'], ['anciennes', 'Plus anciennes'], ['titre', 'Titre A → Z'], ['budget', 'Budget le plus élevé']]}
+        tri={tri}
+        setTri={setTri}
+        total={toutes ? actions.length : undefined}
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <Liste className="w-auto" value={type} onChange={(e) => setType(e.target.value)} aria-label="Type d'action">
+            <option value="">Tous les types</option>
+            {types.map((t) => <option key={t.id} value={t.id}>{t.libelle}</option>)}
+          </Liste>
+        </div>
+      </OutilsListe>
+      <div className="sans-barre -mx-4 mb-4 overflow-x-auto px-4 md:mx-0 md:px-0">
         <Pastilles<StatutAction | ''>
+          defilant
           value={statut}
           onChange={(s) => setStatut(s === statut ? '' : s)}
           options={[['', 'Toutes'], ...(Object.entries(LIBELLES_STATUT_ACTION) as [StatutAction, string][])]}
         />
       </div>
-      {error ? <Erreur erreur={error} /> : isLoading ? <Chargement /> : !actions?.length ? (
-        <EmptyState icon={CalendarCheck} title="Aucune action" />
+      {error ? <Erreur erreur={error} /> : isLoading ? <Chargement /> : !actions.length ? (
+        <EmptyState icon={CalendarCheck} title="Aucune action" description={recherche || statut || type ? 'Aucune action ne correspond à ces critères.' : undefined} />
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {actions.map((x) => (
@@ -58,7 +91,7 @@ export function Actions() {
                 {x.responsable ? (
                   <span className="inline-flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
                     <Avatar prenom={x.responsable.prenom} nom={x.responsable.nom} taille="sm" className="size-6 text-[10px]" />
-                    <span className="truncate">{x.responsable.prenom} {x.responsable.nom}</span>
+                    <span className="truncate">{x.responsable.prenom} {x.responsable.nom} <span className="text-muted-foreground/70">· {x.responsable.numero_adherent}</span></span>
                   </span>
                 ) : <span />}
                 <StatutPastille statut={x.statut} />

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, CalendarDays, FileSpreadsheet, FileText, Gift, MapPin, Paperclip, Pencil, Plus, Trash2, UserPlus, UserRound, Wallet } from 'lucide-react'
+import { ArrowLeft, CalendarDays, FileSpreadsheet, FileText, Lock, LockOpen, Gift, MapPin, Paperclip, Pencil, Plus, Trash2, UserPlus, UserRound, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,11 @@ import { ActionForm } from '@/components/ActionForm'
 import { ApportForm, ouvrirJustificatif } from '@/components/ApportForm'
 import { CibleForm } from '@/components/CibleForm'
 import { ImportExcel } from '@/components/ImportExcel'
-import { Chargement, Erreur, Liste, ListeMembres } from '@/components/champs'
+import { Chargement, Erreur, Liste, ListeMembres, Pastilles } from '@/components/champs'
+import { OutilsListe } from '@/components/OutilsListe'
+import { Seances } from '@/components/Seances'
+import { Historique } from '@/components/Historique'
+import { correspond, membreAvecNumero, trier } from '@/lib/recherche'
 import { Avatar, IconeType, StatutPastille } from '@/components/design'
 import { useAuth } from '@/lib/auth'
 import { date, fcfa, LIBELLES_NATURE, LIBELLES_STATUT_BENEFICIAIRE, nomCible } from '@/lib/format'
@@ -51,7 +55,13 @@ export function ActionDetail() {
 
   // Même règle que la base : gestionnaire, ou coordinateur responsable/créateur.
   const gere = a('admin', 'bureau') || (a('coordinateur') && [action.responsable_id, action.cree_par].includes(membre!.id))
-  const voitBeneficiaires = a('admin', 'bureau', 'coordinateur') || equipe.some((e) => e.membre.id === membre!.id)
+  const dansEquipe = equipe.some((e) => e.membre.id === membre!.id)
+  const voitBeneficiaires = a('admin', 'bureau', 'coordinateur') || dansEquipe
+  // Une action clôturée est figée (la base le garantit aussi) : seul le
+  // bilan se complète, seul un administrateur peut la rouvrir.
+  const cloturee = action.statut === 'terminee' || action.statut === 'annulee'
+  const modifiable = gere && !cloturee
+  const suites = (SUITE[action.statut] ?? []).filter(() => !cloturee || a('admin'))
 
   async function changerStatut(statut: StatutAction) {
     const maj: { statut: StatutAction; date_fin?: string } = { statut }
@@ -82,10 +92,19 @@ export function ActionDetail() {
           </div>
           {gere ? (
             <div className="flex flex-wrap gap-2 md:justify-end">
-              {SUITE[action.statut]?.map(([s, libelle]) => (
-                <Button key={s} variant={s === 'annulee' ? 'ghost' : 'default'} size="sm" onClick={() => changerStatut(s)}>{libelle}</Button>
+              {suites.map(([s, libelle]) => (
+                <Button
+                  key={s}
+                  variant={s === 'annulee' ? 'ghost' : cloturee ? 'secondary' : 'default'}
+                  size="sm"
+                  onClick={() => (s === 'terminee' || s === 'annulee' || cloturee
+                    ? confirm(s === 'terminee' ? 'Clôturer cette action ? Sa liste et ce qui a été remis seront figés.' : s === 'annulee' ? 'Annuler cette action ? Elle sera figée.' : 'Rouvrir cette action clôturée ? Ce sera noté dans l\'historique.')
+                    : true) && changerStatut(s)}
+                >
+                  {cloturee ? <LockOpen /> : null}{libelle}
+                </Button>
               ))}
-              <Button variant="secondary" size="sm" onClick={() => setEdition(true)}><Pencil /> Modifier</Button>
+              {!cloturee ? <Button variant="secondary" size="sm" onClick={() => setEdition(true)}><Pencil /> Modifier</Button> : null}
               <Button asChild variant="secondary" size="sm"><Link to={`/actions/${id}/rapport`}><FileText /> Rapport</Link></Button>
             </div>
           ) : voitBeneficiaires ? (
@@ -96,7 +115,7 @@ export function ActionDetail() {
           {[
             [CalendarDays, 'Dates', `${date(action.date_debut)}${action.date_fin && action.date_fin !== action.date_debut ? ` → ${date(action.date_fin)}` : ''}`],
             [MapPin, 'Lieu', action.lieu || action.zone?.nom || '—'],
-            [UserRound, 'Responsable', action.responsable ? `${action.responsable.prenom} ${action.responsable.nom}` : '—'],
+            [UserRound, 'Responsable', membreAvecNumero(action.responsable)],
             [Wallet, 'Budget', fcfa(action.budget_fcfa)],
           ].map(([Icone, libelle, valeur], i) => {
             const I = Icone as typeof MapPin
@@ -113,21 +132,40 @@ export function ActionDetail() {
         </dl>
       </Card>
 
-      <Tabs defaultValue={voitBeneficiaires ? 'beneficiaires' : 'equipe'}>
+      {cloturee ? (
+        <div className="mb-5 flex items-start gap-3 rounded-xl border border-border bg-muted/60 p-4 text-sm">
+          <Lock className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+          <div>
+            <div className="font-semibold">Action {action.statut === 'terminee' ? 'clôturée' : 'annulée'} : liste figée</div>
+            <div className="text-muted-foreground">
+              Les bénéficiaires, ce qui a été remis, l'équipe et les séances ne peuvent plus être modifiés. Le bilan reste modifiable
+              et les suivis continuent. {a('admin') ? 'En tant qu\'administrateur, vous pouvez la rouvrir.' : 'Seul un administrateur peut la rouvrir.'}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <Tabs defaultValue={voitBeneficiaires ? 'beneficiaires' : 'seances'}>
         <TabsList className="mb-4">
           {voitBeneficiaires ? <TabsTrigger value="beneficiaires">Bénéficiaires</TabsTrigger> : null}
+          <TabsTrigger value="seances">Séances</TabsTrigger>
           <TabsTrigger value="equipe">Équipe ({equipe.length})</TabsTrigger>
           <TabsTrigger value="partenaires">Partenaires ({partenairesAction.length})</TabsTrigger>
           <TabsTrigger value="bilan">Bilan</TabsTrigger>
+          {gere ? <TabsTrigger value="historique">Historique</TabsTrigger> : null}
         </TabsList>
         {voitBeneficiaires ? (
           <TabsContent value="beneficiaires">
-            <OngletBeneficiaires actionId={id} gere={gere} partenaireParDefaut={partenairesAction.find((p) => p.role === 'formateur')?.partenaire_id ?? partenairesAction[0]?.partenaire_id} />
+            <OngletBeneficiaires actionId={id} gere={modifiable} partenaireParDefaut={partenairesAction.find((p) => p.role === 'formateur')?.partenaire_id ?? partenairesAction[0]?.partenaire_id} />
           </TabsContent>
         ) : null}
-        <TabsContent value="equipe"><OngletEquipe actionId={id} gere={gere} equipe={equipe} /></TabsContent>
-        <TabsContent value="partenaires"><OngletPartenaires actionId={id} gere={gere} liste={partenairesAction} /></TabsContent>
+        <TabsContent value="seances">
+          <Seances actionId={id} planifier={modifiable} appel={(gere || dansEquipe) && !cloturee} voitBeneficiaires={voitBeneficiaires} />
+        </TabsContent>
+        <TabsContent value="equipe"><OngletEquipe actionId={id} gere={modifiable} equipe={equipe} /></TabsContent>
+        <TabsContent value="partenaires"><OngletPartenaires actionId={id} gere={modifiable} liste={partenairesAction} /></TabsContent>
         <TabsContent value="bilan"><OngletBilan actionId={id} gere={gere} bilan={action.bilan} /></TabsContent>
+        {gere ? <TabsContent value="historique"><Historique actionId={id} /></TabsContent> : null}
       </Tabs>
       <ActionForm ouvert={edition} fermer={() => setEdition(false)} action={action} />
     </>
@@ -152,6 +190,28 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
   })
   const dejaInscrits = new Set(liste.map((b) => b.cible_id))
   const total = liste.flatMap((b) => b.apports ?? []).reduce((s, x) => s + (x.valeur_fcfa ?? 0), 0)
+
+  // Assiduité : part des séances où le bénéficiaire était présent.
+  const { data: presences = [] } = useQuery({
+    queryKey: ['presences', actionId],
+    queryFn: async () => verifier(await supabase.from('presences').select('beneficiaire_id, present, seance:seances!inner(action_id)').eq('seance.action_id', actionId)) as unknown as { beneficiaire_id: string; present: boolean }[],
+  })
+  const assiduite = (id: string) => {
+    const p = presences.filter((x) => x.beneficiaire_id === id)
+    return p.length ? Math.round((100 * p.filter((x) => x.present).length) / p.length) : null
+  }
+  const groupe = (b: Beneficiaire) => b.via?.nom ?? b.cible?.groupes ?? null
+
+  const [filtre, setFiltre] = useState('')
+  const [statutFiltre, setStatutFiltre] = useState<StatutBeneficiaire | ''>('')
+  const [tri, setTri] = useState<'ajout' | 'nom' | 'groupe' | 'statut' | 'presence'>('ajout')
+  const retenus = liste.filter((b) => (!statutFiltre || b.statut === statutFiltre)
+    && correspond(filtre, b.cible?.prenom, b.cible?.nom, b.cible?.telephone, groupe(b), b.apports?.map((x) => x.description).join(' ')))
+  const affiches = tri === 'ajout' ? retenus
+    : tri === 'nom' ? trier(retenus, (b) => b.cible?.nom)
+    : tri === 'groupe' ? trier(retenus, groupe)
+    : tri === 'statut' ? trier(retenus, (b) => b.statut)
+    : trier(retenus, (b) => assiduite(b.id), 'desc')
 
   async function ajouter(c: Cible) {
     setRecherche('')
@@ -237,13 +297,30 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
           </button>
         ) : null}
       </div>
+      {liste.length > 3 ? (
+        <OutilsListe
+          recherche={filtre}
+          setRecherche={setFiltre}
+          placeholder="Chercher : nom, groupe, ce qui a été remis…"
+          tris={[['ajout', "Ordre d'inscription"], ['nom', 'Nom A → Z'], ['groupe', 'Par groupe'], ['statut', 'Par statut'], ['presence', 'Meilleure assiduité']]}
+          tri={tri}
+          setTri={setTri}
+          total={affiches.length}
+        >
+          <Pastilles<StatutBeneficiaire | ''>
+            value={statutFiltre}
+            onChange={(v) => setStatutFiltre(v === statutFiltre ? '' : v)}
+            options={[['', 'Tous'], ...(Object.entries(LIBELLES_STATUT_BENEFICIAIRE) as [StatutBeneficiaire, string][])]}
+          />
+        </OutilsListe>
+      ) : null}
       {isLoading ? <Chargement /> : !liste.length ? (
         <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          <UserPlus className="mx-auto mb-2 size-6" /> Aucun bénéficiaire. Cherchez une cible ci-dessus ou importez la liste Excel des participants.
+          <UserPlus className="mx-auto mb-2 size-6" /> Aucun bénéficiaire.{gere ? " Cherchez une cible ci-dessus ou importez la liste Excel des participants." : ""}
         </p>
       ) : (
         <div className="space-y-2">
-          {liste.map((b) => (
+          {affiches.map((b) => (
             <Card key={b.id}>
               <CardContent className="space-y-2 p-3">
                 <div className="flex items-center gap-3">
@@ -251,8 +328,13 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
                   {b.cible ? <Avatar prenom={b.cible.prenom} nom={b.cible.nom} nature={b.cible.type} taille="sm" /> : null}
                   <Link to={`/cibles/${b.cible_id}`} className="min-w-0 flex-1 truncate font-medium">
                     {b.cible ? nomCible(b.cible) : '—'}
-                    {b.via ? <span className="block truncate text-xs font-normal text-muted-foreground">avec {b.via.nom}</span> : null}
+                    {groupe(b) ? <span className="block truncate text-xs font-normal text-primary">{b.via ? 'Inscrit avec' : 'Membre de'} : {groupe(b)}</span> : null}
                   </Link>
+                  {assiduite(b.id) != null ? (
+                    <span title="Présence aux séances" className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold chiffres ${assiduite(b.id)! >= 75 ? 'bg-[#e2f4e2] text-[#0b6b0b]' : assiduite(b.id)! >= 50 ? 'bg-or-soft text-[#7a5600]' : 'bg-[#fbe6e6] text-[#a32b2b]'}`}>
+                      {assiduite(b.id)} %
+                    </span>
+                  ) : null}
                   {gere ? (
                     <>
                       <Liste className="h-8 w-auto text-xs" value={b.statut} onChange={(e) => changer(b, e.target.value as StatutBeneficiaire)}>
@@ -319,7 +401,7 @@ function OngletEquipe({ actionId, gere, equipe }: { actionId: string; gere: bool
         <div className="divide-y divide-border rounded-lg border border-border bg-card">
           {equipe.map((e) => (
             <div key={e.membre.id} className="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
-              <span>{e.membre.prenom} {e.membre.nom} {e.role ? <span className="text-muted-foreground">· {e.role}</span> : null}</span>
+              <span>{e.membre.prenom} {e.membre.nom} <span className="text-xs text-muted-foreground">({e.membre.numero_adherent})</span> {e.role ? <span className="text-muted-foreground">· {e.role}</span> : null}</span>
               <span className="flex items-center gap-2">
                 {e.membre.telephone ? <a className="text-xs text-primary" href={`tel:${e.membre.telephone}`}>{e.membre.telephone}</a> : null}
                 {gere ? <button onClick={() => retirer(e.membre.id)} aria-label="Retirer"><Trash2 className="size-4 text-muted-foreground" /></button> : null}

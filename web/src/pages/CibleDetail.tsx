@@ -13,6 +13,7 @@ import { Avatar } from '@/components/design'
 import { useAuth } from '@/lib/auth'
 import { date, echeance, fcfa, LIBELLES_NATURE, LIBELLES_STATUT_BENEFICIAIRE, lienWhatsApp, nomCible, SITUATION, trancheAge } from '@/lib/format'
 import { useCible, useParcours, useProfils } from '@/lib/requetes'
+import { membreAvecNumero } from '@/lib/recherche'
 import type { Suivi } from '@/lib/types'
 
 export function CibleDetail() {
@@ -84,7 +85,7 @@ export function CibleDetail() {
             </>
           )}
           <Info label="Adresse / repère" valeur={cible.adresse} />
-          <Info label="Référent du suivi" valeur={cible.referent ? `${cible.referent.prenom} ${cible.referent.nom}` : null} />
+          <Info label="Référent du suivi" valeur={cible.referent ? membreAvecNumero(cible.referent) : null} />
           <Info label="Reçu de l'association" valeur={total ? fcfa(total) : null} />
         </dl>
         {cible.notes ? <p className="border-t border-border/70 px-5 py-3 text-sm text-muted-foreground md:px-6">{cible.notes}</p> : null}

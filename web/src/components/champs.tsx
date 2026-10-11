@@ -61,7 +61,7 @@ export function ListeMembres({ value, onChange, roles, vide = '— Aucun —' }:
   return (
     <Liste value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
       <option value="">{vide}</option>
-      {choix.map((m) => <option key={m.id} value={m.id}>{m.prenom} {m.nom}</option>)}
+      {choix.map((m) => <option key={m.id} value={m.id}>{m.prenom} {m.nom} · {m.numero_adherent}</option>)}
     </Liste>
   )
 }
