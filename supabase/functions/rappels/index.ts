@@ -109,11 +109,20 @@ function emailSeances(d: Destinataire) {
   return { sujet: `AP2A — ${sujet}`, html: gabarit("Séances d'aujourd'hui", corps), nb: seances.length }
 }
 
+/** Lit un secret en tolérant accents, majuscules et espaces dans son nom (« EXPÉDITEUR_EMAIL »…). */
+function secret(nom: string) {
+  const simple = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s-]+/g, '_').toUpperCase()
+  const exact = Deno.env.get(nom)
+  if (exact) return exact.trim()
+  const trouve = Object.entries(Deno.env.toObject()).find(([k]) => simple(k) === nom)
+  return trouve?.[1]?.trim() || undefined
+}
+
 async function envoyer(a: string, sujet: string, html: string) {
-  const expediteur = Deno.env.get('EXPEDITEUR_EMAIL')
+  const expediteur = secret('EXPEDITEUR_EMAIL')
   if (!expediteur) throw new Error('Secret EXPEDITEUR_EMAIL manquant')
-  const brevo = Deno.env.get('BREVO_API_KEY')
-  const resend = Deno.env.get('RESEND_API_KEY')
+  const brevo = secret('BREVO_API_KEY')
+  const resend = secret('RESEND_API_KEY')
   const r = brevo
     ? await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
