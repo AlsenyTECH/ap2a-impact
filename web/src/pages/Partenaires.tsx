@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Plus } from 'lucide-react'
+import { KeyRound, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -12,6 +12,7 @@ import { correspond, trier } from '@/lib/recherche'
 import { Avatar, Liste as Encadre } from '@/components/design'
 import { useAuth } from '@/lib/auth'
 import { usePartenaires } from '@/lib/requetes'
+import { AccesPartenaires } from '@/components/AccesPartenaires'
 import { messageErreur, supabase } from '@/lib/supabase'
 import type { Partenaire } from '@/lib/types'
 
@@ -26,6 +27,7 @@ export function Partenaires() {
   const partenaires = tri === 'nom' ? trier(retenus, (p) => p.sigle || p.nom) : trier(retenus, (p) => p.domaine)
   const [edition, setEdition] = useState<Partenaire | 'nouveau' | null>(null)
   const gestion = a('admin', 'bureau')
+  const [accesDe, setAccesDe] = useState<Partenaire | null>(null)
   return (
     <>
       <EnTete
@@ -45,7 +47,8 @@ export function Partenaires() {
       {error ? <Erreur erreur={error} /> : isLoading ? <Chargement /> : (
         <Encadre>
           {partenaires?.map((p) => (
-            <button key={p.id} disabled={!gestion} onClick={() => setEdition(p)} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors enabled:hover:bg-muted/50">
+            <div key={p.id} className="flex items-center gap-1 pr-2">
+            <button disabled={!gestion} onClick={() => setEdition(p)} className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left transition-colors enabled:hover:bg-muted/50">
               <Avatar nom={p.sigle || p.nom} nature="structure" />
               <div className="min-w-0 flex-1">
               <div className={p.actif ? 'font-medium' : 'font-medium text-muted-foreground line-through'}>
@@ -54,10 +57,13 @@ export function Partenaires() {
               <div className="truncate text-xs text-muted-foreground">{[p.domaine, p.contact_nom, p.telephone].filter(Boolean).join(' · ') || '—'}</div>
               </div>
             </button>
+            {gestion ? <Button size="sm" variant="ghost" onClick={() => setAccesDe(p)} title="Accès à l'application"><KeyRound /> Accès</Button> : null}
+            </div>
           ))}
         </Encadre>
       )}
       <PartenaireForm partenaire={edition} fermer={() => setEdition(null)} />
+      {accesDe ? <AccesPartenaires partenaire={accesDe} fermer={() => setAccesDe(null)} /> : null}
     </>
   )
 }

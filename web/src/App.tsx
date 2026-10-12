@@ -17,6 +17,7 @@ import { Categories } from '@/pages/Categories'
 import { RapportAction } from '@/pages/RapportAction'
 import { RapportAnnuel } from '@/pages/RapportAnnuel'
 import { Verification } from '@/pages/Verification'
+import { PortailPartenaire, usePortail } from '@/pages/Portail'
 import { Cartes } from '@/pages/Cartes'
 import { Evenements } from '@/pages/Evenements'
 import { EvenementDetail } from '@/pages/EvenementDetail'
@@ -33,7 +34,7 @@ export function App() {
   if (pathname.startsWith('/v/')) return <Routes><Route path="v/:jeton" element={<Verification />} /></Routes>
   if (chargement) return <Chargement />
   if (!session) return <Connexion />
-  if (!membre) return <SansFiche email={session.user.email} deconnecter={deconnecter} />
+  if (!membre) return <SansFicheOuPartenaire email={session.user.email} deconnecter={deconnecter} />
 
   return (
     <Routes>
@@ -58,4 +59,12 @@ export function App() {
       </Route>
     </Routes>
   )
+}
+
+/** Compte sans fiche de membre : partenaire invité, ou personne inconnue. */
+function SansFicheOuPartenaire({ email, deconnecter }: { email?: string; deconnecter: () => void }) {
+  const { data, isLoading } = usePortail(true)
+  if (isLoading) return <Chargement />
+  if (data?.acces) return <PortailPartenaire portail={data} deconnecter={deconnecter} />
+  return <SansFiche email={email} deconnecter={deconnecter} />
 }

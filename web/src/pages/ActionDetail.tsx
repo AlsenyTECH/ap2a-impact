@@ -18,6 +18,7 @@ import { Chargement, Erreur, Liste, ListeMembres, Pastilles } from '@/components
 import { OutilsListe } from '@/components/OutilsListe'
 import { Seances } from '@/components/Seances'
 import { Historique } from '@/components/Historique'
+import { OngletConsultations } from '@/components/OngletConsultations'
 import { correspond, membreAvecNumero, trier } from '@/lib/recherche'
 import { Avatar, IconeType, StatutPastille } from '@/components/design'
 import { useAuth } from '@/lib/auth'
@@ -149,6 +150,7 @@ export function ActionDetail() {
       <Tabs defaultValue={voitBeneficiaires ? 'beneficiaires' : 'seances'}>
         <TabsList className="mb-4">
           {voitBeneficiaires ? <TabsTrigger value="beneficiaires">Bénéficiaires</TabsTrigger> : null}
+          {voitBeneficiaires && action.type?.code === 'sante' ? <TabsTrigger value="consultations">Consultations</TabsTrigger> : null}
           <TabsTrigger value="seances">Séances</TabsTrigger>
           <TabsTrigger value="equipe">Équipe ({equipe.length})</TabsTrigger>
           <TabsTrigger value="partenaires">Partenaires ({partenairesAction.length})</TabsTrigger>
@@ -158,6 +160,11 @@ export function ActionDetail() {
         {voitBeneficiaires ? (
           <TabsContent value="beneficiaires">
             <OngletBeneficiaires actionId={id} gere={modifiable} partenaireParDefaut={partenairesAction.find((p) => p.role === 'formateur')?.partenaire_id ?? partenairesAction[0]?.partenaire_id} />
+          </TabsContent>
+        ) : null}
+        {voitBeneficiaires && action.type?.code === 'sante' ? (
+          <TabsContent value="consultations">
+            <OngletConsultations actionId={id} responsable={[action.responsable_id, action.cree_par].includes(membre!.id)} />
           </TabsContent>
         ) : null}
         <TabsContent value="seances">

@@ -218,3 +218,31 @@ export interface ResultatPointage {
   numero?: string
   photo?: string | null
 }
+
+export type TypeAcces = 'formateur' | 'soignant' | 'bailleur'
+export type StatutConsultation = 'vu' | 'rien_a_signaler' | 'traite' | 'oriente' | 'a_revoir'
+
+/** Accès invité d'un partenaire (formateur, soignant, bailleur). */
+export interface AccesPartenaire {
+  id: string
+  partenaire_id: string
+  type: TypeAcces
+  prenom: string | null
+  nom: string
+  email: string
+  telephone: string | null
+  user_id: string | null
+  revoque_le: string | null
+  cree_le: string
+}
+
+export interface Consultation {
+  id: string
+  beneficiaire_id: string
+  date: string
+  statut: StatutConsultation
+  auteur_nom: string | null
+  mien: boolean
+  /** Détail médical : seulement pour l'auteur et les responsables de l'action. */
+  detail: { diagnostic: string | null; traitement: string | null; orientation: string | null; notes: string | null } | null
+}
