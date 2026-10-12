@@ -1,0 +1,214 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="sante-titre">
+<title id="sante-titre">Dépistage de la cataracte : une agente de santé examine les yeux d'un aîné pendant qu'une femme essaie ses nouvelles lunettes</title>
+<defs>
+<pattern id="sante-wax1" width="18" height="18" patternUnits="userSpaceOnUse">
+<rect width="18" height="18" fill="#0b7a57"/>
+<circle cx="9" cy="9" r="4" fill="#f2c14e"/>
+<circle cx="9" cy="9" r="1.5" fill="#0c2a20"/>
+<path d="M0 -2.5 L2.5 0 L0 2.5 L-2.5 0Z M18 -2.5 L20.5 0 L18 2.5 L15.5 0Z M0 15.5 L2.5 18 L0 20.5 L-2.5 18Z M18 15.5 L20.5 18 L18 20.5 L15.5 18Z" fill="#e8f4ee"/>
+</pattern>
+<pattern id="sante-wax2" width="20" height="20" patternUnits="userSpaceOnUse">
+<rect width="20" height="20" fill="#f2c14e"/>
+<path d="M10 3 L17 10 L10 17 L3 10Z" fill="#b4561f"/>
+<circle cx="10" cy="10" r="2.6" fill="#fbfaf6"/>
+<circle cx="0" cy="0" r="2.4" fill="#14523c"/><circle cx="20" cy="0" r="2.4" fill="#14523c"/><circle cx="0" cy="20" r="2.4" fill="#14523c"/><circle cx="20" cy="20" r="2.4" fill="#14523c"/>
+</pattern>
+<clipPath id="sante-blob">
+<path d="M150 250 C175 135 340 100 530 112 C720 124 850 88 995 128 C1120 162 1150 290 1128 430 C1108 570 1145 690 1070 775 C990 860 810 842 630 846 C440 850 245 858 150 775 C72 705 112 555 104 430 C98 355 135 320 150 250Z"/>
+</clipPath>
+</defs>
+
+<!-- fond -->
+<path d="M150 250 C175 135 340 100 530 112 C720 124 850 88 995 128 C1120 162 1150 290 1128 430 C1108 570 1145 690 1070 775 C990 860 810 842 630 846 C440 850 245 858 150 775 C72 705 112 555 104 430 C98 355 135 320 150 250Z" fill="#f1e4c8"/>
+<g clip-path="url(#sante-blob)">
+<rect x="0" y="768" width="1200" height="132" fill="#c99a2e" opacity=".16"/>
+</g>
+<g fill="#f2c14e"><circle cx="190" cy="132" r="6"/><circle cx="214" cy="118" r="4"/><circle cx="170" cy="110" r="3.5"/><circle cx="1150" cy="500" r="5"/><circle cx="1162" cy="526" r="3.5"/></g>
+
+<!-- guirlande de campagne -->
+<path d="M292 150 Q480 236 668 160" fill="none" stroke="#c99a2e" stroke-width="2.5"/>
+<path d="M316.6 164.6 L342.6 166.6 L329.6 195.6Z" fill="#0b7a57"/>
+<path d="M361.7 179.0 L387.7 181.0 L374.7 210.0Z" fill="#f2c14e"/>
+<path d="M406.8 188.8 L432.8 190.8 L419.8 219.8Z" fill="#e07a5f"/>
+<path d="M452.0 193.8 L478.0 195.8 L465.0 224.8Z" fill="#0b7a57"/>
+<path d="M497.1 194.3 L523.1 196.3 L510.1 225.3Z" fill="#f2c14e"/>
+<path d="M542.2 190.0 L568.2 192.0 L555.2 221.0Z" fill="#e07a5f"/>
+<path d="M587.4 181.1 L613.4 183.1 L600.4 212.1Z" fill="#0b7a57"/>
+
+<!-- croix verte -->
+<rect x="684" y="180" width="80" height="80" rx="16" fill="#0c2a20" opacity=".1"/>
+<rect x="678" y="174" width="80" height="80" rx="16" fill="#ffffff"/>
+<path d="M707 188 H729 V203 H744 V225 H729 V240 H707 V225 H692 V203 H707Z" fill="#0b7a57"/>
+
+<!-- affiche oeil -->
+<rect x="922" y="190" width="104" height="118" rx="10" fill="#0c2a20" opacity=".1"/>
+<rect x="916" y="184" width="104" height="118" rx="10" fill="#0b7a57"/>
+<path d="M932 232 Q968 200 1004 232 Q968 264 932 232Z" fill="#ffffff"/>
+<circle cx="968" cy="232" r="14" fill="#f2c14e"/>
+<circle cx="968" cy="232" r="6.5" fill="#0c2a20"/>
+<circle cx="972" cy="228" r="2.4" fill="#ffffff"/>
+<rect x="936" y="270" width="64" height="6" rx="3" fill="#e8f4ee"/>
+<rect x="946" y="282" width="44" height="6" rx="3" fill="#2f9e75"/>
+
+<!-- tableau d'acuité -->
+<ellipse cx="206" cy="784" rx="78" ry="9" fill="#0c2a20" opacity=".12"/>
+<path d="M206 490 L160 782 M206 490 L252 782" stroke="#c99a2e" stroke-width="10" stroke-linecap="round"/>
+<path d="M206 490 L206 770" stroke="#b4561f" stroke-width="10" stroke-linecap="round"/>
+<rect x="134" y="226" width="146" height="280" rx="10" fill="#c99a2e"/>
+<rect x="142" y="234" width="130" height="264" rx="5" fill="#ffffff"/>
+<g fill="none" stroke="#0c2a20">
+<path d="M225.97 284.34 A20 20 0 1 1 225.97 271.66" stroke-width="10"/>
+<path d="M168.62 334.20 A12 12 0 1 1 168.62 341.80" stroke-width="6"/>
+<path d="M237.80 326.62 A12 12 0 1 1 230.20 326.62" stroke-width="6"/>
+<path d="M167.46 389.59 A8 8 0 1 1 172.54 389.59" stroke-width="4"/>
+<path d="M214.59 384.54 A8 8 0 1 1 214.59 379.46" stroke-width="4"/>
+<path d="M240.43 374.84 A8 8 0 1 1 236.84 378.43" stroke-width="4"/>
+<path d="M167.77 412.69 A5.6 5.6 0 1 1 164.23 412.69" stroke-width="2.8"/>
+<path d="M195.50 423.01 A5.6 5.6 0 1 1 198.01 420.50" stroke-width="2.8"/>
+<path d="M214.69 416.23 A5.6 5.6 0 1 1 214.69 419.77" stroke-width="2.8"/>
+<path d="M245.23 423.31 A5.6 5.6 0 1 1 248.77 423.31" stroke-width="2.8"/>
+<path d="M166.79 453.27 A4 4 0 1 1 166.79 450.73" stroke-width="2"/>
+<path d="M179.42 453.79 A4 4 0 1 1 181.21 455.58" stroke-width="2"/>
+<path d="M204.27 448.21 A4 4 0 1 1 201.73 448.21" stroke-width="2"/>
+<path d="M221.73 455.79 A4 4 0 1 1 224.27 455.79" stroke-width="2"/>
+<path d="M239.21 450.73 A4 4 0 1 1 239.21 453.27" stroke-width="2"/>
+</g>
+<rect x="156" y="436" width="102" height="3" rx="1.5" fill="#e07a5f"/>
+<g fill="#14523c" opacity=".55"><circle cx="164" cy="476" r="2.2"/><circle cx="178" cy="476" r="2.2"/><circle cx="192" cy="476" r="2.2"/><circle cx="206" cy="476" r="2.2"/><circle cx="220" cy="476" r="2.2"/><circle cx="234" cy="476" r="2.2"/><circle cx="248" cy="476" r="2.2"/></g>
+
+<!-- AGENTE DE SANTÉ -->
+<ellipse cx="444" cy="784" rx="86" ry="11" fill="#0c2a20" opacity=".12"/>
+<!-- bras arrière -->
+<path d="M398 420 Q380 428 378 456 L372 584 Q380 594 392 588 L398 470Z" fill="#cfe8e0"/>
+<ellipse cx="381" cy="598" rx="10" ry="12" fill="#5a3825"/>
+<!-- jambes -->
+<path d="M448 640 L474 640 L470 766 L450 766Z" fill="#0c2a20"/>
+<path d="M450 760 L470 760 Q494 764 498 782 L446 782Z" fill="#1b1410"/>
+<path d="M414 640 L442 640 L438 766 L418 766Z" fill="#14523c"/>
+<path d="M418 760 L438 760 Q462 764 466 782 L414 782Z" fill="#1b1410"/>
+<!-- blouse -->
+<path d="M402 414 Q440 400 478 412 Q494 418 492 438 L502 652 Q446 664 384 652 L392 438 Q392 418 402 414Z" fill="#ffffff"/>
+<path d="M402 414 Q392 418 392 438 L384 652 Q398 655 414 657 L410 430Z" fill="#cfe8e0" opacity=".8"/>
+<path d="M436 404 L452 434 L468 404Z" fill="url(#sante-wax1)"/>
+<path d="M452 432 L470 652" stroke="#cfe8e0" stroke-width="3"/>
+<rect x="470" y="452" width="18" height="20" rx="3" fill="#e8f4ee"/>
+<rect x="474" y="444" width="4" height="14" rx="2" fill="#0b7a57"/>
+<rect x="474" y="566" width="22" height="24" rx="3" fill="#e8f4ee"/>
+<!-- cou + tête -->
+<rect x="433" y="366" width="18" height="40" fill="#6b4128"/>
+<rect x="433" y="366" width="18" height="14" fill="#0c2a20" opacity=".3"/>
+<ellipse cx="443" cy="340" rx="26" ry="31" fill="#6b4128"/>
+<path d="M467 332 Q478 348 467 354Z" fill="#6b4128"/>
+<path d="M471 326 Q474 298 452 290 Q426 284 411 304 Q401 322 405 346 Q409 368 422 378 Q420 352 428 338 Q446 326 471 326Z" fill="url(#sante-wax1)"/>
+<path d="M471 326 Q446 326 428 338 Q420 352 422 378 Q414 352 424 336 Q444 320 471 326Z" fill="#0c2a20" opacity=".28"/>
+<path d="M426 292 Q410 272 428 264 Q444 266 440 290Z M438 290 Q448 264 468 272 Q464 290 444 296Z" fill="url(#sante-wax1)"/>
+<path d="M430 294 Q440 284 448 294Z" fill="#0c2a20" opacity=".3"/>
+<ellipse cx="430" cy="350" rx="5" ry="8" fill="#5a3825"/>
+<!-- stéthoscope -->
+<path d="M434 402 Q424 444 440 472 Q448 482 456 472 Q472 444 460 402" fill="none" stroke="#0c2a20" stroke-width="4" stroke-linecap="round"/>
+<path d="M448 478 Q444 498 452 512" fill="none" stroke="#0c2a20" stroke-width="4" stroke-linecap="round"/>
+<circle cx="453" cy="518" r="8" fill="#c99a2e"/><circle cx="453" cy="518" r="4" fill="#f2c14e"/>
+<!-- bras avant + lampe -->
+<path d="M492 424 L522 469 L541 419 Q550 411 559 425 L533 497 Q524 515 514 500 L474 438 Q478 422 492 424Z" fill="#ffffff"/>
+<path d="M474 438 L514 500 Q524 515 533 497 L534.5 492.5 Q526 508 520 497 L478 437Z" fill="#cfe8e0"/>
+<path d="M538.5 425.5 L556.5 432 L554.5 438 L536.5 431.5Z" fill="#cfe8e0"/>
+<path d="M590 382 L612 370 L612 396Z" fill="#f2c14e" opacity=".45"/>
+<circle cx="588" cy="388" r="13" fill="#f2c14e" opacity=".3"/>
+<path d="M553 410 L586 389" stroke="#14523c" stroke-width="7" stroke-linecap="round"/>
+<circle cx="587" cy="388" r="4.5" fill="#f2c14e"/>
+<ellipse cx="554" cy="408" rx="12" ry="10" transform="rotate(-30 554 408)" fill="#6b4128"/>
+
+<!-- AÎNÉ -->
+<ellipse cx="626" cy="784" rx="98" ry="11" fill="#0c2a20" opacity=".12"/>
+<path d="M668 700 L664 780 M702 700 L708 780" stroke="#c99a2e" stroke-width="9" stroke-linecap="round"/>
+<!-- jambes -->
+<path d="M572 700 L596 700 L596 764 L574 764Z" fill="#f1e4c8"/>
+<path d="M550 700 L574 700 L572 764 L550 764Z" fill="#fbfaf6"/>
+<path d="M574 760 L596 760 L598 780 L560 780 Q560 766 574 760Z" fill="#3e2518"/>
+<path d="M552 760 L572 760 L574 780 L534 780 Q534 766 552 760Z" fill="#3e2518"/>
+<path d="M532 778 H576 M558 778 H600" stroke="#b4561f" stroke-width="5" stroke-linecap="round"/>
+<!-- boubou -->
+<path d="M604 436 Q628 426 656 436 Q686 448 692 500 L698 600 L712 712 Q630 724 544 712 Q540 660 546 616 Q548 592 568 586 L598 582 Q590 520 604 436Z" fill="#b4561f"/>
+<path d="M664 440 Q690 452 692 500 L698 600 L712 712 Q690 716 668 716 Q682 640 676 560 Q672 480 664 440Z" fill="#0c2a20" opacity=".16"/>
+<path d="M636 452 Q658 520 646 574 L578 592 Q604 566 616 524 Q626 480 636 452Z" fill="#0c2a20" opacity=".16"/>
+<path d="M546 700 Q630 712 711 700 L712 712 Q630 724 544 712Z" fill="#f2c14e"/>
+<path d="M608 440 Q616 474 626 474 Q636 474 642 440" fill="none" stroke="#f2c14e" stroke-width="3.5"/>
+<g fill="#f2c14e"><circle cx="625" cy="486" r="3"/><circle cx="625" cy="500" r="2.5"/><circle cx="625" cy="513" r="2"/></g>
+<!-- canne -->
+<path d="M566 584 L538 780" stroke="#c99a2e" stroke-width="7" stroke-linecap="round"/>
+<path d="M566 584 Q566 566 582 566 Q594 568 592 580" fill="none" stroke="#c99a2e" stroke-width="7" stroke-linecap="round"/>
+<ellipse cx="574" cy="588" rx="13" ry="10" fill="#3e2518"/>
+<!-- tête -->
+<rect x="614" y="404" width="18" height="34" fill="#3e2518"/>
+<ellipse cx="622" cy="388" rx="25" ry="30" fill="#3e2518"/>
+<path d="M599.5 381 Q589 394 600 400Z" fill="#3e2518"/>
+<path d="M604 408 Q606 424 618 424 Q634 423 642 404 Q634 414 624 414 L618 416 Q610 416 604 408Z" fill="#fbfaf6"/>
+<ellipse cx="640" cy="392" rx="5" ry="8" fill="#1b1410"/>
+<path d="M596 372 Q598 342 622 340 Q648 342 648 372 Q622 366 596 372Z" fill="#fbfaf6"/>
+<path d="M596 372 Q622 366 648 372 L648 364 Q622 358 596 364Z" fill="#c99a2e"/>
+
+<!-- table aux montures -->
+<ellipse cx="786" cy="784" rx="58" ry="8" fill="#0c2a20" opacity=".1"/>
+<path d="M752 612 L746 780 M820 612 L826 780" stroke="#c99a2e" stroke-width="8" stroke-linecap="round"/>
+<path d="M750 700 H822" stroke="#c99a2e" stroke-width="6"/>
+<rect x="796" y="548" width="34" height="40" rx="5" fill="#14523c"/>
+<path d="M813 558 V578 M803 568 H823" stroke="#f2c14e" stroke-width="5" stroke-linecap="round"/>
+<rect x="732" y="596" width="108" height="16" rx="4" fill="#c99a2e"/>
+<rect x="732" y="596" width="108" height="5" rx="2.5" fill="#f2c14e"/>
+<rect x="740" y="586" width="64" height="10" rx="4" fill="#ffffff"/>
+<g fill="none" stroke-width="3.5" stroke-linecap="round">
+<path d="M745 578 A7 7 0 1 1 759 578 A7 7 0 1 1 745 578 M759 578 Q762 575 765 578 M765 578 A7 7 0 1 1 779 578 A7 7 0 1 1 765 578" stroke="#e07a5f"/>
+<path d="M766 572 A7 7 0 1 1 780 572 A7 7 0 1 1 766 572 M780 572 Q783 569 786 572 M786 572 A7 7 0 1 1 800 572 A7 7 0 1 1 786 572" stroke="#0b7a57"/>
+</g>
+
+<!-- BANC + FEMME AUX LUNETTES -->
+<ellipse cx="978" cy="786" rx="126" ry="10" fill="#0c2a20" opacity=".12"/>
+<path d="M882 640 L882 782 M1072 640 L1072 782" stroke="#14523c" stroke-width="10" stroke-linecap="round"/>
+<rect x="862" y="628" width="232" height="18" rx="5" fill="#14523c"/>
+<rect x="862" y="628" width="232" height="6" rx="3" fill="#2f9e75"/>
+<!-- jambes + pieds -->
+<rect x="914" y="700" width="20" height="66" rx="6" fill="#8d5a3b"/>
+<rect x="978" y="700" width="20" height="66" rx="6" fill="#7a4a2e"/>
+<ellipse cx="920" cy="772" rx="18" ry="9" fill="#8d5a3b"/>
+<ellipse cx="994" cy="772" rx="18" ry="9" fill="#7a4a2e"/>
+<path d="M900 780 H938 M976 780 H1012" stroke="#e07a5f" stroke-width="5" stroke-linecap="round"/>
+<!-- robe -->
+<path d="M886 628 L1026 628 L1020 724 Q990 734 958 722 Q926 734 892 724Z" fill="url(#sante-wax2)"/>
+<path d="M886 628 L1026 628 L1020 724 Q990 734 958 722 Q926 734 892 724Z" fill="#0c2a20" opacity=".2"/>
+<path d="M957 640 Q955 690 958 722" fill="none" stroke="#0c2a20" stroke-width="3" opacity=".2"/>
+<path d="M912 474 Q956 462 1000 474 Q1014 480 1014 500 L1016 588 Q1034 598 1032 620 Q1030 636 1018 638 L894 638 Q882 636 880 620 Q878 598 896 588 L898 500 Q898 480 912 474Z" fill="url(#sante-wax2)"/>
+<path d="M896 588 Q956 600 1016 588 Q1030 596 1032 606 Q956 618 880 606 Q884 594 896 588Z" fill="#0c2a20" opacity=".12"/>
+<!-- bras repos + étui -->
+<path d="M1004 486 Q1026 520 1022 572 Q1004 584 990 570 Q992 520 996 486Z" transform="translate(-5 4)" fill="#0c2a20" opacity=".22"/>
+<path d="M1004 486 Q1026 520 1022 572 Q1004 584 990 570 Q992 520 996 486Z" fill="url(#sante-wax2)"/>
+<path d="M990 570 Q1004 584 1022 572 L1021 564 Q1006 576 991 562Z" fill="#0c2a20" opacity=".2"/>
+<path d="M1008 566 L974 606" stroke="#8d5a3b" stroke-width="18" stroke-linecap="round"/>
+<rect x="936" y="600" width="46" height="20" rx="10" fill="#14523c"/>
+<ellipse cx="968" cy="608" rx="13" ry="10" fill="#8d5a3b"/>
+<!-- cou + tête -->
+<rect x="947" y="446" width="18" height="32" fill="#8d5a3b"/>
+<rect x="947" y="446" width="18" height="12" fill="#0c2a20" opacity=".25"/>
+<path d="M940 474 Q956 488 972 474Z" fill="#8d5a3b"/>
+<g transform="rotate(-6 956 424)">
+<ellipse cx="930" cy="430" rx="5" ry="8" fill="#7a4a2e"/>
+<ellipse cx="982" cy="430" rx="5" ry="8" fill="#7a4a2e"/>
+<ellipse cx="956" cy="426" rx="26" ry="30" fill="#8d5a3b"/>
+<path d="M953 432 Q956 442 960 442 Q962 438 958 432Z" fill="#7a4a2e"/>
+<path d="M928 420 Q920 382 944 368 Q968 356 988 370 Q1000 386 986 420 Q974 404 957 402 Q940 404 928 420Z" fill="#e07a5f"/>
+<path d="M942 370 Q928 340 958 334 Q990 334 986 370 Q966 360 942 370Z" fill="#e07a5f"/>
+<path d="M944 368 Q962 352 986 368 M934 392 Q956 376 984 390" fill="none" stroke="#b4561f" stroke-width="3"/>
+<g fill="#ffffff" fill-opacity=".35" stroke="#f2c14e" stroke-width="4.5"><circle cx="943" cy="426" r="11.5"/><circle cx="970" cy="426" r="11.5"/></g>
+<path d="M954.5 424 Q956.5 420 958.5 424 M931.5 424 L928 422 M981.5 424 L985 422" fill="none" stroke="#f2c14e" stroke-width="3.5" stroke-linecap="round"/>
+<path d="M938 420 L944 416 M965 420 L971 416" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+</g>
+<!-- bras levé vers les lunettes -->
+<path d="M895.5 518 L911.5 446 Q914 438 921.5 440 Q930 442.5 928.5 451 L913 524Z" fill="#8d5a3b"/>
+<ellipse cx="924" cy="438" rx="9" ry="12" transform="rotate(15 924 438)" fill="#8d5a3b"/>
+<path d="M912 478 Q892 490 884 530 Q896 552 922 540 Q922 506 920 482Z" transform="translate(5 4)" fill="#0c2a20" opacity=".22"/>
+<path d="M912 478 Q892 490 884 530 Q896 552 922 540 Q922 506 920 482Z" fill="url(#sante-wax2)"/>
+<path d="M884 530 Q896 552 922 540 L921 532 Q900 542 886 524Z" fill="#0c2a20" opacity=".18"/>
+
+<!-- feuille -->
+<path d="M96 772 Q90 700 150 666 Q156 732 96 772Z" fill="#2f9e75"/>
+<path d="M98 768 Q116 718 146 676" fill="none" stroke="#0b7a57" stroke-width="3"/>
+</svg>

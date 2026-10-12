@@ -278,12 +278,12 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
               <div className="absolute inset-[6%] rounded-full border-[14px] border-[#f2c14e]/15" />
               <img src={illusHero} alt="Des habitants des Parcelles Assainies, jeunes, femmes et aînés, avancent ensemble" className="relative w-full drop-shadow-2xl" />
               <div className="vitrine-flotte absolute -left-2 top-[8%] rounded-2xl border border-white/15 bg-[#0c2a20]/80 px-4 py-3 shadow-2xl backdrop-blur-md sm:-left-6">
-                <div className="font-heading text-3xl font-bold text-white"><Compteur valeur={875} /></div>
-                <div className="text-xs font-semibold text-[#f2c14e]">personnes formées</div>
+                <div className="font-heading text-3xl font-bold text-white"><Compteur valeur={50} /></div>
+                <div className="text-xs font-semibold text-[#f2c14e]">jeunes formés et équipés</div>
               </div>
               <div className="vitrine-flotte absolute -right-1 bottom-[14%] rounded-2xl border border-white/15 bg-[#0c2a20]/80 px-4 py-3 shadow-2xl backdrop-blur-md sm:-right-4" style={{ animationDelay: '-4.5s' }}>
-                <div className="font-heading text-3xl font-bold text-[#f2c14e]"><Compteur valeur={700} /></div>
-                <div className="text-xs font-semibold text-white">femmes certifiées</div>
+                <div className="font-heading text-3xl font-bold text-[#f2c14e]"><Compteur valeur={85} /></div>
+                <div className="text-xs font-semibold text-white">opérés de la cataracte</div>
               </div>
             </div>
           </Apparait>

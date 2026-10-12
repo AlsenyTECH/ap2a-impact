@@ -1,0 +1,275 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="femmes-titre">
+<title id="femmes-titre">Groupements de femmes : une couturière au travail, une jeune femme fière de son diplôme et une commerçante qui tient ses comptes à son étal de jus locaux</title>
+<defs>
+<pattern id="femmes-wax1" width="16" height="16" patternUnits="userSpaceOnUse">
+<rect width="16" height="16" fill="#e07a5f"/>
+<path d="M8 1.5 L14.5 8 L8 14.5 L1.5 8Z" fill="#f2c14e"/>
+<circle cx="8" cy="8" r="2.2" fill="#0c2a20"/>
+<circle cx="0" cy="0" r="1.8" fill="#fbfaf6"/><circle cx="16" cy="0" r="1.8" fill="#fbfaf6"/><circle cx="0" cy="16" r="1.8" fill="#fbfaf6"/><circle cx="16" cy="16" r="1.8" fill="#fbfaf6"/>
+</pattern>
+<pattern id="femmes-wax2" width="22" height="22" patternUnits="userSpaceOnUse">
+<rect width="22" height="22" fill="#0b7a57"/>
+<circle cx="11" cy="11" r="5.4" fill="#f2c14e"/>
+<circle cx="11" cy="11" r="2.2" fill="#b4561f"/>
+<path d="M0 -3 L3 0 L0 3 L-3 0Z M22 -3 L25 0 L22 3 L19 0Z M0 19 L3 22 L0 25 L-3 22Z M22 19 L25 22 L22 25 L19 22Z" fill="#fbfaf6"/>
+</pattern>
+<pattern id="femmes-wax3" width="24" height="24" patternUnits="userSpaceOnUse">
+<rect width="24" height="24" fill="#f2c14e"/>
+<rect x="0" width="8" height="24" fill="#b4561f"/>
+<circle cx="16" cy="6" r="2.2" fill="#0c2a20"/><circle cx="16" cy="18" r="2.2" fill="#fbfaf6"/>
+</pattern>
+<pattern id="femmes-wax4" width="20" height="20" patternUnits="userSpaceOnUse">
+<rect width="20" height="20" fill="#f2c14e"/>
+<circle cx="10" cy="10" r="6" fill="#0b7a57"/>
+<circle cx="10" cy="10" r="3" fill="#e07a5f"/>
+<circle cx="0" cy="0" r="2.5" fill="#b4561f"/><circle cx="20" cy="0" r="2.5" fill="#b4561f"/><circle cx="0" cy="20" r="2.5" fill="#b4561f"/><circle cx="20" cy="20" r="2.5" fill="#b4561f"/>
+</pattern>
+<clipPath id="femmes-blob">
+<path d="M120 300 C130 170 300 120 480 128 C640 135 760 90 930 112 C1080 132 1160 230 1150 380 C1140 520 1170 660 1110 760 C1040 870 840 850 640 852 C440 854 230 870 130 790 C50 725 95 580 85 460 C80 390 112 360 120 300Z"/>
+</clipPath>
+</defs>
+
+<!-- fond -->
+<path d="M120 300 C130 170 300 120 480 128 C640 135 760 90 930 112 C1080 132 1160 230 1150 380 C1140 520 1170 660 1110 760 C1040 870 840 850 640 852 C440 854 230 870 130 790 C50 725 95 580 85 460 C80 390 112 360 120 300Z" fill="#f1e4c8"/>
+<g clip-path="url(#femmes-blob)">
+<rect x="0" y="782" width="1200" height="120" fill="#c99a2e" opacity=".18"/>
+</g>
+<circle cx="612" cy="420" r="150" fill="#fbfaf6" opacity=".7"/>
+<circle cx="735" cy="180" r="34" fill="#f2c14e"/>
+<g fill="#f2c14e"><circle cx="150" cy="170" r="6"/><circle cx="176" cy="156" r="4"/><circle cx="128" cy="150" r="3.5"/><circle cx="1160" cy="470" r="5"/><circle cx="1172" cy="494" r="3.5"/><circle cx="470" cy="200" r="4"/></g>
+
+<g transform="translate(28 0)">
+<!-- corde à linge -->
+<path d="M100 290 Q240 312 400 292" fill="none" stroke="#c99a2e" stroke-width="3"/>
+<path d="M160 300 L160 310 M140 324 L160 310 L180 324" fill="none" stroke="#0c2a20" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M136 322 Q160 314 184 322 L200 352 L190 358 L188 420 Q160 428 132 420 L130 358 L120 352Z" fill="url(#femmes-wax1)"/>
+<path d="M136 322 Q160 314 184 322 L188 420 Q174 424 160 424 Q174 380 172 318Z" fill="#0c2a20" opacity=".12"/>
+<path d="M152 322 Q160 336 168 322" fill="none" stroke="#f2c14e" stroke-width="3"/>
+<path d="M248 306 L248 316 M228 330 L248 316 L268 330" fill="none" stroke="#0c2a20" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M226 328 Q248 320 270 328 L288 348 L276 360 L272 352 L272 394 L224 394 L224 352 L220 360 L208 348Z" fill="#2f9e75"/>
+<path d="M240 328 L248 344 L256 328" fill="#14523c"/>
+</g>
+
+<!-- ===== COUTURIÈRE (assise) ===== -->
+<ellipse cx="318" cy="798" rx="182" ry="11" fill="#0c2a20" opacity=".12"/>
+<!-- table de couture (pieds derrière elle) -->
+<rect x="128" y="606" width="14" height="184" rx="3" fill="#14523c"/>
+<rect x="382" y="606" width="14" height="184" rx="3" fill="#14523c"/>
+<rect x="134" y="736" width="256" height="9" rx="3" fill="#14523c"/>
+<!-- tabouret -->
+<path d="M424 688 L414 786 M482 688 L494 786" stroke="#c99a2e" stroke-width="8" stroke-linecap="round"/>
+<path d="M419 740 L488 740" stroke="#c99a2e" stroke-width="5"/>
+<rect x="410" y="676" width="86" height="14" rx="5" fill="#c99a2e"/>
+<rect x="410" y="676" width="86" height="5" rx="2.5" fill="#f2c14e"/>
+<!-- bras arrière -->
+<path d="M446 512 L418 572" stroke="#7a4a2e" stroke-width="18" stroke-linecap="round"/>
+<path d="M418 570 L296 562" stroke="#7a4a2e" stroke-width="16" stroke-linecap="round"/>
+<!-- pagne (cuisses horizontales, tibias verticaux) -->
+<path d="M332 768 L368 768 L372 786 L326 786 Q322 776 332 768Z" fill="#1b1410"/>
+<path d="M410 616 L468 616 Q488 628 490 660 Q490 678 478 684 Q440 690 392 686 Q388 726 390 766 L332 766 Q326 724 328 676 Q326 652 338 642 Q350 634 370 634 L404 632Z" fill="#14523c"/>
+<path d="M392 686 Q440 690 478 684 Q490 678 490 660 Q486 676 470 678 Q430 682 392 680Z" fill="#0c2a20" opacity=".25"/>
+<path d="M392 686 Q388 726 390 766 L376 766 Q374 724 378 686Z" fill="#0c2a20" opacity=".22"/>
+<path d="M330 664 Q356 656 404 660" fill="none" stroke="#0c2a20" stroke-width="3" opacity=".3"/>
+<path d="M330 760 L392 760 L392 766 L330 766Z" fill="#f2c14e"/>
+<path d="M314 786 Q310 774 322 768 L356 768 L358 786Z" fill="#1b1410"/>
+<!-- buste -->
+<path d="M400 500 Q424 490 450 498 Q466 504 466 524 L470 624 L408 624 Q402 596 398 560 Q392 524 400 500Z" fill="#b4561f"/>
+<path d="M452 500 Q466 506 466 524 L470 624 L452 624 Q458 560 452 500Z" fill="#0c2a20" opacity=".16"/>
+<path d="M404 612 L470 612 L470 626 L408 626Z" fill="#c99a2e"/>
+<!-- cou + tête de profil (regarde l'aiguille) -->
+<path d="M404 458 L426 456 L438 502 L414 504Z" fill="#8d5a3b"/>
+<path d="M404 458 L426 456 L430 474 L408 476Z" fill="#0c2a20" opacity=".25"/>
+<path d="M410 496 Q426 512 442 496Z" fill="#8d5a3b"/>
+<path d="M412 494 Q402 530 410 570 M440 494 Q448 524 444 562" fill="none" stroke="#f2c14e" stroke-width="7" stroke-linecap="round"/>
+<path d="M412 494 Q402 530 410 570 M440 494 Q448 524 444 562" fill="none" stroke="#0c2a20" stroke-width="3" stroke-dasharray="1.5 5" opacity=".5"/>
+<g transform="rotate(-14 424 470)">
+<ellipse cx="420" cy="440" rx="24" ry="29" fill="#8d5a3b"/>
+<path d="M398 436 Q388 448 399 454Z" fill="#8d5a3b"/>
+<ellipse cx="434" cy="446" rx="4.5" ry="7" fill="#6b4128"/>
+<path d="M397 434 Q392 402 414 392 Q440 384 450 408 Q456 432 444 456 Q442 434 428 424 Q410 418 397 434Z" fill="#f2c14e"/>
+<path d="M397 434 Q410 418 428 424 Q442 434 444 456 Q436 432 424 428 Q408 424 397 434Z" fill="#c99a2e"/>
+<path d="M426 394 Q424 370 444 368 Q458 374 448 394Z M440 398 Q462 380 474 394 Q466 408 446 406Z" fill="#f2c14e"/>
+<path d="M436 396 Q446 386 452 400Z" fill="#c99a2e"/>
+</g>
+
+<!-- plateau -->
+<rect x="116" y="590" width="290" height="20" rx="5" fill="#c99a2e"/>
+<rect x="116" y="590" width="290" height="6" rx="3" fill="#f2c14e"/>
+<rect x="124" y="610" width="274" height="10" fill="#b4561f"/>
+
+<!-- machine à coudre (aiguille côté couturière) -->
+<rect x="144" y="566" width="176" height="24" rx="5" fill="#ffffff"/>
+<rect x="144" y="582" width="176" height="8" rx="3" fill="#cfe8e0"/>
+<path d="M154 566 L154 500 Q154 482 172 482 L182 482 Q198 482 198 500 L198 566Z" fill="#ffffff"/>
+<rect x="154" y="482" width="152" height="36" rx="17" fill="#ffffff"/>
+<rect x="262" y="482" width="50" height="72" rx="11" fill="#ffffff"/>
+<path d="M262 532 L312 532 L312 543 Q312 554 301 554 L273 554 Q262 554 262 543Z" fill="#cfe8e0"/>
+<path d="M154 500 L170 500 L174 566 L154 566Z" fill="#cfe8e0"/>
+<path d="M176 494 L260 494" stroke="#f2c14e" stroke-width="5" stroke-linecap="round"/>
+<path d="M200 504 L260 504" stroke="#0b7a57" stroke-width="3" stroke-linecap="round"/>
+<ellipse cx="148" cy="506" rx="9" ry="22" fill="#c99a2e"/>
+<ellipse cx="146" cy="506" rx="6" ry="17" fill="#f2c14e"/>
+<rect x="202" y="460" width="14" height="22" rx="3" fill="#e07a5f"/>
+<rect x="198" y="458" width="22" height="5" rx="2" fill="#c99a2e"/><rect x="198" y="479" width="22" height="5" rx="2" fill="#c99a2e"/>
+<path d="M216 466 Q260 462 282 486" fill="none" stroke="#e07a5f" stroke-width="1.6"/>
+<path d="M292 554 L292 574" stroke="#0c2a20" stroke-width="3"/>
+<rect x="280" y="572" width="24" height="5" rx="2" fill="#0c2a20"/>
+<!-- tissu wax -->
+<path d="M150 577 L392 574 L394 592 L148 594Z" fill="url(#femmes-wax4)"/>
+<path d="M150 577 L392 574 L393 578 L149 581Z" fill="#fbfaf6" opacity=".35"/>
+<path d="M146 594 L292 594 Q302 680 284 758 Q246 772 214 762 Q182 776 146 762 Q132 690 146 594Z" fill="url(#femmes-wax4)"/>
+<path d="M190 600 Q200 690 186 768 L172 770 Q184 690 176 600Z M250 600 Q262 690 250 764 L236 764 Q246 690 236 600Z" fill="#0c2a20" opacity=".16"/>
+<path d="M146 594 L292 594 L292 610 L146 610Z" fill="#0c2a20" opacity=".12"/>
+<path d="M150 760 Q218 776 290 756 Q326 770 312 790 Q218 804 158 794 Q142 774 150 760Z" fill="url(#femmes-wax4)"/>
+<!-- ciseaux -->
+<g transform="rotate(-6 222 586)">
+<path d="M212 586 L180 581 M212 586 L180 591" stroke="#0c2a20" stroke-width="3.5" stroke-linecap="round"/>
+<circle cx="219" cy="580" r="6" fill="#fbfaf6" stroke="#e07a5f" stroke-width="3.5"/>
+<circle cx="219" cy="592" r="6" fill="#fbfaf6" stroke="#e07a5f" stroke-width="3.5"/>
+</g>
+<!-- bras avant -->
+<path d="M428 512 L398 574" stroke="#8d5a3b" stroke-width="19" stroke-linecap="round"/>
+<path d="M398 574 L326 584" stroke="#8d5a3b" stroke-width="17" stroke-linecap="round"/>
+<path d="M430 504 L420 532" stroke="#b4561f" stroke-width="30" stroke-linecap="round"/>
+<ellipse cx="318" cy="584" rx="13" ry="10" fill="#8d5a3b"/>
+
+<!-- ===== JEUNE DIPLÔMÉE ===== -->
+<g transform="translate(22 0)">
+<ellipse cx="590" cy="786" rx="110" ry="11" fill="#0c2a20" opacity=".12"/>
+<path d="M556 760 L584 760 L586 782 L552 782 Q548 770 556 760Z M596 760 L624 760 Q632 770 628 782 L594 782Z" fill="#3e2518"/>
+<path d="M550 774 L588 774 L588 784 L548 784Z M592 774 L630 774 L632 784 L592 784Z" fill="#c99a2e"/>
+<path d="M548 410 Q590 398 632 410 L674 762 Q590 776 506 762Z" fill="url(#femmes-wax2)"/>
+<path d="M612 410 Q624 406 632 410 L674 762 Q656 766 640 768 Q650 560 612 410Z" fill="#0c2a20" opacity=".16"/>
+<rect x="581" y="366" width="18" height="44" fill="#3e2518"/>
+<path d="M570 408 Q590 446 610 408 Q600 404 590 404 Q580 404 570 408Z" fill="#fbfaf6"/>
+<path d="M570 408 Q590 446 610 408" fill="none" stroke="#f2c14e" stroke-width="4"/>
+<path d="M590 434 L590 470" stroke="#f2c14e" stroke-width="3"/>
+<!-- manches -->
+<path d="M552 414 Q512 456 500 560 Q520 566 540 530 Z" fill="url(#femmes-wax2)"/>
+<path d="M552 414 Q530 470 540 530 Q520 566 500 560 Q526 530 552 414Z" fill="#0c2a20" opacity=".14"/>
+<path d="M628 414 Q668 456 680 560 Q660 566 640 530 Z" fill="url(#femmes-wax2)"/>
+<path d="M628 414 Q650 470 640 530 Q660 566 680 560 Q654 530 628 414Z" fill="#0c2a20" opacity=".22"/>
+<!-- tête -->
+<ellipse cx="590" cy="344" rx="26" ry="31" fill="#3e2518"/>
+<path d="M565 338 Q556 350 565 358Z" fill="#3e2518"/>
+<ellipse cx="609" cy="350" rx="4.5" ry="7.5" fill="#1b1410"/>
+<circle cx="566" cy="364" r="4" fill="#f2c14e"/>
+<path d="M563 338 Q556 302 580 290 Q562 270 578 252 Q598 238 618 254 Q630 270 614 290 Q628 304 619 338 Q604 320 590 318 Q574 320 563 338Z" fill="#e07a5f"/>
+<path d="M563 338 Q574 320 590 318 Q604 320 619 338 Q604 326 590 325 Q574 326 563 338Z" fill="#b4561f"/>
+<path d="M580 290 Q596 280 614 290 M578 266 Q596 258 612 268" fill="none" stroke="#b4561f" stroke-width="4" stroke-linecap="round"/>
+<!-- diplôme -->
+<rect x="534" y="470" width="120" height="92" rx="4" fill="#0c2a20" opacity=".15"/>
+<rect x="530" y="464" width="120" height="92" rx="4" fill="#c99a2e"/>
+<rect x="536" y="470" width="108" height="80" rx="2" fill="#f2c14e"/>
+<rect x="542" y="476" width="96" height="68" fill="#fbfaf6"/>
+<rect x="547" y="481" width="86" height="58" fill="none" stroke="#f1e4c8" stroke-width="2"/>
+<circle cx="590" cy="494" r="7" fill="#0b7a57"/>
+<path d="M562 512 H618 M570 522 H610" stroke="#f1e4c8" stroke-width="4" stroke-linecap="round"/>
+<path d="M617 534 L612 552 L618 548 L621 554 Z M627 534 L632 552 L626 548 L623 554Z" fill="#e07a5f"/>
+<circle cx="622" cy="532" r="10" fill="#c99a2e"/>
+<circle cx="622" cy="532" r="7" fill="#f2c14e"/>
+<!-- éclats -->
+<g fill="#f2c14e"><path d="M700 430 Q702 444 714 446 Q702 448 700 462 Q698 448 686 446 Q698 444 700 430Z"/><path d="M482 470 Q483.5 479 492 480 Q483.5 481 482 490 Q480.5 481 472 480 Q480.5 479 482 470Z"/><circle cx="676" cy="404" r="4"/></g>
+<!-- mains -->
+<path d="M524 540 L533 524" stroke="#3e2518" stroke-width="16" stroke-linecap="round"/>
+<path d="M656 540 L647 524" stroke="#3e2518" stroke-width="16" stroke-linecap="round"/>
+<ellipse cx="534" cy="516" rx="11" ry="14" fill="#3e2518"/>
+<ellipse cx="646" cy="516" rx="11" ry="14" fill="#3e2518"/>
+<path d="M500 560 Q520 566 540 530" fill="none" stroke="#f2c14e" stroke-width="5" stroke-linecap="round"/>
+<path d="M680 560 Q660 566 640 530" fill="none" stroke="#f2c14e" stroke-width="5" stroke-linecap="round"/>
+</g>
+
+<!-- ===== ÉTAL ===== -->
+<ellipse cx="975" cy="796" rx="175" ry="11" fill="#0c2a20" opacity=".12"/>
+<!-- auvent -->
+<rect x="834" y="270" width="12" height="516" rx="4" fill="#c99a2e"/>
+<rect x="1104" y="270" width="12" height="516" rx="4" fill="#c99a2e"/>
+<path d="M826 262 L1124 262 L1136 300 L814 300Z" fill="#0b7a57"/>
+<g fill="#fbfaf6"><path d="M864 262 L896 262 L898 300 L860 300Z"/><path d="M944 262 L976 262 L978 300 L940 300Z"/><path d="M1024 262 L1056 262 L1060 300 L1022 300Z"/></g>
+<g fill="#0b7a57"><circle cx="834" cy="300" r="20"/><circle cx="994" cy="300" r="20"/><circle cx="1074" cy="300" r="20"/></g>
+<g fill="#fbfaf6"><circle cx="874" cy="300" r="20"/><circle cx="954" cy="300" r="20"/><circle cx="1034" cy="300" r="20"/></g>
+<circle cx="914" cy="300" r="20" fill="#0b7a57"/><circle cx="1114" cy="300" r="20" fill="#fbfaf6"/>
+<rect x="814" y="290" width="322" height="10" fill="#0c2a20" opacity=".08"/>
+<rect x="820" y="256" width="310" height="10" rx="4" fill="#14523c"/>
+
+<!-- commerçante -->
+<path d="M920 446 Q975 432 1030 446 Q1042 452 1040 470 L1050 778 L900 778 L910 470 Q908 452 920 446Z" fill="#b4561f"/>
+<path d="M1016 444 Q1030 444 1038 456 L1050 778 L1030 778 Q1036 560 1016 444Z" fill="#0c2a20" opacity=".15"/>
+<path d="M926 776 L960 776 L962 788 L922 788Z M990 776 L1024 776 L1028 788 L988 788Z" fill="#1b1410"/>
+<rect x="966" y="404" width="18" height="44" fill="#6b4128"/><rect x="966" y="404" width="18" height="16" fill="#0c2a20" opacity=".25"/>
+<path d="M958 444 Q975 470 992 444Z" fill="#6b4128"/>
+<path d="M958 444 Q975 470 992 444" fill="none" stroke="#f2c14e" stroke-width="3.5"/>
+<g transform="rotate(7 975 420)">
+<ellipse cx="975" cy="384" rx="26" ry="31" fill="#6b4128"/>
+<path d="M950 378 Q941 392 950 398Z" fill="#6b4128"/>
+<ellipse cx="994" cy="390" rx="4.5" ry="7.5" fill="#5a3825"/>
+<path d="M956 368 Q952 360 958 356 L962 370Z" fill="#fbfaf6"/>
+<g fill="none" stroke="#0c2a20" stroke-width="2.5"><circle cx="962" cy="384" r="8"/><circle cx="984" cy="384" r="8"/><path d="M970 383 Q973 380 976 383 M954 382 L948 380"/></g>
+<path d="M948 374 Q942 340 966 328 Q990 318 1006 336 Q1012 356 1002 376 Q990 356 974 354 Q958 356 948 374Z" fill="url(#femmes-wax1)"/>
+<path d="M948 374 Q958 356 974 354 Q990 356 1002 376 Q988 362 974 361 Q960 362 948 374Z" fill="#0c2a20" opacity=".25"/>
+<path d="M992 332 Q1012 318 1026 330 Q1018 346 1000 344Z" fill="url(#femmes-wax1)"/>
+<path d="M992 332 Q1004 330 1010 342 L1000 344Z" fill="#0c2a20" opacity=".2"/>
+</g>
+<!-- bras + carnet -->
+<!-- bras droit (carnet) -->
+<path d="M1024 458 L1038 528" stroke="#6b4128" stroke-width="20" stroke-linecap="round"/>
+<path d="M1038 528 L1034 556" stroke="#6b4128" stroke-width="18" stroke-linecap="round"/>
+<path d="M1022 452 Q1052 490 1054 540 L1020 538 Q1016 490 1010 460Z" fill="#b4561f"/>
+<path d="M1022 452 Q1052 490 1054 540 L1042 540 Q1040 490 1016 456Z" fill="#0c2a20" opacity=".2"/>
+<g transform="rotate(-10 1010 528)">
+<rect x="982" y="496" width="56" height="64" rx="4" fill="#0b7a57"/>
+<rect x="986" y="500" width="48" height="56" rx="2" fill="#fbfaf6"/>
+<path d="M992 512 H1028 M992 522 H1028 M992 532 H1020 M992 542 H1024" stroke="#cfe8e0" stroke-width="3"/>
+</g>
+<ellipse cx="1034" cy="556" rx="12" ry="11" fill="#6b4128"/>
+<!-- bras gauche (écrit) -->
+<path d="M926 458 L918 530" stroke="#6b4128" stroke-width="20" stroke-linecap="round"/>
+<path d="M922 534 L986 540" stroke="#6b4128" stroke-width="18" stroke-linecap="round"/>
+<path d="M928 452 Q896 492 898 556 L952 556 Q946 500 940 460Z" fill="#b4561f"/>
+<path d="M928 452 Q896 492 898 556 L912 556 Q908 494 934 456Z" fill="#0c2a20" opacity=".18"/>
+<path d="M900 556 L950 556" stroke="#c99a2e" stroke-width="4" stroke-linecap="round"/>
+<path d="M940 462 Q946 500 952 556" fill="none" stroke="#0c2a20" stroke-width="3" opacity=".22"/>
+<path d="M947 516 Q950 536 952 556" fill="none" stroke="#c99a2e" stroke-width="4" stroke-linecap="round"/>
+<path d="M990 538 L1008 512" stroke="#0c2a20" stroke-width="4.5" stroke-linecap="round"/>
+<path d="M993 534 L1004 518" stroke="#f2c14e" stroke-width="4" stroke-linecap="round"/>
+<ellipse cx="990" cy="538" rx="12" ry="10" fill="#6b4128"/>
+<ellipse cx="986" cy="533" rx="6" ry="4" fill="#7a4a2e"/>
+
+<!-- table de l'étal -->
+<rect x="842" y="616" width="12" height="170" rx="3" fill="#14523c"/>
+<rect x="1096" y="616" width="12" height="170" rx="3" fill="#14523c"/>
+<rect x="822" y="598" width="306" height="18" rx="5" fill="#c99a2e"/>
+<rect x="822" y="598" width="306" height="6" rx="3" fill="#f2c14e"/>
+<path d="M826 616 L1124 616 L1124 738 Q1087 750 1050 738 Q1012 750 975 738 Q938 750 900 738 Q863 750 826 738Z" fill="url(#femmes-wax3)"/>
+<path d="M826 616 L1124 616 L1124 630 L826 630Z" fill="#0c2a20" opacity=".14"/>
+<!-- bouteilles de jus -->
+<g id="femmes-bissap">
+<path d="M838 600 Q836 572 840 556 Q842 546 848 540 L848 530 L860 530 L860 540 Q866 546 868 556 Q872 572 870 600Z" fill="#b4561f"/>
+<path d="M860 540 Q866 546 868 556 Q872 572 870 600 L860 600 Q862 570 860 540Z" fill="#0c2a20" opacity=".2"/>
+<rect x="846" y="522" width="16" height="10" rx="2.5" fill="#f2c14e"/>
+<rect x="839" y="566" width="30" height="16" rx="2" fill="#e07a5f"/>
+<circle cx="854" cy="574" r="4" fill="#fbfaf6"/>
+<rect x="843" y="550" width="4" height="42" rx="2" fill="#ffffff" opacity=".35"/>
+</g>
+<g id="femmes-bouye">
+<path d="M872 600 Q870 572 874 556 Q876 546 882 540 L882 530 L894 530 L894 540 Q900 546 902 556 Q906 572 904 600Z" fill="#fbfaf6"/>
+<path d="M894 540 Q900 546 902 556 Q906 572 904 600 L894 600 Q896 570 894 540Z" fill="#f1e4c8"/>
+<rect x="880" y="522" width="16" height="10" rx="2.5" fill="#0b7a57"/>
+<rect x="873" y="566" width="30" height="16" rx="2" fill="#2f9e75"/>
+<circle cx="888" cy="574" r="4" fill="#f2c14e"/>
+</g>
+<!-- calebasses -->
+<g transform="translate(-14 0)">
+<path d="M1028 586 Q1028 612 1062 612 Q1096 612 1096 586Z" fill="#c99a2e"/>
+<ellipse cx="1046" cy="578" rx="13" ry="10" fill="#f2c14e"/>
+<ellipse cx="1072" cy="578" rx="13" ry="10" fill="#e07a5f"/>
+<ellipse cx="1060" cy="568" rx="13" ry="10" fill="#f2c14e"/>
+<path d="M1060 558 Q1066 548 1074 552" fill="none" stroke="#14523c" stroke-width="3" stroke-linecap="round"/>
+<rect x="1026" y="582" width="72" height="6" rx="3" fill="#b4561f"/>
+</g>
+<use href="#femmes-bissap" x="252"/>
+
+<!-- feuilles -->
+<path d="M1128 772 Q1150 712 1180 702 Q1172 756 1128 772Z" fill="#2f9e75"/>
+<path d="M1130 770 Q1150 732 1176 706" fill="none" stroke="#14523c" stroke-width="2"/>
+</svg>

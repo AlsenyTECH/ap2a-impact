@@ -107,143 +107,163 @@
 <path d="M0 720L1200 700L1200 900L0 900Z" fill="#f1e4c8" opacity="0.12"/>
 <!-- ombres longues -->
 <g fill="#0c2a20" opacity="0.4">
-<ellipse cx="298" cy="790" rx="80" ry="12"/>
-<ellipse cx="440" cy="800" rx="80" ry="12"/>
-<ellipse cx="600" cy="815" rx="85" ry="13"/>
-<ellipse cx="738" cy="800" rx="70" ry="11"/>
-<ellipse cx="885" cy="792" rx="80" ry="12"/>
+<ellipse cx="452" cy="774" rx="78" ry="11"/>
+<ellipse cx="964" cy="788" rx="82" ry="12"/>
+<ellipse cx="318" cy="790" rx="84" ry="12"/>
+<ellipse cx="760" cy="803" rx="72" ry="11"/>
+<ellipse cx="616" cy="820" rx="86" ry="13"/>
 </g>
 </g>
 
-<!-- A : aînée en boubou -->
-<g transform="translate(318 782) scale(1.1)">
-<rect x="-22" y="-28" width="10" height="24" fill="#5a3825"/>
-<rect x="13" y="-28" width="10" height="24" fill="#5a3825"/>
-<ellipse cx="-18" cy="-3" rx="13" ry="5" fill="#b4561f"/>
-<ellipse cx="20" cy="-3" rx="13" ry="5" fill="#b4561f"/>
-<circle cx="-83" cy="-143" r="8.5" fill="#5a3825"/>
-<circle cx="85" cy="-143" r="8.5" fill="#5a3825"/>
-<path d="M-10 -255L-36 -248L-88 -160L-70 -138L-62 -140L-66 -22Q0 -14 66 -22L62 -140L70 -138L88 -160L36 -248L10 -255Q0 -245 -10 -255Z" fill="#f2c14e"/>
-<path d="M36 -248L88 -160L70 -138L62 -140L66 -22Q40 -19 20 -18L28 -200Z" fill="#c99a2e" opacity="0.45"/>
-<path d="M-12 -254L0 -215L12 -254" stroke="#b4561f" stroke-width="5" fill="none"/>
-<path d="M0 -215L0 -150" stroke="#b4561f" stroke-width="4" stroke-dasharray="6 5"/>
-<rect x="-7" y="-268" width="14" height="16" fill="#5a3825"/>
-<ellipse cx="0" cy="-283" rx="19" ry="23" fill="#5a3825"/>
-<ellipse cx="-19" cy="-280" rx="4" ry="6" fill="#5a3825"/>
-<path d="M3 -284L8 -276L3 -275Z" fill="#3e2518"/>
-<path d="M-23 -288C-28 -318 -8 -336 8 -334C28 -332 32 -310 23 -287C10 -296 -10 -297 -23 -288Z" fill="#b4561f"/>
-<path d="M-18 -300C-6 -310 10 -312 22 -304" stroke="#e07a5f" stroke-width="4" fill="none"/>
-<path d="M4 -332C12 -350 30 -348 26 -334Z" fill="#e07a5f"/>
-<path d="M4 -332C-6 -348 -20 -342 -12 -330Z" fill="#b4561f"/>
-</g>
-
-<!-- B : jeune homme en salopette -->
-<g transform="translate(452 795) scale(1.1)">
-<path d="M-30 -175L-2 -175L-6 -14L-26 -14Z" fill="#b4561f"/>
-<path d="M2 -175L30 -175L32 -95L28 -6L10 -6L8 -95Z" fill="#b4561f"/>
-<path d="M2 -175L10 -175L14 -6L10 -6L8 -95Z" fill="#0c2a20" opacity="0.15"/>
-<path d="M-31 -18L-4 -18L-2 -2L-36 -2Q-38 -12 -31 -18Z" fill="#0c2a20"/>
-<path d="M8 -10L30 -10L38 4L6 4Z" fill="#0c2a20"/>
+<!-- B : jeune homme en salopette, caisse a outils (arriere-plan) -->
+<g transform="translate(452 772) scale(1.1)">
+<path d="M-30 -162L-3 -162L-24 -16L-42 -18Z" fill="#b4561f"/>
+<path d="M-30 -162L-3 -162L-24 -16L-42 -18Z" fill="#0c2a20" opacity="0.22"/>
+<path d="M-52 -26L-30 -20Q-22 -14 -26 -6L-28 -2L-56 -12Z" fill="#0c2a20"/>
+<path d="M2 -162L30 -162L40 -10L22 -10Z" fill="#b4561f"/>
+<path d="M2 -162L10 -162L26 -10L22 -10Z" fill="#0c2a20" opacity="0.12"/>
+<path d="M20 -14L40 -14Q54 -12 54 -2L54 2L18 2Z" fill="#0c2a20"/>
+<g transform="translate(0 8) rotate(4 0 -170)">
+<path d="M-44 -258L-52 -206L-44 -158" stroke="#3e2518" stroke-width="19" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<ellipse cx="-43" cy="-152" rx="10" ry="11" fill="#3e2518"/>
+<path d="M-38 -270L-58 -230L-42 -222L-30 -254Z" fill="#fbfaf6"/>
+<path d="M-38 -270L-58 -230L-42 -222L-30 -254Z" fill="#0c2a20" opacity="0.12"/>
 <path d="M-38 -270Q0 -280 38 -270L34 -170L-34 -170Z" fill="#fbfaf6"/>
 <path d="M-20 -238L20 -238L22 -170L-22 -170Z" fill="#b4561f"/>
 <rect x="-34" y="-182" width="68" height="14" fill="#b4561f"/>
 <rect x="-10" y="-226" width="20" height="16" rx="2" fill="#0c2a20" opacity="0.2"/>
 <path d="M-16 -238L-26 -272M16 -238L26 -272" stroke="#b4561f" stroke-width="7"/>
-<path d="M-62 -126L-62 -142L-30 -142L-30 -126" stroke="#c99a2e" stroke-width="5" fill="none"/>
-<rect x="-80" y="-128" width="68" height="44" rx="5" fill="#f2c14e"/>
-<rect x="-80" y="-128" width="68" height="10" rx="3" fill="#c99a2e"/>
-<rect x="-50" y="-120" width="8" height="8" fill="#0c2a20"/>
-<path d="M-40 -262L-48 -205L-46 -146" stroke="#3e2518" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-<circle cx="-46" cy="-141" r="8" fill="#3e2518"/>
-<path d="M40 -262L50 -205L42 -150" stroke="#3e2518" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-<circle cx="42" cy="-146" r="8" fill="#3e2518"/>
-<path d="M-38 -270L-55 -230L-40 -224L-30 -254Z" fill="#fbfaf6"/>
-<path d="M38 -270L55 -230L40 -224L30 -254Z" fill="#fbfaf6"/>
-<rect x="-8" y="-290" width="16" height="22" fill="#3e2518"/>
-<ellipse cx="0" cy="-308" rx="21" ry="25" fill="#3e2518"/>
-<ellipse cx="-21" cy="-305" rx="4" ry="6" fill="#3e2518"/>
-<ellipse cx="21" cy="-305" rx="4" ry="6" fill="#3e2518"/>
+<path d="M44 -260L54 -206L56 -154" stroke="#5a3825" stroke-width="19" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M38 -270L58 -230L42 -222L30 -254Z" fill="#fbfaf6"/>
+<path d="M43 -134L43 -146Q56 -160 69 -146L69 -134" stroke="#0c2a20" stroke-width="5.5" fill="none"/>
+<path d="M78 -134L84 -166" stroke="#b4561f" stroke-width="6" stroke-linecap="round"/>
+<path d="M72 -174L96 -170L95 -162L88 -163Q82 -160 74 -166Z" fill="#0c2a20"/>
+<rect x="22" y="-136" width="70" height="44" rx="5" fill="#f2c14e"/>
+<rect x="22" y="-136" width="70" height="11" rx="3" fill="#c99a2e"/>
+<rect x="52" y="-120" width="10" height="8" rx="1" fill="#b4561f"/>
+<ellipse cx="56" cy="-151" rx="10.5" ry="11" fill="#5a3825"/>
+<rect x="-8" y="-290" width="16" height="22" fill="#5a3825"/>
+<ellipse cx="0" cy="-308" rx="21" ry="25" fill="#5a3825"/>
+<ellipse cx="-21" cy="-305" rx="4" ry="6" fill="#5a3825"/>
 <path d="M-22 -310C-24 -338 24 -338 22 -310C14 -322 -14 -322 -22 -310Z" fill="#1b1410"/>
-<path d="M3 -308L8 -300L3 -299Z" fill="#1b1410"/>
+<path d="M18 -310L26 -300L18 -298Z" fill="#3e2518"/>
+</g>
 </g>
 
-<!-- D : adolescent au ballon -->
-<g transform="translate(748 793) scale(1.1)">
-<path d="M-20 -110L-6 -110L-8 -14L-20 -14Z" fill="#6b4128"/>
-<path d="M6 -110L20 -110L24 -8L10 -8Z" fill="#6b4128"/>
-<rect x="-21" y="-40" width="15" height="26" fill="#fbfaf6"/>
-<rect x="9" y="-34" width="15" height="26" fill="#fbfaf6"/>
-<path d="M-24 -16L-4 -16L-2 -2L-32 -2Q-32 -12 -24 -16Z" fill="#e07a5f"/>
-<path d="M8 -10L26 -10L34 4L6 4Z" fill="#e07a5f"/>
-<path d="M-32 -2L-2 -2L-2 1L-32 1Z M6 4L34 4L34 7L6 7Z" fill="#fbfaf6"/>
-<path d="M-26 -152L26 -152L28 -100L3 -100L0 -114L-3 -100L-28 -100Z" fill="#0c2a20"/>
-<path d="M-32 -232Q0 -240 32 -232L28 -146L-28 -146Z" fill="#fbfaf6"/>
-<rect x="-30" y="-206" width="59" height="9" fill="#0b7a57"/>
-<path d="M-10 -236L0 -222L10 -236" stroke="#f2c14e" stroke-width="5" fill="none"/>
-<path d="M-36 -222L-42 -175L-36 -130" stroke="#6b4128" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-<circle cx="-36" cy="-126" r="7.5" fill="#6b4128"/>
-<path d="M-32 -232L-46 -200L-34 -194L-26 -215Z" fill="#fbfaf6"/>
-<path d="M36 -222L42 -180L52 -150" stroke="#6b4128" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-<circle cx="56" cy="-176" r="25" fill="#fbfaf6"/>
-<path d="M56 -186L66 -179L62 -168L50 -168L46 -179Z" fill="#0c2a20"/>
-<path d="M36 -190L42 -197L46 -188L40 -182Z M72 -195L78 -186L72 -182L68 -190Z M50 -153L60 -153L58 -150L52 -150Z M76 -166L80 -170L80 -160Z" fill="#0c2a20"/>
-<path d="M56 -176L56 -186M62 -168L72 -164M50 -168L42 -162M46 -179L40 -184M66 -179L70 -186" stroke="#0c2a20" stroke-width="1.5"/>
-<ellipse cx="62" cy="-154" rx="10" ry="7.5" fill="#6b4128"/>
-<path d="M32 -232L46 -200L34 -194L26 -215Z" fill="#fbfaf6"/>
-<rect x="-7" y="-246" width="14" height="16" fill="#6b4128"/>
-<ellipse cx="0" cy="-262" rx="18" ry="22" fill="#6b4128"/>
-<ellipse cx="-18" cy="-260" rx="3.5" ry="5.5" fill="#6b4128"/>
-<ellipse cx="18" cy="-260" rx="3.5" ry="5.5" fill="#6b4128"/>
-<path d="M-19 -264C-21 -290 21 -290 19 -264C12 -276 -12 -276 -19 -264Z" fill="#1b1410"/>
-<path d="M3 -262L7 -255L3 -254Z" fill="#3e2518"/>
-</g>
-
-<!-- E : mère portant son bébé au dos -->
-<g transform="translate(890 785) scale(1.1)">
-<rect x="-20" y="-30" width="10" height="26" fill="#8d5a3b"/>
-<rect x="10" y="-30" width="10" height="26" fill="#8d5a3b"/>
-<ellipse cx="-16" cy="-3" rx="12" ry="5" fill="#f2c14e"/>
-<ellipse cx="17" cy="-3" rx="12" ry="5" fill="#f2c14e"/>
-<path d="M-26 -268C-70 -266 -74 -196 -42 -172L-20 -190Z" fill="url(#hero-communaute-wax4)"/>
-<rect x="-40" y="-272" width="12" height="12" fill="#6b4128"/>
-<circle cx="-36" cy="-284" r="17" fill="#6b4128"/>
-<path d="M-53 -286C-54 -306 -18 -308 -19 -286C-28 -294 -44 -294 -53 -286Z" fill="#fbfaf6"/>
-<circle cx="-36" cy="-304" r="4" fill="#fbfaf6"/>
-<path d="M-30 -180L30 -180Q36 -90 34 -24L-34 -24Q-36 -90 -30 -180Z" fill="url(#hero-communaute-wax2)"/>
-<path d="M-30 -180L10 -24L-34 -24Q-36 -90 -30 -180Z" fill="#0c2a20" opacity="0.15"/>
+<!-- E : mere portant son bebe au dos -->
+<g transform="translate(968 786) scale(1.1)">
+<path d="M-24 -32L-13 -32L-16 -10L-28 -10Z" fill="#7a4a2e"/>
+<path d="M-32 -16L-18 -11Q-4 -6 -4 -1L-6 1L-34 -7Z" fill="#f2c14e"/>
+<path d="M12 -32L23 -32L25 -6L14 -6Z" fill="#8d5a3b"/>
+<ellipse cx="28" cy="-3" rx="15" ry="5" fill="#f2c14e"/>
+<g transform="rotate(2 0 -24)">
+<path d="M-64 -184Q-74 -172 -80 -160" stroke="#6b4128" stroke-width="11" stroke-linecap="round" fill="none"/>
+<ellipse cx="-82" cy="-155" rx="8" ry="5.5" transform="rotate(-30 -82 -155)" fill="#6b4128"/>
+<path d="M-26 -262C-76 -266 -92 -220 -83 -190C-76 -166 -48 -160 -28 -168Z" fill="#0c2a20" opacity="0.35"/>
+<path d="M-26 -266C-72 -270 -86 -224 -78 -194C-72 -172 -46 -164 -28 -172Z" fill="url(#hero-communaute-wax4)"/>
+<path d="M-26 -266C-72 -270 -86 -224 -78 -194C-72 -172 -46 -164 -28 -172Z" fill="#0c2a20" opacity="0.12"/>
+<path d="M-62 -260C-76 -240 -78 -206 -66 -180" stroke="#f2c14e" stroke-width="3" opacity="0.6" fill="none"/>
+<rect x="-48" y="-268" width="11" height="10" fill="#6b4128"/>
+<circle cx="-44" cy="-280" r="15" fill="#6b4128"/>
+<ellipse cx="-58" cy="-278" rx="3" ry="4.5" fill="#6b4128"/>
+<path d="M-59 -282C-60 -300 -28 -300 -29 -282C-36 -290 -52 -290 -59 -282Z" fill="#1b1410"/>
+<path d="M-56 -262Q-44 -254 -30 -262L-30 -254L-56 -254Z" fill="url(#hero-communaute-wax4)"/>
+<path d="M-30 -180L30 -180Q38 -90 42 -24L-36 -26Q-36 -90 -30 -180Z" fill="url(#hero-communaute-wax2)"/>
+<path d="M-30 -180L8 -25L-36 -26Q-36 -90 -30 -180Z" fill="#0c2a20" opacity="0.15"/>
 <path d="M-34 -262Q0 -272 34 -262L30 -176L-30 -176Z" fill="#e8f4ee"/>
-<path d="M-34 -240L34 -232L34 -216L-34 -224Z" fill="url(#hero-communaute-wax4)"/>
-<ellipse cx="8" cy="-226" rx="9" ry="11" fill="#b4561f"/>
-<ellipse cx="-24" cy="-262" rx="6" ry="5" fill="#6b4128"/>
-<path d="M-36 -250L-46 -205L-38 -180" stroke="#8d5a3b" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-<circle cx="-38" cy="-178" r="7.5" fill="#8d5a3b"/>
-<path d="M36 -252L64 -296L70 -348" stroke="#8d5a3b" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-<ellipse cx="70" cy="-354" rx="8" ry="10" fill="#8d5a3b"/>
-<ellipse cx="-36" cy="-250" rx="12" ry="15" fill="#e8f4ee"/>
-<ellipse cx="38" cy="-258" rx="13" ry="12" fill="#e8f4ee"/>
+<path d="M-34 -246L34 -236L32 -218L-32 -228Z" fill="url(#hero-communaute-wax4)"/>
+<path d="M-32 -194L32 -188L31 -174L-31 -180Z" fill="url(#hero-communaute-wax4)"/>
+<path d="M-32 -228L-26 -266L-40 -266L-40 -232Z" fill="url(#hero-communaute-wax4)"/>
+<ellipse cx="10" cy="-228" rx="9" ry="10" fill="#b4561f"/>
+<path d="M6 -222L0 -200L8 -202ZM13 -222L20 -202L13 -204Z" fill="#b4561f"/>
+<path d="M-38 -250L-46 -208L-42 -174" stroke="#8d5a3b" stroke-width="19" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<ellipse cx="-42" cy="-168" rx="10" ry="11" fill="#8d5a3b"/>
+<path d="M-34 -263Q-48 -262 -54 -236L-34 -228Z" fill="#e8f4ee"/>
+<path d="M36 -254L62 -298L68 -344" stroke="#8d5a3b" stroke-width="19" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<ellipse cx="69" cy="-354" rx="10.5" ry="12.5" fill="#8d5a3b"/>
+<path d="M22 -262L35 -282L60 -267L48 -246Q34 -240 28 -246Z" fill="#e8f4ee"/>
 <rect x="-7" y="-280" width="14" height="18" fill="#8d5a3b"/>
 <ellipse cx="0" cy="-298" rx="20" ry="24" fill="#8d5a3b"/>
 <ellipse cx="-20" cy="-296" rx="4" ry="6" fill="#8d5a3b"/>
-<path d="M3 -298L8 -290L3 -289Z" fill="#6b4128"/>
+<path d="M17 -298L25 -289L17 -288Z" fill="#6b4128"/>
 <path d="M-24 -302C-30 -336 -6 -352 12 -350C32 -346 34 -324 24 -300C12 -310 -10 -312 -24 -302Z" fill="#e07a5f"/>
 <path d="M-20 -318C-4 -330 14 -330 26 -320" stroke="#b4561f" stroke-width="4" fill="none"/>
 <path d="M10 -348C20 -366 38 -362 32 -346Z" fill="#b4561f"/>
 </g>
+</g>
 
-<!-- C : jeune femme au diplôme (devant) -->
-<g transform="translate(605 810) scale(1.1)">
-<path d="M-18 -62L-8 -62L-10 -10L-20 -10Z" fill="#7a4a2e"/>
-<path d="M6 -62L18 -62L20 -4L9 -4Z" fill="#7a4a2e"/>
-<ellipse cx="-16" cy="-6" rx="11" ry="5" fill="#f2c14e"/>
-<ellipse cx="16" cy="-1" rx="11" ry="5" fill="#f2c14e"/>
-<path d="M-30 -190L30 -190Q44 -120 56 -58Q0 -46 -56 -58Q-44 -120 -30 -190Z" fill="url(#hero-communaute-wax1)"/>
-<path d="M10 -190L30 -190Q44 -120 56 -58Q36 -54 20 -52Z" fill="#0c2a20" opacity="0.12"/>
+<!-- A : ainee en boubou -->
+<g transform="translate(318 788) scale(1.1)">
+<path d="M-26 -30L-14 -30L-18 -8L-30 -8Z" fill="#3e2518"/>
+<path d="M-34 -16L-20 -12Q-6 -6 -6 -1L-8 1L-36 -7Z" fill="#b4561f"/>
+<path d="M14 -30L26 -30L28 -6L16 -6Z" fill="#3e2518"/>
+<ellipse cx="30" cy="-3" rx="15" ry="5" fill="#b4561f"/>
+<g transform="rotate(3 0 -10)">
+<ellipse cx="-84" cy="-144" rx="10" ry="11" fill="#3e2518"/>
+<ellipse cx="86" cy="-146" rx="10" ry="11" fill="#3e2518"/>
+<path d="M-10 -255L-36 -248L-88 -160L-70 -138L-62 -140L-64 -24Q4 -12 70 -26L62 -140L70 -138L88 -160L36 -248L10 -255Q0 -245 -10 -255Z" fill="#f2c14e"/>
+<path d="M36 -248L88 -160L70 -138L62 -140L70 -26Q44 -20 24 -18L28 -200Z" fill="#c99a2e" opacity="0.45"/>
+<path d="M-12 -254L0 -215L12 -254" stroke="#b4561f" stroke-width="5" fill="none"/>
+<path d="M0 -215L0 -150" stroke="#b4561f" stroke-width="4" stroke-dasharray="6 5"/>
+<rect x="-7" y="-268" width="14" height="16" fill="#3e2518"/>
+<ellipse cx="0" cy="-283" rx="19" ry="23" fill="#3e2518"/>
+<ellipse cx="-19" cy="-280" rx="4" ry="6" fill="#3e2518"/>
+<path d="M16 -284L23 -275L16 -274Z" fill="#1b1410"/>
+<path d="M-23 -288C-28 -318 -8 -336 8 -334C28 -332 32 -310 23 -287C10 -296 -10 -297 -23 -288Z" fill="#b4561f"/>
+<path d="M-18 -300C-6 -310 10 -312 22 -304" stroke="#e07a5f" stroke-width="4" fill="none"/>
+<path d="M4 -332C12 -350 30 -348 26 -334Z" fill="#e07a5f"/>
+<path d="M4 -332C-6 -348 -20 -342 -12 -330Z" fill="#b4561f"/>
+</g>
+</g>
+
+<!-- D : adolescent au ballon -->
+<g transform="translate(760 801) scale(1.1)">
+<path d="M-20 -110L-6 -110L-20 -14L-34 -16Z" fill="#5a3825"/>
+<path d="M-30 -44L-16 -42L-20 -14L-34 -16Z" fill="#fbfaf6"/>
+<path d="M-48 -28L-30 -20Q-22 -16 -26 -8L-28 -4L-52 -14Z" fill="#e07a5f"/>
+<path d="M-52 -14L-28 -4L-29 -1L-53 -11Z" fill="#fbfaf6"/>
+<path d="M6 -110L20 -110L36 -10L22 -8Z" fill="#6b4128"/>
+<path d="M17 -40L31 -40L36 -10L22 -8Z" fill="#fbfaf6"/>
+<path d="M20 -14L40 -14Q52 -12 52 -3L52 0L18 0Z" fill="#e07a5f"/>
+<rect x="18" y="0" width="34" height="3" fill="#fbfaf6"/>
+<g transform="rotate(4 0 -110)">
+<path d="M-26 -152L26 -152L30 -100L4 -98L0 -112L-6 -98L-30 -100Z" fill="#0c2a20"/>
+<path d="M-38 -222L-48 -178L-56 -138" stroke="#6b4128" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<ellipse cx="-57" cy="-131" rx="9.5" ry="10.5" fill="#6b4128"/>
+<path d="M-32 -232L-50 -200L-36 -192L-26 -215Z" fill="#fbfaf6"/>
+<path d="M-32 -232Q0 -240 32 -232L28 -146L-28 -146Z" fill="#fbfaf6"/>
+<rect x="-30" y="-206" width="59" height="9" fill="#0b7a57"/>
+<path d="M-10 -236L0 -222L10 -236" stroke="#f2c14e" stroke-width="5" fill="none"/>
+<path d="M36 -222L42 -182L58 -152" stroke="#6b4128" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<circle cx="58" cy="-178" r="25" fill="#fbfaf6"/>
+<path d="M58 -188L68 -181L64 -170L52 -170L48 -181Z" fill="#0c2a20"/>
+<path d="M38 -192L44 -199L48 -190L42 -184Z M74 -197L80 -188L74 -184L70 -192Z M52 -155L62 -155L60 -152L54 -152Z" fill="#0c2a20"/>
+<path d="M58 -178L58 -188M64 -170L74 -166M52 -170L44 -164M48 -181L42 -186M68 -181L72 -188" stroke="#0c2a20" stroke-width="1.5"/>
+<ellipse cx="64" cy="-154" rx="11" ry="9" fill="#6b4128"/>
+<path d="M32 -232L48 -200L34 -194L26 -215Z" fill="#fbfaf6"/>
+<rect x="-7" y="-246" width="14" height="16" fill="#6b4128"/>
+<ellipse cx="0" cy="-262" rx="18" ry="22" fill="#6b4128"/>
+<ellipse cx="-18" cy="-260" rx="3.5" ry="5.5" fill="#6b4128"/>
+<path d="M-19 -264C-21 -290 21 -290 19 -264C12 -276 -12 -276 -19 -264Z" fill="#1b1410"/>
+<path d="M15 -262L22 -254L15 -253Z" fill="#3e2518"/>
+</g>
+</g>
+
+<!-- C : jeune femme au diplome (devant) -->
+<g transform="translate(616 818) scale(1.1)">
+<path d="M-16 -64L-5 -64L-20 -14L-31 -16Z" fill="#6b4128"/>
+<path d="M-36 -22L-22 -17Q-8 -10 -7 -2L-9 0L-38 -12Z" fill="#f2c14e"/>
+<path d="M5 -64L17 -64L30 -6L19 -6Z" fill="#7a4a2e"/>
+<ellipse cx="32" cy="-2" rx="14" ry="5" fill="#f2c14e"/>
+<g transform="rotate(3 0 -60)">
+<path d="M-38 -246L-52 -198L-62 -152" stroke="#6b4128" stroke-width="19" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<ellipse cx="-63" cy="-145" rx="10" ry="11" fill="#6b4128"/>
+<ellipse cx="-36" cy="-250" rx="13" ry="15" fill="url(#hero-communaute-wax1)"/>
+<path d="M-30 -190L30 -190Q46 -122 62 -62Q4 -46 -52 -60Q-42 -120 -30 -190Z" fill="url(#hero-communaute-wax1)"/>
+<path d="M10 -190L30 -190Q46 -122 62 -62Q40 -56 22 -54Z" fill="#0c2a20" opacity="0.12"/>
 <path d="M-34 -262Q0 -270 34 -262L28 -188L-28 -188Z" fill="url(#hero-communaute-wax1)"/>
 <rect x="-30" y="-198" width="60" height="11" fill="#f2c14e"/>
 <path d="M-12 -265Q0 -246 12 -265Z" fill="#7a4a2e"/>
-<path d="M-38 -248L-46 -195L-44 -142" stroke="#7a4a2e" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-<circle cx="-44" cy="-138" r="7.5" fill="#7a4a2e"/>
-<ellipse cx="-36" cy="-252" rx="13" ry="15" fill="url(#hero-communaute-wax1)"/>
 <g transform="rotate(-10 3 -225)">
 <rect x="-17" y="-272" width="42" height="18" fill="#fbfaf6"/>
 <rect x="-22" y="-258" width="52" height="66" rx="3" fill="#0c2a20"/>
@@ -252,18 +272,17 @@
 <circle cx="4" cy="-228" r="9" fill="#f2c14e"/>
 <circle cx="4" cy="-228" r="4.5" fill="#c99a2e"/>
 </g>
-<path d="M38 -248L44 -198L10 -206" stroke="#7a4a2e" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-<circle cx="8" cy="-206" r="7.5" fill="#7a4a2e"/>
+<path d="M38 -248L46 -200L12 -208" stroke="#7a4a2e" stroke-width="19" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<ellipse cx="8" cy="-208" rx="11" ry="10" fill="#7a4a2e"/>
 <ellipse cx="36" cy="-252" rx="13" ry="15" fill="url(#hero-communaute-wax1)"/>
 <rect x="-7" y="-282" width="14" height="18" fill="#7a4a2e"/>
 <ellipse cx="0" cy="-303" rx="20" ry="24" fill="#7a4a2e"/>
 <ellipse cx="-20" cy="-301" rx="4" ry="6" fill="#7a4a2e"/>
-<ellipse cx="20" cy="-301" rx="4" ry="6" fill="#7a4a2e"/>
 <circle cx="-20" cy="-292" r="3" fill="#f2c14e"/>
-<circle cx="20" cy="-292" r="3" fill="#f2c14e"/>
 <ellipse cx="2" cy="-338" rx="27" ry="21" fill="#1b1410"/>
 <path d="M-21 -306C-24 -330 24 -332 21 -306C14 -318 -14 -318 -21 -306Z" fill="#1b1410"/>
 <rect x="-20" y="-322" width="42" height="5" fill="#f2c14e"/>
-<path d="M3 -303L8 -295L3 -294Z" fill="#5a3825"/>
+<path d="M17 -303L24 -295L17 -294Z" fill="#5a3825"/>
+</g>
 </g>
 </svg>

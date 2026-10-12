@@ -13,22 +13,23 @@
 <circle cx="8" cy="8" r="2" fill="#fbfaf6"/>
 </pattern>
 <clipPath id="formation-blob">
-<path d="M140 260 C160 140 330 95 520 110 C700 125 820 80 980 120 C1110 152 1150 270 1130 420 C1112 560 1150 680 1080 770 C1000 860 820 840 640 845 C450 850 250 860 150 780 C70 715 110 560 100 430 C95 360 125 330 140 260Z"/>
+<path d="M100 300 C90 140 230 105 420 105 C600 105 760 85 960 110 C1100 128 1150 260 1132 420 C1115 560 1165 700 1115 792 C1050 862 820 845 640 848 C450 852 220 870 105 800 C40 755 55 600 62 470 C66 400 102 360 100 300Z"/>
 </clipPath>
 </defs>
 
 <!-- fond -->
-<path d="M140 260 C160 140 330 95 520 110 C700 125 820 80 980 120 C1110 152 1150 270 1130 420 C1112 560 1150 680 1080 770 C1000 860 820 840 640 845 C450 850 250 860 150 780 C70 715 110 560 100 430 C95 360 125 330 140 260Z" fill="#e8f4ee"/>
+<path d="M100 300 C90 140 230 105 420 105 C600 105 760 85 960 110 C1100 128 1150 260 1132 420 C1115 560 1165 700 1115 792 C1050 862 820 845 640 848 C450 852 220 870 105 800 C40 755 55 600 62 470 C66 400 102 360 100 300Z" fill="#e8f4ee"/>
 <g clip-path="url(#formation-blob)">
 <rect x="0" y="770" width="1200" height="130" fill="#cfe8e0"/>
 </g>
 <circle cx="1010" cy="180" r="38" fill="#f2c14e"/>
-<g fill="#f2c14e"><circle cx="180" cy="140" r="6"/><circle cx="205" cy="128" r="4"/><circle cx="160" cy="118" r="3.5"/><circle cx="1150" cy="520" r="5"/><circle cx="1160" cy="545" r="3.5"/></g>
+<g fill="#f2c14e"><circle cx="72" cy="248" r="6"/><circle cx="58" cy="272" r="4"/><circle cx="86" cy="222" r="3.5"/><circle cx="1150" cy="520" r="5"/><circle cx="1160" cy="545" r="3.5"/></g>
 
 <!-- conduit mural -->
-<path d="M300 240 L1045 240 L1045 405" fill="none" stroke="#2f9e75" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M330 240 L1045 240 L1045 405" fill="none" stroke="#2f9e75" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
 
 <!-- tableau électrique -->
+<g transform="translate(30 0)">
 <rect x="100" y="170" width="210" height="300" rx="14" fill="#14523c"/>
 <rect x="114" y="184" width="182" height="272" rx="8" fill="#cfe8e0"/>
 <g fill="#e8f4ee"><rect x="122" y="232" width="166" height="6"/><rect x="122" y="304" width="166" height="6"/><rect x="122" y="376" width="166" height="6"/></g>
@@ -55,8 +56,9 @@
 <path d="M262 410 Q262 440 216 454" stroke="#0b7a57"/>
 <path d="M216 410 Q214 434 206 446" stroke="#e07a5f"/>
 </g>
-<path d="M205 470 L205 600" stroke="#2f9e75" stroke-width="12" stroke-linecap="round"/>
+<path d="M205 470 L205 640" stroke="#2f9e75" stroke-width="12" stroke-linecap="round"/>
 <circle cx="273" cy="308" r="24" fill="#f2c14e" opacity=".35"/>
+</g>
 
 <!-- panneau d'entraînement -->
 <ellipse cx="1060" cy="784" rx="90" ry="9" fill="#0c2a20" opacity=".12"/>
@@ -88,7 +90,8 @@
 <circle cx="1039" cy="501" r="2.6" fill="#0c2a20"/><circle cx="1051" cy="501" r="2.6" fill="#0c2a20"/>
 
 <!-- établi -->
-<ellipse cx="250" cy="808" rx="170" ry="11" fill="#0c2a20" opacity=".12"/>
+<g transform="translate(30 0)">
+<ellipse cx="252" cy="808" rx="158" ry="11" fill="#0c2a20" opacity=".12"/>
 <rect x="96" y="660" width="14" height="148" rx="3" fill="#14523c"/>
 <rect x="372" y="660" width="14" height="148" rx="3" fill="#14523c"/>
 <rect x="100" y="752" width="282" height="10" rx="3" fill="#14523c"/>
@@ -113,20 +116,13 @@
 <path d="M344 620 L296 612 M344 622 L298 630" stroke="#e07a5f" stroke-width="7" stroke-linecap="round"/>
 <path d="M342 621 L374 618" stroke="#0c2a20" stroke-width="6" stroke-linecap="round"/>
 <circle cx="344" cy="621" r="4" fill="#0c2a20"/>
+</g>
 
 <!-- FORMATRICE -->
 <ellipse cx="500" cy="784" rx="84" ry="11" fill="#0c2a20" opacity=".12"/>
-<!-- bras arrière + bloc-notes -->
+<!-- bras arrière -->
 <path d="M512 414 L526 500" stroke="#3e2518" stroke-width="20" stroke-linecap="round"/>
-<path d="M526 500 L520 584" stroke="#3e2518" stroke-width="17" stroke-linecap="round"/>
 <path d="M510 414 L519 438" stroke="#b4561f" stroke-width="24" stroke-linecap="round"/>
-<g transform="rotate(-8 540 595)">
-<rect x="518" y="566" width="46" height="60" rx="4" fill="#c99a2e"/>
-<rect x="522" y="572" width="38" height="50" rx="2" fill="#fbfaf6"/>
-<rect x="532" y="562" width="18" height="8" rx="2" fill="#14523c"/>
-<path d="M528 584 H554 M528 594 H554 M528 604 H546" stroke="#cfe8e0" stroke-width="3"/>
-</g>
-<ellipse cx="522" cy="592" rx="10" ry="12" fill="#3e2518"/>
 <!-- jambes -->
 <path d="M482 570 L518 570 L512 768 L488 768Z" fill="#0c2a20"/>
 <path d="M488 762 L512 762 L516 782 L476 782 Q474 768 488 762Z" fill="#1b1410"/>
@@ -141,6 +137,16 @@
 <path d="M464 400 L480 420 L496 400 L486 404 L480 412 L474 404Z" fill="#fbfaf6"/>
 <path d="M480 418 L480 446" stroke="#b4561f" stroke-width="2.5"/>
 <circle cx="504" cy="436" r="6" fill="#f2c14e"/>
+<!-- bloc-notes tenu contre la poitrine -->
+<g transform="rotate(-10 478 482)">
+<rect x="452" y="450" width="50" height="64" rx="4" fill="#0c2a20" opacity=".18" transform="translate(5 4)"/>
+<rect x="452" y="450" width="50" height="64" rx="4" fill="#c99a2e"/>
+<rect x="457" y="457" width="40" height="52" rx="2" fill="#fbfaf6"/>
+<rect x="468" y="445" width="18" height="9" rx="2" fill="#14523c"/>
+<path d="M463 472 H491 M463 482 H491 M463 492 H482" stroke="#cfe8e0" stroke-width="3"/>
+</g>
+<path d="M526 500 L494 490" stroke="#3e2518" stroke-width="17" stroke-linecap="round"/>
+<ellipse cx="490" cy="488" rx="12" ry="10" fill="#3e2518"/>
 <!-- tête -->
 <ellipse cx="476" cy="352" rx="27" ry="32" fill="#5a3825"/>
 <path d="M451 344 Q441 358 451 364Z" fill="#5a3825"/>
@@ -151,11 +157,11 @@
 <path d="M478 290 Q470 268 488 266 Q500 270 494 288Z M490 290 Q504 270 518 280 Q512 294 494 294Z" fill="url(#formation-wax1)"/>
 <path d="M480 292 Q488 282 496 292Z" fill="#0c2a20" opacity=".3"/>
 <!-- bras qui montre -->
-<path d="M446 420 L365 392" stroke="#5a3825" stroke-width="21" stroke-linecap="round"/>
-<path d="M365 392 L300 336" stroke="#5a3825" stroke-width="18" stroke-linecap="round"/>
+<path d="M446 420 L370 390" stroke="#5a3825" stroke-width="21" stroke-linecap="round"/>
+<path d="M370 390 L336 342" stroke="#5a3825" stroke-width="18" stroke-linecap="round"/>
 <path d="M448 418 L420 408" stroke="#e07a5f" stroke-width="31" stroke-linecap="round"/>
-<path d="M289 323 L268 305" stroke="#5a3825" stroke-width="7" stroke-linecap="round"/>
-<ellipse cx="294" cy="330" rx="13" ry="10" transform="rotate(-40 294 330)" fill="#5a3825"/>
+<path d="M326 330 L313 315" stroke="#5a3825" stroke-width="8" stroke-linecap="round"/>
+<ellipse cx="331" cy="336" rx="13" ry="10" transform="rotate(-55 331 336)" fill="#5a3825"/>
 
 <!-- APPRENTIE -->
 <ellipse cx="690" cy="784" rx="80" ry="11" fill="#0c2a20" opacity=".12"/>
@@ -177,9 +183,11 @@
 <ellipse cx="676" cy="360" rx="25" ry="30" fill="#8d5a3b"/>
 <path d="M652 352 Q643 364 652 370Z" fill="#8d5a3b"/>
 <ellipse cx="692" cy="366" rx="4.5" ry="7" fill="#6b4128"/>
+<g transform="matrix(.9 0 0 .9 67.8 35.2)">
 <path d="M646 352 Q646 312 678 310 Q710 312 710 352Z" fill="#f2c14e"/>
 <path d="M678 310 Q690 330 690 352" fill="none" stroke="#c99a2e" stroke-width="5"/>
 <path d="M640 350 L714 350 L712 358 L630 358 Q628 350 640 350Z" fill="#c99a2e"/>
+</g>
 <!-- bobine -->
 <ellipse cx="640" cy="535" rx="35" ry="32" fill="none" stroke="#b4561f" stroke-width="18"/>
 <g fill="none" stroke="#e07a5f" stroke-width="2"><ellipse cx="640" cy="535" rx="42" ry="39"/><ellipse cx="640" cy="535" rx="36" ry="33"/><ellipse cx="640" cy="535" rx="30" ry="27"/></g>
@@ -209,11 +217,13 @@
 <rect x="848" y="468" width="30" height="22" rx="3" fill="#0b7a57"/>
 <rect x="856" y="374" width="18" height="30" fill="#3e2518"/><rect x="856" y="374" width="18" height="14" fill="#0c2a20" opacity=".4"/>
 <ellipse cx="866" cy="348" rx="26" ry="31" fill="#3e2518"/>
-<path d="M890 340 Q900 352 891 358Z" fill="#3e2518"/>
+<path d="M891 350 Q901 362 892 368Z" fill="#3e2518"/>
 <ellipse cx="852" cy="354" rx="4.5" ry="7.5" fill="#1b1410"/>
+<g transform="matrix(.9 0 0 .9 86.8 34.4)">
 <path d="M836 340 Q836 298 868 296 Q900 298 900 340Z" fill="#ffffff"/>
 <path d="M868 296 Q858 316 858 340" fill="none" stroke="#cfe8e0" stroke-width="5"/>
 <path d="M832 340 L904 340 Q916 340 916 348 L836 348 Q828 348 832 340Z" fill="#cfe8e0"/>
+</g>
 <!-- bras + tournevis -->
 <path d="M896 426 L918 500" stroke="#3e2518" stroke-width="20" stroke-linecap="round"/>
 <path d="M918 500 L978 490" stroke="#3e2518" stroke-width="17" stroke-linecap="round"/>
