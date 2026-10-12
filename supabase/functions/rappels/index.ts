@@ -4,7 +4,8 @@
 //  * pg_cron (en-tête x-cle-rappels, comparé à la clé du coffre) : { type: 'hebdo' | 'seances' } → envoi à tous les membres concernés ;
 //  * un membre connecté (jeton de session) : { type, apercu: true } → l'email lui est envoyé à lui seul,
 //    même vide, pour voir à quoi il ressemble ; un administrateur peut aussi déclencher l'envoi à tous ;
-//  * le bureau : { type: 'invitation', membre_id | acces_id } → email d'invitation à créer son compte.
+//  * le bureau : { type: 'invitation', membre_id | acces_id } → email d'invitation à créer son compte ;
+//  * l'administrateur : { type: 'changer_email', membre_id, email } → change l'adresse de connexion.
 //
 // Secrets : EXPEDITEUR_EMAIL, et BREVO_API_KEY ou RESEND_API_KEY.
 // La clé des appels planifiés est dans le coffre de la base (fonction cle_rappels).
@@ -177,10 +178,32 @@ const repondre = (corps: unknown, statut = 200) =>
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
-    const { type = 'hebdo', apercu = false, membre_id = null, acces_id = null } = await req.json().catch(() => ({}))
-    if (type !== 'hebdo' && type !== 'seances' && type !== 'invitation') return repondre({ erreur: 'Type inconnu' }, 400)
+    const { type = 'hebdo', apercu = false, membre_id = null, acces_id = null, email: nouvelEmail = null } = await req.json().catch(() => ({}))
+    if (!['hebdo', 'seances', 'invitation', 'changer_email'].includes(type)) return repondre({ erreur: 'Type inconnu' }, 400)
 
     const service = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
+
+    // Changer l'adresse de connexion d'un membre dont l'accès est activé : réservé à l'administrateur.
+    if (type === 'changer_email') {
+      const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
+      const { data: u } = await service.auth.getUser(jeton)
+      const { data: moi } = u?.user ? await service.from('membres').select('id, role, actif').eq('user_id', u.user.id).maybeSingle() : { data: null }
+      if (!moi?.actif || moi.role !== 'admin') return repondre({ erreur: "Seul un administrateur peut changer une adresse de connexion" }, 403)
+      const email = String(nouvelEmail ?? '').trim().toLowerCase()
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return repondre({ erreur: 'Adresse email invalide' }, 400)
+      const { data: m } = await service.from('membres').select('id, user_id, email').eq('id', membre_id).maybeSingle()
+      if (!m) return repondre({ erreur: 'Membre introuvable' }, 404)
+      const { data: autreMembre } = await service.from('membres').select('id').eq('email', email).neq('id', m.id).maybeSingle()
+      const { data: autreAcces } = await service.from('acces_partenaires').select('id').eq('email', email).maybeSingle()
+      if (autreMembre || autreAcces) return repondre({ erreur: 'Cette adresse est déjà utilisée par une autre fiche' }, 400)
+      if (m.user_id) {
+        const { error } = await service.auth.admin.updateUserById(m.user_id, { email, email_confirm: true })
+        if (error) return repondre({ erreur: /already|registered|exists/i.test(error.message) ? 'Cette adresse a déjà un compte dans l\'application' : error.message }, 400)
+      }
+      const { error } = await service.from('membres').update({ email }).eq('id', m.id)
+      if (error) return repondre({ erreur: error.message }, 400)
+      return repondre({ ok: true })
+    }
 
     // Invitation d'un membre ou d'un partenaire : réservée au bureau.
     if (type === 'invitation') {

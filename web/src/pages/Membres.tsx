@@ -93,7 +93,7 @@ export function Membres() {
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <Badge variant={m.role === 'membre' ? 'outline' : 'secondary'}>{LIBELLES_ROLE[m.role]}</Badge>
-                {gestion && !m.user_id ? <span className="text-[11px] text-muted-foreground">accès non activé</span> : null}
+                {gestion ? (m.user_id ? <span className="text-[11px] font-medium text-primary">accès activé</span> : <span className="text-[11px] text-muted-foreground">accès non activé</span>) : null}
               </div>
             </button>
             {gestion && !m.user_id && m.actif ? (
@@ -172,9 +172,10 @@ function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | n
             <Champ label="Nom"><Input required value={v.nom} onChange={(e) => setV({ ...v, nom: e.target.value })} /></Champ>
           </div>
           <Champ label="Téléphone"><Input type="tel" value={v.telephone} onChange={(e) => setV({ ...v, telephone: e.target.value })} /></Champ>
-          <Champ label="Email" aide="Nécessaire pour qu'il ou elle se connecte à l'application.">
+          <Champ label="Email" aide={existant?.user_id ? "Accès activé : c'est son adresse de connexion." : "Nécessaire pour qu'il ou elle se connecte à l'application."}>
             <Input type="email" value={v.email} disabled={!!existant?.user_id} onChange={(e) => setV({ ...v, email: e.target.value })} />
           </Champ>
+          {existant?.user_id && a('admin') ? <ChangerEmail membre={existant} apres={(email) => setV({ ...v, email })} /> : null}
           <Champ label="Fonction dans l'association"><Input value={v.fonction} placeholder="Présidente, trésorier, chargé de communication…" onChange={(e) => setV({ ...v, fonction: e.target.value })} /></Champ>
           {a('admin') && !moiMeme ? (
             <Champ label="Rôle dans l'application" aide="Coordinateur : crée des actions et suit les bénéficiaires. Bureau : gère tout le contenu. Administrateur : gère aussi les rôles.">
@@ -220,5 +221,47 @@ function InviterMembre({ membre, fermer }: { membre: Membre; fermer: () => void 
         <div className="flex justify-end"><Button variant="ghost" onClick={fermer}>Fermer</Button></div>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** Changer l'adresse de connexion d'un membre dont l'accès est activé (administrateur). */
+function ChangerEmail({ membre, apres }: { membre: Membre; apres: (email: string) => void }) {
+  const qc = useQueryClient()
+  const [ouvert, setOuvert] = useState(false)
+  const [email, setEmail] = useState('')
+  const [envoi, setEnvoi] = useState(false)
+  async function valider() {
+    const nouveau = email.trim().toLowerCase()
+    if (!confirm(`Remplacer l'adresse de connexion de ${membre.prenom} ${membre.nom} par ${nouveau} ? Il ou elle devra désormais se connecter avec cette adresse (même mot de passe).`)) return
+    setEnvoi(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('rappels', { body: { type: 'changer_email', membre_id: membre.id, email: nouveau } })
+      if (error) {
+        const corps = await (error as { context?: Response }).context?.json?.().catch(() => null)
+        throw new Error(corps?.erreur ?? error.message)
+      }
+      if (!data?.ok) throw new Error(data?.erreur ?? 'Échec')
+      toast.success('Adresse de connexion changée')
+      apres(nouveau)
+      setOuvert(false)
+      qc.invalidateQueries({ queryKey: ['membres'] })
+    } catch (e) {
+      toast.error(messageErreur(e))
+    } finally {
+      setEnvoi(false)
+    }
+  }
+  if (!ouvert) {
+    return <button type="button" className="-mt-2 justify-self-start text-sm font-medium text-primary" onClick={() => { setEmail(''); setOuvert(true) }}>Changer l'adresse de connexion</button>
+  }
+  return (
+    <div className="-mt-1 grid gap-2 rounded-lg border border-border bg-muted/40 p-3">
+      <Input type="email" placeholder="Nouvelle adresse email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <p className="text-xs text-muted-foreground">Le mot de passe ne change pas. L'ancienne adresse ne permettra plus de se connecter.</p>
+      <div className="flex justify-end gap-2">
+        <Button type="button" size="sm" variant="ghost" onClick={() => setOuvert(false)}>Annuler</Button>
+        <Button type="button" size="sm" onClick={valider} disabled={envoi || !email.includes('@')}>Changer</Button>
+      </div>
+    </div>
   )
 }
