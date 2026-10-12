@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { BarChart3, BellRing, CalendarCheck, CalendarHeart, Handshake, Home, ListChecks, LogOut, Menu, Shapes, Target, UsersRound, X } from 'lucide-react'
+import { BarChart3, BellRing, CalendarCheck, CalendarHeart, Handshake, Home, Landmark, ListChecks, LogOut, Menu, Shapes, Target, UsersRound, X } from 'lucide-react'
 import { MonProfil } from '@/components/MonProfil'
 import { BandeauHorsLigne } from '@/components/BandeauHorsLigne'
 import { useAuth } from '@/lib/auth'
@@ -28,7 +28,7 @@ const GROUPES = [
       { vers: '/partenaires', libelle: 'Partenaires', icone: Handshake },
     ],
   },
-  { titre: 'Réglages', liens: [{ vers: '/categories', libelle: 'Catégories', icone: Shapes }] },
+  { titre: 'Réglages', liens: [{ vers: '/categories', libelle: 'Catégories', icone: Shapes }, { vers: '/association', libelle: "L'association", icone: Landmark }] },
 ]
 const TOUS = GROUPES.flatMap((g) => g.liens)
 // Barre du bas sur téléphone : les 5 écrans du quotidien.

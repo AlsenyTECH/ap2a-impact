@@ -21,6 +21,7 @@ import { PortailPartenaire, usePortail } from '@/pages/Portail'
 import { Cartes } from '@/pages/Cartes'
 import { Evenements } from '@/pages/Evenements'
 import { EvenementDetail } from '@/pages/EvenementDetail'
+import { Vitrine } from '@/pages/Vitrine'
 
 export function App() {
   const { session, membre, chargement, deconnecter } = useAuth()
@@ -33,7 +34,10 @@ export function App() {
   // Vérification d'une carte : page publique, sans compte.
   if (pathname.startsWith('/v/')) return <Routes><Route path="v/:jeton" element={<Verification />} /></Routes>
   if (chargement) return <Chargement />
-  if (!session) return <Connexion />
+  // Sans compte : la page vitrine de l'association sur l'accueil, la connexion ailleurs.
+  if (!session) return pathname === '/' || pathname === '/association' ? <Vitrine /> : <Connexion />
+  if (pathname === '/association') return <Vitrine connecte />
+  if (pathname === '/connexion') return <Navigate to="/" replace />
   if (!membre) return <SansFicheOuPartenaire email={session.user.email} deconnecter={deconnecter} />
 
   return (

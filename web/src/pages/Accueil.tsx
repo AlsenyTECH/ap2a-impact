@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, CalendarCheck, Coins, FlaskConical, ListChecks, Plus, Target, Users } from 'lucide-react'
+import { ArrowRight, CalendarCheck, Coins, FlaskConical, ListChecks, Plus, Quote, Target, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Avatar, BlocDate, Indicateur, Liste, Section, StatutPastille } from '@/components/design'
@@ -115,6 +115,18 @@ export function Accueil() {
           <Link to="/impact"><Indicateur icone={Coins} valeur={chiffres ? fcfa(chiffres.valeur) : undefined} libelle="remis en kits, dons, soins" ton="rose" /></Link>
         </div>
       ) : null}
+
+      {/* L'empreinte de la fondatrice */}
+      <Link to="/association" className="group relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-or/30 bg-gradient-to-r from-[#0c2a20] to-[#123b2d] p-5 text-white shadow-carte transition hover:shadow-haute sm:flex-row sm:items-center md:p-6">
+        <span className="flex size-16 shrink-0 items-center justify-center rounded-full border-2 border-[#f2c14e] font-heading text-xl font-bold text-[#f2c14e]">FKD</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-2 font-heading text-lg font-semibold leading-snug md:text-xl">
+            <Quote className="mt-1 size-4 shrink-0 text-[#f2c14e]" /> Refaire des Parcelles cette cité assainie où il fait bon vivre.
+          </div>
+          <div className="mt-1 text-sm text-white/70">Fatou Kiné Diakhaté, fondatrice de l'AP2A · première femme Directrice de Cabinet adjointe du Président de la République</div>
+        </div>
+        <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-[#f2c14e]">Page de l'association <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" /></span>
+      </Link>
 
       <div className="grid grid-cols-1 gap-7 lg:grid-cols-5">
         <Section

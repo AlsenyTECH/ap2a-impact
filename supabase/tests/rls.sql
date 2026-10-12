@@ -363,4 +363,8 @@ select t.qui('medecin@sante.sn');
 select t.ok(jsonb_array_length(portail_actions() -> 'actions') = 0, 'action clôturée depuis plus d''un mois : accès du soignant expiré');
 select t.qui('bailleur@fondation.sn');
 select t.ok(jsonb_array_length(portail_actions() -> 'actions') = 1, 'bailleur : garde l''accès au rapport anonyme');
+-- Chiffres publics : totaux anonymes lisibles sans compte.
+set role anon;
+select t.ok((chiffres_publics() ->> 'personnes')::int >= 1 and chiffres_publics() ? 'actions' and not (chiffres_publics()::text like '%Diop%'), 'chiffres publics : totaux anonymes, sans nom');
+reset role;
 \echo 'Tous les tests sont passés.'

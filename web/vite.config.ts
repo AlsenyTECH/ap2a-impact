@@ -17,7 +17,7 @@ export default defineConfig({
         short_name: 'AP2A',
         description: "Cibles, actions et suivi de l'impact de l'association AP2A",
         lang: 'fr',
-        start_url: '/',
+        start_url: '/connexion',
         display: 'standalone',
         background_color: '#f8fafc',
         theme_color: '#059669',

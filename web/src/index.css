@@ -168,3 +168,18 @@
   /* Rien d'autre que les cartes : un élément hors de la page nommée ajouterait une page blanche. */
   #root:has(.cartes-racine) > :not(.cartes-racine) { display: none !important; }
 }
+
+/* ---------- Page vitrine de l'association ---------- */
+@keyframes vitrine-defile { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes vitrine-flotte { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-14px) rotate(4deg); } }
+@keyframes vitrine-mot { 0% { opacity: 0; transform: translateY(0.4em); } 12%, 88% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-0.4em); } }
+@keyframes vitrine-halo { 0%, 100% { opacity: 0.55; transform: scale(1); } 50% { opacity: 0.85; transform: scale(1.08); } }
+.vitrine-defile { animation: vitrine-defile 38s linear infinite; }
+.vitrine-flotte { animation: vitrine-flotte 9s ease-in-out infinite; }
+.vitrine-halo { animation: vitrine-halo 7s ease-in-out infinite; }
+.vitrine-apparait { opacity: 0; transform: translateY(28px); transition: opacity 0.8s cubic-bezier(.2,.7,.2,1), transform 0.8s cubic-bezier(.2,.7,.2,1); }
+.vitrine-apparait.visible { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .vitrine-defile, .vitrine-flotte, .vitrine-halo { animation: none; }
+  .vitrine-apparait { opacity: 1; transform: none; transition: none; }
+}
