@@ -201,6 +201,63 @@ select t.qui('membre@ap2a.sn');
 select t.ok((select count(*) from evenement_presences) = 2, 'membre : voit les présences');
 select t.refuse($$insert into evenements (titre, date) values ('X', current_date)$$, 'membre simple : créer un événement');
 
+-- ===== Accès des partenaires (formateur, soignant, bailleur) =====
+reset role;
+create function t.a1() returns uuid language sql security definer as $$ select id from public.actions limit 1 $$;
+create function t.b1() returns uuid language sql security definer as $$ select id from public.beneficiaires limit 1 $$;
+create function t.s1() returns uuid language sql security definer as $$ select id from public.seances order by date limit 1 $$;
+grant execute on all functions in schema t to authenticated, anon;
+select id as a1 from actions limit 1 \gset
+select id as b1 from beneficiaires limit 1 \gset
+select id as s1 from seances order by date limit 1 \gset
+set role authenticated;
+select t.qui('bureau@ap2a.sn');
+insert into partenaires (nom, domaine) values ('Poste de santé test', 'Santé'), ('Fondation test', 'Financement');
+insert into action_partenaires values (t.a1(), (select id from partenaires where nom = 'Poste de santé test'), 'prestataire'),
+  (t.a1(), (select id from partenaires where nom = 'Fondation test'), 'financeur');
+insert into acces_partenaires (partenaire_id, type, prenom, nom, email) values
+  ((select id from partenaires where sigle = '3FPT'), 'formateur', 'Ousmane', 'Sarr', 'Formateur@3fpt.sn'),
+  ((select id from partenaires where nom = 'Poste de santé test'), 'soignant', 'Dr Aïda', 'Kane', 'medecin@sante.sn'),
+  ((select id from partenaires where nom = 'Fondation test'), 'bailleur', null, 'Fondation test', 'bailleur@fondation.sn');
+select t.ok((select email from acces_partenaires where nom = 'Sarr') = 'formateur@3fpt.sn', 'invitation : adresse normalisée');
+select t.refuse($$insert into acces_partenaires (partenaire_id, type, nom, email) values ((select id from partenaires limit 1), 'soignant', 'X', 'coord@ap2a.sn')$$, 'invitation : adresse déjà membre');
+select t.qui('coord@ap2a.sn');
+select t.refuse($$insert into acces_partenaires (partenaire_id, type, nom, email) values ((select id from partenaires limit 1), 'bailleur', 'X', 'x@x.sn')$$, 'coordinateur : inviter un partenaire');
+reset role;
+insert into auth.users (email) values ('formateur@3fpt.sn'), ('medecin@sante.sn'), ('bailleur@fondation.sn');
+select t.ok((select count(*) from acces_partenaires where user_id is not null) = 3, 'comptes des partenaires reliés à leur invitation');
+set role authenticated;
+select t.qui('formateur@3fpt.sn');
+select t.ok((select count(*) from cibles) + (select count(*) from beneficiaires) + (select count(*) from actions) + (select count(*) from membres) + (select count(*) from cartes) = 0, 'partenaire : aucun accès direct aux tables');
+select t.ok(portail_actions() -> 'acces' ->> 'type' = 'formateur' and jsonb_array_length(portail_actions() -> 'actions') = 1, 'formateur : voit seulement son action');
+select t.ok(portail_participants(:'a1') -> 0 ->> 'nom' = 'Diop', 'formateur : liste des participants');
+select portail_appel(:'s1', jsonb_build_object(:'b1'::text, false)) as nb_appel \gset
+select t.ok(:nb_appel = 1, 'formateur : appel enregistré');
+select t.ok((portail_seances(:'a1') -> 0 -> 'presences' ->> :'b1') = 'false', 'formateur : fait l''appel');
+select t.ok(pointer_seance(:'s1', 'inconnu') ->> 'statut' = 'inconnue', 'formateur : peut scanner les cartes');
+select t.ok(portail_certificat(:'b1', 'Attestation de fin de formation', 'A-001') is not null, 'formateur : délivre un certificat');
+select t.refuse($$select enregistrer_consultation(t.b1(), 'vu')$$, 'formateur : pas de consultation médicale');
+select t.qui('medecin@sante.sn');
+select t.refuse($$select portail_seances(t.a1())$$, 'soignant : pas l''appel des séances');
+select t.ok(enregistrer_consultation(:'b1', 'oriente', 'Cataracte œil gauche', null, 'Hôpital de Pikine', 'Opération à prévoir') is not null, 'soignant : saisit une consultation');
+select t.ok(lire_consultations(:'a1') -> 0 -> 'detail' ->> 'diagnostic' = 'Cataracte œil gauche', 'soignant : relit ses notes');
+select t.refuse($$select * from consultations_notes$$, 'notes médicales : jamais en accès direct');
+select t.qui('coord@ap2a.sn');
+select t.ok(lire_consultations(:'a1') -> 0 -> 'detail' ->> 'orientation' = 'Hôpital de Pikine', 'responsable de l''action : lit le détail médical');
+select t.ok((select count(*) from consultations where statut = 'oriente') = 1, 'équipe : voit le résultat de la consultation');
+select t.qui('bureau@ap2a.sn');
+select t.ok(lire_consultations(:'a1') -> 0 ->> 'statut' = 'oriente' and lire_consultations(:'a1') -> 0 -> 'detail' = 'null'::jsonb, 'bureau (non responsable) : résultat sans le détail médical');
+select t.qui('admin@ap2a.sn');
+select t.ok((select count(*) from journal_medical) = 1 and (select qui from journal_medical) like 'Moussa Fall%', 'lecture du détail médical notée au journal');
+select t.qui('bailleur@fondation.sn');
+select t.refuse($$select portail_participants(t.a1())$$, 'bailleur : aucun nom de bénéficiaire');
+select t.ok((portail_rapport(:'a1') ->> 'beneficiaires')::int = 1 and (portail_rapport(:'a1') -> 'consultations' ->> 'oriente')::int = 1, 'bailleur : rapport chiffré anonyme');
+select t.qui('bureau@ap2a.sn');
+update acces_partenaires set revoque_le = now() where email = 'formateur@3fpt.sn';
+select t.qui('formateur@3fpt.sn');
+select t.ok(jsonb_array_length(portail_actions() -> 'actions') = 0, 'accès retiré : plus aucune action');
+select t.refuse($$select pointer_seance(t.s1(), 'x')$$, 'accès retiré : plus de pointage');
+
 -- ===== Bureau et admin =====
 select t.qui('bureau@ap2a.sn');
 update actions set statut = 'terminee', date_fin = '2026-05-31';
@@ -301,4 +358,9 @@ reset role;
 select t.ok(not exists (select 1 from jsonb_array_elements(donnees_rappels('hebdo')) x where x->>'email' = 'coord2@ap2a.sn'), 'rappels désactivés : plus d''email');
 select t.ok(jsonb_array_length(donnees_rappels('hebdo', (select id from membres where email = 'coord2@ap2a.sn'))) = 1, 'aperçu : envoyé même si les rappels sont désactivés');
 select t.ok(donnees_rappels('seances') = '[]', 'rappel séances : aucune séance aujourd''hui');
+-- Expiration : un mois après la fin d'une action clôturée.
+select t.qui('medecin@sante.sn');
+select t.ok(jsonb_array_length(portail_actions() -> 'actions') = 0, 'action clôturée depuis plus d''un mois : accès du soignant expiré');
+select t.qui('bailleur@fondation.sn');
+select t.ok(jsonb_array_length(portail_actions() -> 'actions') = 1, 'bailleur : garde l''accès au rapport anonyme');
 \echo 'Tous les tests sont passés.'
