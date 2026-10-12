@@ -11,6 +11,7 @@ import { compresser } from '@/components/ApportForm'
 import { useAuth } from '@/lib/auth'
 import { aujourdhui, echeance, SITUATIONS } from '@/lib/format'
 import { messageErreur, supabase } from '@/lib/supabase'
+import { executer } from '@/lib/horsligne'
 import type { Situation, Suivi } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -62,6 +63,9 @@ export function SuiviForm({ ouvert, fermer, suivi, beneficiaireId, titre }: {
     setEnvoi(true)
     try {
       let fichier_chemin = suivi?.fichier_chemin ?? null
+      if (photo && !navigator.onLine) {
+        throw new Error("Pas de réseau : la photo ne peut pas être envoyée. Retirez-la pour enregistrer le suivi maintenant (vous pourrez l'ajouter plus tard).")
+      }
       if (photo) {
         const contenu = await compresser(photo)
         fichier_chemin = `${idBeneficiaire}/suivi-${crypto.randomUUID()}.${contenu.type === 'application/pdf' ? 'pdf' : 'jpg'}`
@@ -79,12 +83,18 @@ export function SuiviForm({ ouvert, fermer, suivi, beneficiaireId, titre }: {
         fichier_chemin,
         saisi_par: membre?.id ?? null,
       }
-      const { error } = suivi
-        ? await supabase.from('suivis').update(donnees).eq('id', suivi.id)
-        : await supabase.from('suivis').insert({ ...donnees, beneficiaire_id: idBeneficiaire, date_prevue: faitLe })
-      if (error) throw error
-      toast.success('Suivi enregistré')
-      for (const k of ['suivis', 'parcours', 'impact', 'accueil']) qc.invalidateQueries({ queryKey: [k] })
+      // Sans réseau, le suivi est gardé dans le téléphone et envoyé au retour du réseau.
+      const r = suivi
+        ? await executer(`Suivi de ${titre}`, { kind: 'update', table: 'suivis', valeurs: donnees, filtre: { id: suivi.id } })
+        : await executer(`Suivi de ${titre}`, { kind: 'insert', table: 'suivis', valeurs: { ...donnees, id: crypto.randomUUID(), beneficiaire_id: idBeneficiaire, date_prevue: faitLe } })
+      if (r === 'envoye') {
+        toast.success('Suivi enregistré')
+        for (const k of ['suivis', 'parcours', 'impact', 'accueil']) qc.invalidateQueries({ queryKey: [k] })
+      } else {
+        toast.info('Suivi gardé dans le téléphone : envoyé au retour du réseau')
+        // Affiché tout de suite comme fait dans la liste des suivis.
+        if (suivi) qc.setQueriesData<{ id: string }[]>({ queryKey: ['suivis'] }, (l) => Array.isArray(l) ? l.map((x) => (x.id === suivi.id ? { ...x, ...donnees } : x)) : l)
+      }
       fermer()
     } catch (err) {
       toast.error(messageErreur(err))

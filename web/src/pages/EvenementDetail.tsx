@@ -20,6 +20,7 @@ import { usePhotos } from '@/lib/photos'
 import { correspond, trier } from '@/lib/recherche'
 import { useMembres } from '@/lib/requetes'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
+import { estErreurReseau, executer } from '@/lib/horsligne'
 import type { Evenement, Membre, ResultatPointage } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { EvenementForm, heure, libelleType } from '@/pages/Evenements'
@@ -52,7 +53,16 @@ export function EvenementDetail() {
     queryFn: async () => verifier(await supabase.from('evenement_presences').select('membre_id, pointe_le, mode').eq('evenement_id', id)) as Presence[],
   })
   const { data: photos = {} } = usePhotos(membres.map((m) => m.photo_chemin))
-  const rafraichir = () => qc.invalidateQueries({ queryKey: ['evenement-presences', id] })
+  const rafraichir = () => { if (navigator.onLine) qc.invalidateQueries({ queryKey: ['evenement-presences', id] }) }
+  // Cartes des membres, gardées dans le téléphone : le scan marche aussi sans réseau.
+  const { data: cartesMembres = [] } = useQuery({
+    queryKey: ['cartes-membres'],
+    queryFn: async () => verifier(await supabase.from('cartes').select('jeton, membre_id, revoquee_le').not('membre_id', 'is', null)) as { jeton: string; membre_id: string; revoquee_le: string | null }[],
+  })
+  const noterLocalement = (membreId: string, present: boolean, mode: 'scan' | 'manuel') =>
+    qc.setQueryData<Presence[]>(['evenement-presences', id], (avant = []) => present
+      ? [...avant.filter((p) => p.membre_id !== membreId), { membre_id: membreId, pointe_le: new Date().toISOString(), mode }]
+      : avant.filter((p) => p.membre_id !== membreId))
 
   if (error) return <Erreur erreur={error} />
   if (isLoading || !ev) return <Chargement />
@@ -78,11 +88,44 @@ export function EvenementDetail() {
     : trier(retenus, (m) => presence.get(m.id)?.pointe_le)
 
   async function basculer(m: Membre) {
-    const { error } = presence.has(m.id)
-      ? await supabase.from('evenement_presences').delete().eq('evenement_id', id).eq('membre_id', m.id)
-      : await supabase.from('evenement_presences').insert({ evenement_id: id, membre_id: m.id, mode: 'manuel' })
-    if (error) return toast.error(messageErreur(error))
-    rafraichir()
+    const present = presence.has(m.id)
+    try {
+      await executer(`${present ? 'Retrait de la présence' : 'Présence'} de ${m.prenom} ${m.nom} — ${ev!.titre}`, present
+        ? { kind: 'delete', table: 'evenement_presences', filtre: { evenement_id: id, membre_id: m.id } }
+        : { kind: 'upsert', table: 'evenement_presences', onConflict: 'evenement_id,membre_id', ignoreDuplicates: true,
+            valeurs: [{ evenement_id: id, membre_id: m.id, mode: 'manuel', pointe_le: new Date().toISOString() }] })
+      noterLocalement(m.id, !present, 'manuel')
+      rafraichir()
+    } catch (e) {
+      toast.error(messageErreur(e))
+    }
+  }
+
+  async function pointer(jeton: string): Promise<ResultatPointage> {
+    if (navigator.onLine) {
+      try {
+        const r = verifier(await supabase.rpc('pointer_evenement', { p_evenement: id, p_jeton: jeton })) as ResultatPointage
+        rafraichir()
+        return r
+      } catch (e) {
+        if (!estErreurReseau(e)) throw e
+      }
+    }
+    // Sans réseau : la carte est reconnue grâce à la liste gardée dans le téléphone.
+    const carte = cartesMembres.find((c) => c.jeton === jeton)
+    if (!carte) return { statut: 'inconnue' }
+    const m = membres.find((x) => x.id === carte.membre_id)
+    if (!m || carte.revoquee_le || !m.actif) return { statut: 'revoquee', prenom: m?.prenom, nom: m?.nom }
+    const deja = (qc.getQueryData<Presence[]>(['evenement-presences', id]) ?? []).some((p) => p.membre_id === m.id)
+    if (!deja) {
+      await executer(`Présence de ${m.prenom} ${m.nom} — ${ev!.titre}`, {
+        kind: 'upsert', table: 'evenement_presences', onConflict: 'evenement_id,membre_id', ignoreDuplicates: true,
+        valeurs: [{ evenement_id: id, membre_id: m.id, mode: 'scan', pointe_le: new Date().toISOString() }],
+      })
+      noterLocalement(m.id, true, 'scan')
+    }
+    const invite = ev!.invites === 'tous' || invites.includes(m.id)
+    return { statut: deja ? 'deja' : invite ? 'ok' : 'non_invite', prenom: m.prenom, nom: m.nom, numero: m.numero_adherent }
   }
 
   async function changerCloture(fermer: boolean) {
@@ -234,11 +277,7 @@ export function EvenementDetail() {
         fermer={() => { setScan(false); rafraichir() }}
         titre={`Pointage — ${ev.titre}`}
         description="Présentez les cartes de membre une par une devant la caméra."
-        pointer={async (jeton) => {
-          const r = verifier(await supabase.rpc('pointer_evenement', { p_evenement: id, p_jeton: jeton })) as ResultatPointage
-          rafraichir()
-          return r
-        }}
+        pointer={pointer}
       />
       {choixInvites ? <ChoixInvites evenementId={id} membres={membres.filter((m) => m.actif)} invites={invites} fermer={() => setChoixInvites(false)} /> : null}
     </>

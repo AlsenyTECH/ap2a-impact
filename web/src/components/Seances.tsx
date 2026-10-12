@@ -12,10 +12,11 @@ import { correspond, trier } from '@/lib/recherche'
 import { Avatar, BlocDate } from '@/components/design'
 import { aujourdhui, date, nomCible } from '@/lib/format'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
+import { estErreurReseau, executer } from '@/lib/horsligne'
 import type { Presence, ResultatPointage, Seance, StatutBeneficiaire, TypeCible } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-interface Inscrit { id: string; statut: StatutBeneficiaire; cible: { prenom: string | null; nom: string; type: TypeCible } }
+interface Inscrit { id: string; statut: StatutBeneficiaire; cible_id: string; cible: { prenom: string | null; nom: string; type: TypeCible } }
 
 const JOURS: [number, string][] = [[1, 'Lun'], [2, 'Mar'], [3, 'Mer'], [4, 'Jeu'], [5, 'Ven'], [6, 'Sam'], [0, 'Dim']]
 
@@ -76,7 +77,7 @@ export function Seances({ actionId, planifier, appel, voitBeneficiaires, debut, 
     queryKey: ['inscrits-appel', actionId],
     enabled: voitBeneficiaires,
     queryFn: async () =>
-      verifier(await supabase.from('beneficiaires').select('id, statut, cible:cibles!beneficiaires_cible_id_fkey(prenom, nom, type)')
+      verifier(await supabase.from('beneficiaires').select('id, statut, cible_id, cible:cibles!beneficiaires_cible_id_fkey(prenom, nom, type)')
         .eq('action_id', actionId).neq('statut', 'abandon').order('ajoute_le')) as unknown as Inscrit[],
   })
 
@@ -86,20 +87,66 @@ export function Seances({ actionId, planifier, appel, voitBeneficiaires, debut, 
   }
 
   // Fin du scan : ceux qui n'ont pas été pointés peuvent être marqués absents d'un coup.
+  // Cartes des participants, gardées dans le téléphone : le scan marche aussi sans réseau.
+  const { data: cartesAction = [] } = useQuery({
+    queryKey: ['cartes-action', actionId, inscrits.length],
+    enabled: appel && voitBeneficiaires && inscrits.length > 0,
+    queryFn: async () => verifier(await supabase.from('cartes').select('jeton, cible_id, revoquee_le').in('cible_id', inscrits.map((b) => b.cible_id).slice(0, 300))) as { jeton: string; cible_id: string; revoquee_le: string | null }[],
+  })
+
+  // Présences ajoutées sur le téléphone, affichées tout de suite (avant l'envoi).
+  function noterLocalement(lignes: { seance_id: string; beneficiaire_id: string; present: boolean }[], remplacer = true) {
+    qc.setQueryData<Presence[]>(['presences', actionId], (avant = []) => {
+      const cle = (p: { seance_id: string; beneficiaire_id: string }) => `${p.seance_id}|${p.beneficiaire_id}`
+      const nouvelles = new Map(lignes.map((l) => [cle(l), l]))
+      const gardees = avant.filter((p) => !nouvelles.has(cle(p)) || !remplacer)
+      const deja = new Set(gardees.map(cle))
+      return [...gardees, ...lignes.filter((l) => !deja.has(cle(l))).map((l) => ({ ...l, note: null }) as Presence)]
+    })
+  }
+
+  async function pointer(seance: Seance, jeton: string): Promise<ResultatPointage> {
+    if (navigator.onLine) {
+      try {
+        const r = verifier(await supabase.rpc('pointer_seance', { p_seance: seance.id, p_jeton: jeton })) as ResultatPointage
+        return r
+      } catch (e) {
+        if (!estErreurReseau(e)) throw e
+      }
+    }
+    // Sans réseau : la carte est reconnue grâce à la liste gardée dans le téléphone.
+    const carte = cartesAction.find((c) => c.jeton === jeton)
+    if (!carte) return { statut: 'inconnue' }
+    const b = inscrits.find((i) => i.cible_id === carte.cible_id)
+    if (carte.revoquee_le) return { statut: 'revoquee', prenom: b?.cible.prenom ?? undefined, nom: b?.cible.nom }
+    if (!b) return { statut: 'pas_inscrit' }
+    const deja = (qc.getQueryData<Presence[]>(['presences', actionId]) ?? []).some((p) => p.seance_id === seance.id && p.beneficiaire_id === b.id && p.present)
+    if (!deja) {
+      await executer(`Présence de ${nomCible(b.cible)} — séance du ${date(seance.date)}`, {
+        kind: 'upsert', table: 'presences', onConflict: 'seance_id,beneficiaire_id',
+        valeurs: [{ seance_id: seance.id, beneficiaire_id: b.id, present: true, pointe_le: new Date().toISOString(), mode: 'scan' }],
+      })
+      noterLocalement([{ seance_id: seance.id, beneficiaire_id: b.id, present: true }])
+    }
+    return { statut: deja ? 'deja' : 'ok', prenom: b.cible.prenom ?? undefined, nom: b.cible.nom }
+  }
+
   async function finScan() {
     const s = scanDe!
     setScanDe(null)
-    const { data } = await supabase.from('presences').select('beneficiaire_id').eq('seance_id', s.id)
-    const pointes = new Set((data ?? []).map((p) => p.beneficiaire_id))
+    const pointes = new Set((qc.getQueryData<Presence[]>(['presences', actionId]) ?? []).filter((p) => p.seance_id === s.id).map((p) => p.beneficiaire_id))
     const restants = inscrits.filter((b) => !pointes.has(b.id))
     if (restants.length && confirm(`${restants.length} participant(s) n'ont pas été pointés. Les marquer absents ?`)) {
-      const { error } = await supabase.from('presences').upsert(
-        restants.map((b) => ({ seance_id: s.id, beneficiaire_id: b.id, present: false })),
-        { onConflict: 'seance_id,beneficiaire_id', ignoreDuplicates: true },
-      )
-      if (error) toast.error(messageErreur(error))
+      const lignes = restants.map((b) => ({ seance_id: s.id, beneficiaire_id: b.id, present: false }))
+      try {
+        const r = await executer(`Absents de la séance du ${date(s.date)} (${restants.length})`, { kind: 'upsert', table: 'presences', valeurs: lignes, onConflict: 'seance_id,beneficiaire_id', ignoreDuplicates: true })
+        noterLocalement(lignes, false)
+        if (r === 'en_attente') toast.info('Gardé dans le téléphone : envoyé au retour du réseau')
+      } catch (e) {
+        toast.error(messageErreur(e))
+      }
     }
-    rafraichir()
+    if (navigator.onLine) rafraichir()
   }
 
   async function retirer(s: Seance) {
@@ -207,9 +254,9 @@ export function Seances({ actionId, planifier, appel, voitBeneficiaires, debut, 
         fermer={finScan}
         titre={scanDe ? `Pointage du ${date(scanDe.date)}` : ''}
         description="Présentez les cartes des participants une par une. Les présents sont enregistrés à chaque scan."
-        pointer={async (jeton) => verifier(await supabase.rpc('pointer_seance', { p_seance: scanDe!.id, p_jeton: jeton })) as ResultatPointage}
+        pointer={(jeton) => pointer(scanDe!, jeton)}
       />
-      <Appel seance={appelDe} fermer={() => setAppelDe(null)} inscrits={inscrits} presences={presences} apres={rafraichir} />
+      <Appel seance={appelDe} fermer={() => setAppelDe(null)} inscrits={inscrits} presences={presences} apres={(lignes) => { noterLocalement(lignes); if (navigator.onLine) rafraichir() }} />
     </>
   )
 }
@@ -297,7 +344,7 @@ function Appel({ seance, fermer, inscrits, presences, apres }: {
   fermer: () => void
   inscrits: Inscrit[]
   presences: Presence[]
-  apres: () => void
+  apres: (lignes: { seance_id: string; beneficiaire_id: string; present: boolean }[]) => void
 }) {
   const [etat, setEtat] = useState<Record<string, boolean>>({})
   const [envoi, setEnvoi] = useState(false)
@@ -311,15 +358,17 @@ function Appel({ seance, fermer, inscrits, presences, apres }: {
 
   async function enregistrer() {
     setEnvoi(true)
-    const { error } = await supabase.from('presences').upsert(
-      inscrits.map((b) => ({ seance_id: seance!.id, beneficiaire_id: b.id, present: etat[b.id] ?? true })),
-      { onConflict: 'seance_id,beneficiaire_id' },
-    )
-    setEnvoi(false)
-    if (error) return toast.error(messageErreur(error))
-    toast.success('Appel enregistré')
-    apres()
-    fermer()
+    const lignes = inscrits.map((b) => ({ seance_id: seance!.id, beneficiaire_id: b.id, present: etat[b.id] ?? true }))
+    try {
+      const r = await executer(`Appel de la séance du ${date(seance!.date)}`, { kind: 'upsert', table: 'presences', valeurs: lignes, onConflict: 'seance_id,beneficiaire_id' })
+      toast.success(r === 'envoye' ? 'Appel enregistré' : 'Appel gardé dans le téléphone : envoyé au retour du réseau')
+      apres(lignes)
+      fermer()
+    } catch (e) {
+      toast.error(messageErreur(e))
+    } finally {
+      setEnvoi(false)
+    }
   }
 
   const presents = Object.values(etat).filter(Boolean).length

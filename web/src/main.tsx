@@ -1,7 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
+import { client, optionsPersistance } from '@/lib/cache'
+import { initialiserHorsLigne } from '@/lib/horsligne'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/lib/auth'
 import { App } from './App'
@@ -20,19 +22,18 @@ registerSW({
   },
 })
 
-const client = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } },
-})
+// Envois en attente (faits sans réseau) : partent dès que le réseau revient.
+initialiserHorsLigne(() => client.invalidateQueries())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={client}>
+    <PersistQueryClientProvider client={client} persistOptions={optionsPersistance}>
       <BrowserRouter>
         <AuthProvider>
           <App />
           <Toaster position="top-center" richColors />
         </AuthProvider>
       </BrowserRouter>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   </StrictMode>,
 )

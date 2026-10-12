@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { BarChart3, BellRing, CalendarCheck, CalendarHeart, Handshake, Home, ListChecks, LogOut, Menu, Shapes, Target, UsersRound, X } from 'lucide-react'
 import { MonProfil } from '@/components/MonProfil'
+import { BandeauHorsLigne } from '@/components/BandeauHorsLigne'
 import { useAuth } from '@/lib/auth'
 import { LIBELLES_ROLE } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -133,9 +134,12 @@ export function Layout() {
         ) : null}
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 animate-apparition px-4 pb-28 pt-5 md:px-10 md:pb-12 md:pt-9" key={pathname}>
-        <Outlet />
-      </main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="sticky top-[57px] z-20 md:top-0"><BandeauHorsLigne /></div>
+        <main className="mx-auto w-full max-w-6xl flex-1 animate-apparition px-4 pb-28 pt-5 md:px-10 md:pb-12 md:pt-9" key={pathname}>
+          <Outlet />
+        </main>
+      </div>
 
       {/* Téléphone : barre du bas */}
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden">
