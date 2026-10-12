@@ -8,6 +8,15 @@ import {
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import logo from '@/assets/logo_AP2A.jpeg'
+import illusHero from '@/assets/illustrations/hero-communaute.svg'
+import illusFormation from '@/assets/illustrations/formation.svg'
+import illusFemmes from '@/assets/illustrations/femmes.svg'
+import illusSante from '@/assets/illustrations/sante.svg'
+import illusJeunesse from '@/assets/illustrations/jeunesse.svg'
+import illusCadre from '@/assets/illustrations/cadre-de-vie.svg'
+import illusCitoyennete from '@/assets/illustrations/citoyennete.svg'
+import { FondAccueil, Galerie, LecteurFilm } from '@/components/VitrineMedias'
+import { MEDIAS_PAR_DEFAUT, urlVitrine, useMediasVitrine, type EmplacementMedia } from '@/lib/vitrine'
 
 /** Coordonnées publiques de l'association (à compléter par le bureau). */
 const INSTAGRAM = 'https://www.instagram.com/ap2a_sn/'
@@ -95,32 +104,32 @@ const REPERES = [
 
 const DOMAINES = [
   {
-    icone: GraduationCap, titre: 'Formation professionnelle', couleur: '#0b7a57',
+    icone: GraduationCap, titre: 'Formation professionnelle', illus: illusFormation, couleur: '#0b7a57',
     texte: 'Des formations qualifiantes qui ouvrent un métier : électricité bâtiment, maintenance mécanique, plomberie… avec un titre de qualification et un kit pour démarrer.',
     chiffre: '50 jeunes', legende: 'formés et équipés de kits d\'insertion',
   },
   {
-    icone: HandHeart, titre: 'Autonomie des femmes', couleur: '#b4561f',
+    icone: HandHeart, titre: 'Autonomie des femmes', illus: illusFemmes, couleur: '#b4561f',
     texte: 'Former, certifier et financer les groupements de femmes : la certification devient un passeport vers l\'autonomie financière.',
     chiffre: '700 femmes', legende: 'ont reçu leur attestation de formation',
   },
   {
-    icone: HeartPulse, titre: 'Santé', couleur: '#a3264a',
+    icone: HeartPulse, titre: 'Santé', illus: illusSante, couleur: '#a3264a',
     texte: 'Des campagnes de dépistage et de soins au plus près des habitants, en particulier des personnes âgées, avec prise en charge chirurgicale.',
     chiffre: '280 dépistés', legende: 'et 85 opérés de la cataracte en un week-end',
   },
   {
-    icone: Trophy, titre: 'Jeunesse et sport', couleur: '#8a6a10',
+    icone: Trophy, titre: 'Jeunesse et sport', illus: illusJeunesse, couleur: '#8a6a10',
     texte: 'Soutenir les associations sportives et culturelles (ASC) qui font vivre les quartiers et encadrent la jeunesse.',
     chiffre: '+20 M FCFA', legende: 'mobilisés pour le sport et l\'avenir de la jeunesse',
   },
   {
-    icone: Droplets, titre: 'Cadre de vie', couleur: '#0b5cad',
+    icone: Droplets, titre: 'Cadre de vie', illus: illusCadre, couleur: '#0b5cad',
     texte: 'Face aux inondations récurrentes : aide d\'urgence aux sinistrés, motopompes pour les unités, et concertation entre habitants et experts sur l\'assainissement.',
     chiffre: '50 motopompes', legende: 'remises pour lutter contre les inondations',
   },
   {
-    icone: UsersRound, titre: 'Citoyenneté', couleur: '#4b3a8f',
+    icone: UsersRound, titre: 'Citoyenneté', illus: illusCitoyennete, couleur: '#4b3a8f',
     texte: 'Mobiliser les délégués de quartier, les associations et les habitants des vingt-six unités autour de projets communautaires concrets.',
     chiffre: 'Toutes les unités', legende: 'des Parcelles Assainies, et au-delà',
   },
@@ -176,7 +185,22 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
     [chiffres.partenaires, 'partenaires'],
   ] as [number, string][]).filter(([n]) => n > 0) : []
 
-  const liens: [string, string][] = [['#mission', 'Mission'], ['#actions', 'Nos actions'], ['#fondatrice', 'La fondatrice'], ['#methode', 'Notre méthode'], ['#rejoindre', 'Nous rejoindre']]
+  const { data: publies = [] } = useMediasVitrine()
+  // Pour chaque emplacement : ce que le bureau a publié, sinon les médias livrés avec le site.
+  const du = (e: EmplacementMedia) => {
+    const l = publies.filter((m) => m.emplacement === e)
+    return l.length ? l : MEDIAS_PAR_DEFAUT.filter((m) => m.emplacement === e)
+  }
+  const fond = du('accueil')[0]
+  const film = du('video')[0]
+  const galerie = du('galerie')
+  const portrait = du('fondatrice').find((m) => m.type === 'photo')
+
+  const liens: [string, string][] = [
+    ['#mission', 'Mission'], ['#actions', 'Nos actions'], ['#film', 'En vidéo'],
+    ...(galerie.length ? [['#images', 'En images'] as [string, string]] : []),
+    ['#fondatrice', 'La fondatrice'], ['#rejoindre', 'Nous rejoindre'],
+  ]
   const espace = connecte ? '/' : '/connexion'
 
   return (
@@ -209,12 +233,13 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
       {/* ---------------- Accroche ---------------- */}
       <section id="haut" className="relative isolate overflow-hidden bg-[#0c2a20] text-white">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,#0f7a56_0%,transparent_55%),radial-gradient(ellipse_at_bottom_left,#14523c_0%,transparent_60%)]" />
+        {fond ? <FondAccueil media={fond} /> : null}
         <Motif className="absolute inset-0 -z-10 opacity-[0.06]" />
         <div className="vitrine-halo absolute -right-32 top-24 -z-10 size-[30rem] rounded-full bg-[#f2c14e]/20 blur-3xl" />
         <div className="vitrine-flotte absolute right-[8%] top-[22%] -z-10 hidden size-28 rounded-full border-[10px] border-[#f2c14e]/40 md:block" />
         <div className="vitrine-flotte absolute bottom-[18%] right-[30%] -z-10 hidden size-12 rotate-45 rounded-lg bg-[#f2c14e]/30 md:block" style={{ animationDelay: '-3s' }} />
 
-        <div className="mx-auto grid max-w-7xl gap-12 px-5 pb-20 pt-32 md:px-8 md:pb-28 md:pt-40 lg:grid-cols-[1.25fr_1fr] lg:items-center">
+        <div className="mx-auto grid max-w-7xl gap-12 px-5 pb-14 pt-32 md:px-8 md:pb-16 md:pt-40 lg:grid-cols-[1.15fr_1fr] lg:items-center">
           <div>
             <Apparait>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white/85 backdrop-blur">
@@ -247,21 +272,36 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
             </Apparait>
           </div>
 
-          {/* Carte d'impact */}
-          <Apparait delai={300}>
-            <div className="relative rounded-[2rem] border border-white/10 bg-white/[0.06] p-6 shadow-2xl backdrop-blur-md md:p-8">
-              <div className="absolute -top-4 left-8 rounded-full bg-[#f2c14e] px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#0c2a20]">Notre impact</div>
-              <div className="grid grid-cols-2 gap-5 pt-2">
-                {REPERES.map((r) => (
-                  <div key={r.libelle} className="rounded-2xl bg-white/[0.05] p-4">
-                    <div className="font-heading text-4xl font-bold text-white md:text-5xl"><Compteur valeur={r.valeur} suffixe={r.suffixe} /></div>
-                    <div className="mt-1 text-sm font-semibold text-[#f2c14e]">{r.libelle}</div>
-                    <div className="mt-0.5 text-xs leading-snug text-white/60">{r.detail}</div>
-                  </div>
-                ))}
+          {/* Illustration et compteurs flottants */}
+          <Apparait delai={300} className="relative mx-auto w-full max-w-xl">
+            <div className="relative">
+              <div className="absolute inset-[6%] rounded-full border-[14px] border-[#f2c14e]/15" />
+              <img src={illusHero} alt="Des habitants des Parcelles Assainies, jeunes, femmes et aînés, avancent ensemble" className="relative w-full drop-shadow-2xl" />
+              <div className="vitrine-flotte absolute -left-2 top-[8%] rounded-2xl border border-white/15 bg-[#0c2a20]/80 px-4 py-3 shadow-2xl backdrop-blur-md sm:-left-6">
+                <div className="font-heading text-3xl font-bold text-white"><Compteur valeur={875} /></div>
+                <div className="text-xs font-semibold text-[#f2c14e]">personnes formées</div>
               </div>
-              <p className="mt-5 text-[11px] text-white/45">Chiffres rapportés par la presse sénégalaise (APS, Dakaractu, PressAfrik), 2026.</p>
+              <div className="vitrine-flotte absolute -right-1 bottom-[14%] rounded-2xl border border-white/15 bg-[#0c2a20]/80 px-4 py-3 shadow-2xl backdrop-blur-md sm:-right-4" style={{ animationDelay: '-4.5s' }}>
+                <div className="font-heading text-3xl font-bold text-[#f2c14e]"><Compteur valeur={700} /></div>
+                <div className="text-xs font-semibold text-white">femmes certifiées</div>
+              </div>
             </div>
+          </Apparait>
+        </div>
+
+        {/* Chiffres clés */}
+        <div className="mx-auto max-w-7xl px-5 pb-12 md:px-8">
+          <Apparait>
+            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-3xl border border-white/10 bg-white/10 md:grid-cols-4">
+              {REPERES.map((r) => (
+                <div key={r.libelle} className="bg-[#0c2a20]/90 p-5 backdrop-blur md:p-6">
+                  <div className="font-heading text-4xl font-bold text-white md:text-5xl"><Compteur valeur={r.valeur} suffixe={r.suffixe} /></div>
+                  <div className="mt-1 text-sm font-semibold text-[#f2c14e]">{r.libelle}</div>
+                  <div className="mt-0.5 text-xs leading-snug text-white/60">{r.detail}</div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-[11px] text-white/45">Chiffres rapportés par la presse sénégalaise (APS, Dakaractu, PressAfrik), 2026.</p>
           </Apparait>
         </div>
 
@@ -322,14 +362,18 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
           <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {DOMAINES.map((d, i) => (
               <Apparait key={d.titre} delai={(i % 3) * 110}>
-                <article className="group relative flex h-full flex-col overflow-hidden rounded-3xl bg-white p-7 shadow-sm ring-1 ring-black/5 transition duration-300 hover:-translate-y-1.5 hover:shadow-2xl">
-                  <div className="absolute -right-10 -top-10 size-36 rounded-full opacity-10 transition-transform duration-500 group-hover:scale-125" style={{ background: d.couleur }} />
-                  <span className="inline-flex size-12 items-center justify-center rounded-2xl text-white shadow-md" style={{ background: d.couleur }}><d.icone className="size-6" /></span>
-                  <h3 className="mt-5 font-heading text-2xl font-bold">{d.titre}</h3>
+                <article className="group relative flex h-full flex-col overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-black/5 transition duration-300 hover:-translate-y-1.5 hover:shadow-2xl">
+                  <div className="relative overflow-hidden bg-[#fbfaf6] px-6 pt-6">
+                    <img src={d.illus} alt="" loading="lazy" className="mx-auto aspect-[4/3] w-full object-contain transition duration-700 group-hover:scale-[1.04]" />
+                    <span className="absolute left-5 top-5 inline-flex size-11 items-center justify-center rounded-2xl text-white shadow-md" style={{ background: d.couleur }}><d.icone className="size-5" /></span>
+                  </div>
+                  <div className="flex flex-1 flex-col p-7 pt-5">
+                  <h3 className="font-heading text-2xl font-bold">{d.titre}</h3>
                   <p className="mt-2 flex-1 leading-relaxed text-[#5c6b64]">{d.texte}</p>
                   <div className="mt-6 border-t border-[#eef1ec] pt-4">
                     <div className="font-heading text-3xl font-bold" style={{ color: d.couleur }}>{d.chiffre}</div>
                     <div className="text-sm text-[#5c6b64]">{d.legende}</div>
+                  </div>
                   </div>
                 </article>
               </Apparait>
@@ -337,6 +381,43 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
           </div>
         </div>
       </section>
+
+      {/* ---------------- Film ---------------- */}
+      <section id="film" className="relative isolate scroll-mt-20 overflow-hidden py-20 md:py-28">
+        <div className="mx-auto grid max-w-7xl items-center gap-12 px-5 md:px-8 lg:grid-cols-[1fr_1.1fr]">
+          <Apparait>
+            <span className="text-sm font-bold uppercase tracking-[0.18em] text-[#0b7a57]">En vidéo</span>
+            <h2 className="mt-3 font-heading text-4xl font-bold leading-tight tracking-tight md:text-5xl">{film?.titre || 'L\'AP2A en action'}</h2>
+            <p className="mt-4 text-lg leading-relaxed text-[#3d4b44]">
+              {film?.legende || 'Formations certifiantes, groupements de femmes, campagnes de santé, lutte contre les inondations : découvrez en images ce que l\'association accomplit avec les habitants des Parcelles Assainies.'}
+            </p>
+            <a href={INSTAGRAM} target="_blank" rel="noreferrer" className="mt-6 inline-flex items-center gap-2 font-semibold text-[#0b7a57] hover:gap-3">
+              <Instagram className="size-5" /> Plus de vidéos sur @ap2a_sn <ArrowUpRight className="size-4" />
+            </a>
+          </Apparait>
+          <Apparait delai={150}>
+            <LecteurFilm media={film} defaut={{ src: '/ap2a-promo.mp4', affiche: '/ap2a-promo-apercu.webp', titre: 'L\'AP2A en 30 secondes' }} />
+          </Apparait>
+        </div>
+      </section>
+
+      {/* ---------------- Galerie ---------------- */}
+      {galerie.length ? (
+        <section id="images" className="scroll-mt-20 bg-[#f1f5f0] py-20 md:py-28">
+          <div className="mx-auto max-w-7xl px-5 md:px-8">
+            <Apparait className="mb-10 flex flex-wrap items-end justify-between gap-4">
+              <div className="max-w-2xl">
+                <span className="text-sm font-bold uppercase tracking-[0.18em] text-[#0b7a57]">En images</span>
+                <h2 className="mt-3 font-heading text-4xl font-bold leading-tight tracking-tight md:text-5xl">Sur le terrain, avec les habitants.</h2>
+              </div>
+              <a href={INSTAGRAM} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-[#0b7a57]/30 px-4 py-2 text-sm font-semibold text-[#0b7a57] hover:bg-white">
+                <Instagram className="size-4" /> Toutes nos photos
+              </a>
+            </Apparait>
+            <Galerie medias={galerie} />
+          </div>
+        </section>
+      ) : null}
 
       {/* ---------------- Fondatrice ---------------- */}
       <section id="fondatrice" className="relative isolate scroll-mt-20 overflow-hidden bg-[#0c2a20] py-20 text-white md:py-28">
@@ -349,6 +430,13 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
 
             {/* Portrait typographique */}
             <div className="relative mt-10 aspect-[4/5] max-w-sm overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#0f7a56] via-[#0b5c42] to-[#0a231b] shadow-2xl ring-1 ring-white/10">
+              {portrait ? (
+                <>
+                  <img src={urlVitrine(portrait.chemin)!} alt="Fatou Kiné Diakhaté, fondatrice de l'AP2A" className="absolute inset-0 size-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0c2a20] via-transparent to-transparent" />
+                </>
+              ) : (
+              <>
               <Motif className="absolute inset-0 opacity-10" couleur="#f2c14e" />
               <div className="vitrine-halo absolute left-1/2 top-1/3 size-56 -translate-x-1/2 rounded-full bg-[#f2c14e]/25 blur-2xl" />
               <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -358,6 +446,8 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
                   <div className="text-sm text-white/70">Fondatrice de l'AP2A</div>
                 </div>
               </div>
+              </>
+              )}
               <div className="absolute bottom-5 left-5 right-5 flex items-center gap-2 rounded-2xl bg-black/30 px-4 py-3 text-xs backdrop-blur">
                 <Landmark className="size-4 shrink-0 text-[#f2c14e]" /> Nommée le 12 mai 2024 — une première dans l'histoire du Sénégal
               </div>
