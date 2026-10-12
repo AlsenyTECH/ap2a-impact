@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { BarChart3, BellRing, CalendarCheck, Handshake, Home, ListChecks, LogOut, Menu, Shapes, Target, UsersRound, X } from 'lucide-react'
+import { BarChart3, BellRing, CalendarCheck, CalendarHeart, Handshake, Home, ListChecks, LogOut, Menu, Shapes, Target, UsersRound, X } from 'lucide-react'
 import { MonProfil } from '@/components/MonProfil'
 import { useAuth } from '@/lib/auth'
 import { LIBELLES_ROLE } from '@/lib/format'
@@ -15,6 +15,7 @@ const GROUPES = [
       { vers: '/', libelle: 'Accueil', icone: Home },
       { vers: '/actions', libelle: 'Actions', icone: CalendarCheck },
       { vers: '/suivis', libelle: 'Suivis', icone: ListChecks },
+      { vers: '/evenements', libelle: 'Événements', icone: CalendarHeart },
       { vers: '/impact', libelle: 'Impact', icone: BarChart3 },
     ],
   },

@@ -23,6 +23,7 @@ export interface Membre {
   numero_adherent: string
   date_adhesion: string
   actif: boolean
+  photo_chemin?: string | null
 }
 
 export interface Zone { id: number; nom: string; niveau: string; parent_id: number | null; chemin: string }
@@ -41,6 +42,8 @@ export interface Partenaire {
 export interface Cible {
   id: string
   type: TypeCible
+  photo_chemin?: string | null
+  numero_beneficiaire?: string | null
   nom: string
   prenom: string | null
   sexe: 'F' | 'M' | null
@@ -178,4 +181,37 @@ export interface LigneJournal {
   libelle: string | null
   details: Record<string, [unknown, unknown]> | null
   membre: Pick<Membre, 'prenom' | 'nom' | 'numero_adherent'> | null
+}
+
+/** Carte de membre ou de bénéficiaire (QR code). */
+export interface Carte {
+  id: string
+  jeton: string
+  membre_id: string | null
+  cible_id: string | null
+  emise_le: string
+  revoquee_le: string | null
+}
+
+export interface Evenement {
+  id: string
+  titre: string
+  type: string
+  date: string
+  heure_debut: string | null
+  heure_fin: string | null
+  lieu: string | null
+  description: string | null
+  invites: 'tous' | 'selection'
+  cree_par: string | null
+  cree_le: string
+}
+
+/** Réponse d'un pointage par scan (séance ou événement). */
+export interface ResultatPointage {
+  statut: 'ok' | 'deja' | 'inconnue' | 'revoquee' | 'pas_inscrit' | 'carte_membre' | 'carte_beneficiaire' | 'non_invite'
+  prenom?: string
+  nom?: string
+  numero?: string
+  photo?: string | null
 }

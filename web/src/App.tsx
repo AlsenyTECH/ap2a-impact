@@ -16,6 +16,10 @@ import { Impact } from '@/pages/Impact'
 import { Categories } from '@/pages/Categories'
 import { RapportAction } from '@/pages/RapportAction'
 import { RapportAnnuel } from '@/pages/RapportAnnuel'
+import { Verification } from '@/pages/Verification'
+import { Cartes } from '@/pages/Cartes'
+import { Evenements } from '@/pages/Evenements'
+import { EvenementDetail } from '@/pages/EvenementDetail'
 
 export function App() {
   const { session, membre, chargement, deconnecter } = useAuth()
@@ -25,6 +29,8 @@ export function App() {
     return <p className="p-6 text-sm">Configuration manquante : VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY (voir web/.env.example).</p>
   }
   if (pathname === '/nouveau-mot-de-passe') return <NouveauMotDePasse />
+  // Vérification d'une carte : page publique, sans compte.
+  if (pathname.startsWith('/v/')) return <Routes><Route path="v/:jeton" element={<Verification />} /></Routes>
   if (chargement) return <Chargement />
   if (!session) return <Connexion />
   if (!membre) return <SansFiche email={session.user.email} deconnecter={deconnecter} />
@@ -34,6 +40,7 @@ export function App() {
       {/* Rapports : pleine page, sans menu, prêts à imprimer */}
       <Route path="actions/:id/rapport" element={<RapportAction />} />
       <Route path="rapport" element={<RapportAnnuel />} />
+      <Route path="cartes" element={<Cartes />} />
       <Route element={<Layout />}>
         <Route index element={<Accueil />} />
         <Route path="cibles" element={<Cibles />} />
@@ -41,6 +48,8 @@ export function App() {
         <Route path="actions" element={<Actions />} />
         <Route path="actions/:id" element={<ActionDetail />} />
         <Route path="suivis" element={<Suivis />} />
+        <Route path="evenements" element={<Evenements />} />
+        <Route path="evenements/:id" element={<EvenementDetail />} />
         <Route path="impact" element={<Impact />} />
         <Route path="categories" element={<Categories />} />
         <Route path="membres" element={<Membres />} />

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, ListChecks, MessageCircle, Paperclip, Pencil, Phone } from 'lucide-react'
+import { ArrowLeft, IdCard, ListChecks, MessageCircle, Paperclip, Pencil, Phone } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -15,6 +15,8 @@ import { date, echeance, fcfa, LIBELLES_NATURE, LIBELLES_STATUT_BENEFICIAIRE, li
 import { useCible, useParcours, useProfils } from '@/lib/requetes'
 import { correspond, membreAvecNumero, trier } from '@/lib/recherche'
 import { OutilsListe } from '@/components/OutilsListe'
+import { PhotoFiche } from '@/components/PhotoFiche'
+import { CarteDialog } from '@/components/CarteDialog'
 import type { Suivi } from '@/lib/types'
 
 export function CibleDetail() {
@@ -30,6 +32,7 @@ export function CibleDetail() {
   const { data: profils = [] } = useProfils()
   const profil = (pid: number | null) => profils.find((p) => p.id === pid)?.libelle
   const [edition, setEdition] = useState(false)
+  const [carte, setCarte] = useState(false)
   const [suivi, setSuivi] = useState<{ suivi: Suivi | null; beneficiaireId: string } | null>(null)
   const suit = a('admin', 'bureau', 'coordinateur')
 
@@ -46,11 +49,14 @@ export function CibleDetail() {
       <Link to="/cibles" className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Cibles</Link>
       <Card className="mb-6 overflow-hidden">
         <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center md:p-6">
-          <Avatar prenom={cible.prenom} nom={cible.nom} nature={cible.type} taille="lg" />
+          {cible.type === 'personne'
+            ? <PhotoFiche dossier="cibles" id={cible.id} chemin={cible.photo_chemin} prenom={cible.prenom} nom={cible.nom} modifiable={suit} />
+            : <Avatar prenom={cible.prenom} nom={cible.nom} nature={cible.type} taille="lg" />}
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium text-muted-foreground">{cible.type === 'personne' || cible.type === 'menage' ? cible.categorie?.famille?.nom : `${cible.categorie?.famille?.nom} · ${cible.categorie?.libelle}`}</div>
             <h1 className="mt-0.5 text-2xl font-semibold leading-tight md:text-[26px]">{nomCible(cible)}</h1>
             <div className="mt-2 flex flex-wrap gap-1.5">
+              {cible.numero_beneficiaire ? <Badge variant="outline" className="font-mono">{cible.numero_beneficiaire}</Badge> : null}
               {age ? <Badge variant="secondary">{age.tranche} · {age.age} ans</Badge> : null}
               {dernier?.situation ? (
                 <Badge variant="outline"><span className="size-2 rounded-full" style={{ background: SITUATION[dernier.situation].couleur }} /> {SITUATION[dernier.situation].libelle}</Badge>
@@ -68,6 +74,7 @@ export function CibleDetail() {
               </div>
             ) : null}
             {suit ? <Button size="sm" variant="secondary" onClick={() => setEdition(true)}><Pencil /> Modifier la fiche</Button> : null}
+            {suit && cible.type === 'personne' ? <Button size="sm" variant="secondary" onClick={() => setCarte(true)}><IdCard /> Carte</Button> : null}
           </div>
         </div>
         <dl className="grid grid-cols-2 gap-px border-t border-border/70 bg-border/70 md:grid-cols-4">
@@ -164,6 +171,16 @@ export function CibleDetail() {
         </>
       )}
       <CibleForm ouvert={edition} fermer={() => setEdition(false)} cible={cible} />
+      {carte ? (
+        <CarteDialog
+          ouvert
+          fermer={() => setCarte(false)}
+          cibleId={cible.id}
+          photoChemin={cible.photo_chemin}
+          gere={suit}
+          titulaire={{ type: 'beneficiaire', prenom: cible.prenom, nom: cible.nom, numero: cible.numero_beneficiaire ?? null, detail: cible.metier }}
+        />
+      ) : null}
       <SuiviForm ouvert={!!suivi} fermer={() => setSuivi(null)} suivi={suivi?.suivi} beneficiaireId={suivi?.beneficiaireId} titre={nomCible(cible)} />
     </>
   )

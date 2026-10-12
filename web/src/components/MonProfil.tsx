@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { BellRing, CalendarClock, Mail, Send } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { BellRing, CalendarClock, IdCard, Mail, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
-import { Avatar } from '@/components/design'
+import { PhotoFiche } from '@/components/PhotoFiche'
 import { useAuth } from '@/lib/auth'
 import { LIBELLES_ROLE } from '@/lib/format'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
@@ -77,11 +78,12 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
         </DialogHeader>
 
         <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-3">
-          <Avatar prenom={membre.prenom} nom={membre.nom} />
-          <div className="min-w-0 leading-tight">
+          <PhotoFiche dossier="membres" id={membre.id} chemin={membre.photo_chemin} prenom={membre.prenom} nom={membre.nom} modifiable taille="lg" />
+          <div className="min-w-0 flex-1 leading-tight">
             <div className="font-semibold">{membre.prenom} {membre.nom}</div>
             <div className="text-sm text-muted-foreground">{LIBELLES_ROLE[membre.role]} · <b className="text-foreground">{membre.numero_adherent}</b></div>
             <div className="truncate text-xs text-muted-foreground">{membre.email ?? 'Pas d\'adresse email'}</div>
+            <Button asChild size="sm" variant="secondary" className="mt-2"><Link to={`/cartes?membre=${membre.id}`} onClick={fermer}><IdCard /> Ma carte de membre</Link></Button>
           </div>
         </div>
 

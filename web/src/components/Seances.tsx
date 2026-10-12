@@ -1,17 +1,18 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarPlus, CalendarRange, Check, ClipboardCheck, Clock, MapPin, Trash2, X } from 'lucide-react'
+import { CalendarPlus, CalendarRange, Check, ClipboardCheck, Clock, MapPin, ScanLine, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Champ, Pastilles } from '@/components/champs'
+import { Scanner } from '@/components/Scanner'
 import { OutilsListe } from '@/components/OutilsListe'
 import { correspond, trier } from '@/lib/recherche'
 import { Avatar, BlocDate } from '@/components/design'
 import { aujourdhui, date, nomCible } from '@/lib/format'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
-import type { Presence, Seance, StatutBeneficiaire, TypeCible } from '@/lib/types'
+import type { Presence, ResultatPointage, Seance, StatutBeneficiaire, TypeCible } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface Inscrit { id: string; statut: StatutBeneficiaire; cible: { prenom: string | null; nom: string; type: TypeCible } }
@@ -60,6 +61,7 @@ export function Seances({ actionId, planifier, appel, voitBeneficiaires, debut, 
   const qc = useQueryClient()
   const [ajout, setAjout] = useState<'une' | 'plusieurs' | null>(null)
   const [appelDe, setAppelDe] = useState<Seance | null>(null)
+  const [scanDe, setScanDe] = useState<Seance | null>(null)
 
   const { data: seances = [] } = useQuery({
     queryKey: ['seances', actionId],
@@ -81,6 +83,23 @@ export function Seances({ actionId, planifier, appel, voitBeneficiaires, debut, 
   const rafraichir = () => {
     qc.invalidateQueries({ queryKey: ['seances', actionId] })
     qc.invalidateQueries({ queryKey: ['presences', actionId] })
+  }
+
+  // Fin du scan : ceux qui n'ont pas été pointés peuvent être marqués absents d'un coup.
+  async function finScan() {
+    const s = scanDe!
+    setScanDe(null)
+    const { data } = await supabase.from('presences').select('beneficiaire_id').eq('seance_id', s.id)
+    const pointes = new Set((data ?? []).map((p) => p.beneficiaire_id))
+    const restants = inscrits.filter((b) => !pointes.has(b.id))
+    if (restants.length && confirm(`${restants.length} participant(s) n'ont pas été pointés. Les marquer absents ?`)) {
+      const { error } = await supabase.from('presences').upsert(
+        restants.map((b) => ({ seance_id: s.id, beneficiaire_id: b.id, present: false })),
+        { onConflict: 'seance_id,beneficiaire_id', ignoreDuplicates: true },
+      )
+      if (error) toast.error(messageErreur(error))
+    }
+    rafraichir()
   }
 
   async function retirer(s: Seance) {
@@ -168,7 +187,10 @@ export function Seances({ actionId, planifier, appel, voitBeneficiaires, debut, 
                 ) : passee ? <span className="text-xs text-muted-foreground">appel à faire</span> : null}
                 <div className="flex gap-1">
                   {appel && voitBeneficiaires && inscrits.length ? (
-                    <Button size="sm" variant={ps.length ? 'ghost' : 'secondary'} onClick={() => setAppelDe(s)}><ClipboardCheck /> {ps.length ? 'Modifier' : "Faire l'appel"}</Button>
+                    <>
+                      <Button size="sm" variant="secondary" onClick={() => setScanDe(s)} title="Pointer avec les cartes QR"><ScanLine /> Scanner</Button>
+                      <Button size="sm" variant={ps.length ? 'ghost' : 'secondary'} onClick={() => setAppelDe(s)}><ClipboardCheck /> {ps.length ? 'Modifier' : "Faire l'appel"}</Button>
+                    </>
                   ) : null}
                   {planifier ? <Button size="sm" variant="ghost" onClick={() => retirer(s)} aria-label="Retirer la séance"><Trash2 className="text-muted-foreground" /></Button> : null}
                 </div>
@@ -180,6 +202,13 @@ export function Seances({ actionId, planifier, appel, voitBeneficiaires, debut, 
       )}
 
       <AjoutSeances mode={ajout} fermer={() => setAjout(null)} actionId={actionId} apres={rafraichir} debutAction={debut} finAction={fin} />
+      <Scanner
+        ouvert={!!scanDe}
+        fermer={finScan}
+        titre={scanDe ? `Pointage du ${date(scanDe.date)}` : ''}
+        description="Présentez les cartes des participants une par une. Les présents sont enregistrés à chaque scan."
+        pointer={async (jeton) => verifier(await supabase.rpc('pointer_seance', { p_seance: scanDe!.id, p_jeton: jeton })) as ResultatPointage}
+      />
       <Appel seance={appelDe} fermer={() => setAppelDe(null)} inscrits={inscrits} presences={presences} apres={rafraichir} />
     </>
   )

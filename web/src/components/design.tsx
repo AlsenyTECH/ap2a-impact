@@ -21,15 +21,20 @@ export const ICONE_NATURE: Record<TypeCible, LucideIcon> = {
   personne: User, menage: Home, collectif: Users, structure: Building2, lieu: MapPin,
 }
 
-const TAILLES = { sm: 'size-8 text-xs [&_svg]:size-4', md: 'size-10 text-sm [&_svg]:size-5', lg: 'size-16 text-xl [&_svg]:size-7' }
+const TAILLES = { sm: 'size-8 text-xs [&_svg]:size-4', md: 'size-10 text-sm [&_svg]:size-5', lg: 'size-16 text-xl [&_svg]:size-7', xl: 'size-24 text-3xl [&_svg]:size-9' }
 
-export function Avatar({ nom, prenom, nature = 'personne', taille = 'md', className }: {
+export function Avatar({ nom, prenom, nature = 'personne', taille = 'md', className, photo }: {
   nom: string
   prenom?: string | null
   nature?: TypeCible
   taille?: keyof typeof TAILLES
   className?: string
+  /** Lien vers la photo, si la fiche en a une. */
+  photo?: string | null
 }) {
+  if (photo) {
+    return <img src={photo} alt="" className={cn('shrink-0 rounded-full object-cover', TAILLES[taille], className)} />
+  }
   const Icone = ICONE_NATURE[nature]
   const initiales = nature === 'personne'
     ? `${(prenom ?? '').trim()[0] ?? ''}${nom.trim()[0] ?? ''}`.toUpperCase()

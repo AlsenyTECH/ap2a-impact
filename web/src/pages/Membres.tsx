@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Plus } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { IdCard, Plus, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -11,6 +12,9 @@ import { Chargement, Champ, EnTete, Erreur, Pastilles } from '@/components/champ
 import { OutilsListe } from '@/components/OutilsListe'
 import { correspond, trier } from '@/lib/recherche'
 import { Avatar, Liste as Encadre } from '@/components/design'
+import { CarteDialog } from '@/components/CarteDialog'
+import { PhotoFiche } from '@/components/PhotoFiche'
+import { usePhotos } from '@/lib/photos'
 import { useAuth } from '@/lib/auth'
 import { LIBELLES_ROLE } from '@/lib/format'
 import { useMembres } from '@/lib/requetes'
@@ -18,8 +22,10 @@ import { messageErreur, supabase } from '@/lib/supabase'
 import type { Membre, Role } from '@/lib/types'
 
 export function Membres() {
-  const { a } = useAuth()
+  const { a, membre: moi } = useAuth()
   const { data: membres, isLoading, error } = useMembres()
+  const [carteDe, setCarteDe] = useState<Membre | null>(null)
+  const { data: photos = {} } = usePhotos((membres ?? []).map((m) => m.photo_chemin))
   const [edition, setEdition] = useState<Membre | 'nouveau' | null>(null)
   const [recherche, setRecherche] = useState('')
   const gestion = a('admin', 'bureau')
@@ -39,7 +45,12 @@ export function Membres() {
       <EnTete
         titre="Membres"
         sousTitre={`${membres?.filter((m) => m.actif).length ?? 0} membres actifs`}
-        actions={gestion ? <Button onClick={() => setEdition('nouveau')}><Plus className="size-4" /> Nouveau</Button> : null}
+        actions={gestion ? (
+          <>
+            <Button asChild variant="secondary"><Link to="/cartes?membres=tous"><Printer className="size-4" /> Cartes de tous</Link></Button>
+            <Button onClick={() => setEdition('nouveau')}><Plus className="size-4" /> Nouveau</Button>
+          </>
+        ) : null}
       />
       <OutilsListe
         recherche={recherche}
@@ -58,13 +69,13 @@ export function Membres() {
       {error ? <Erreur erreur={error} /> : isLoading ? <Chargement /> : (
         <Encadre>
           {liste.map((m) => (
+            <div key={m.id} className="flex items-center gap-1 pr-2">
             <button
-              key={m.id}
               disabled={!gestion}
               onClick={() => setEdition(m)}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors enabled:hover:bg-muted/50"
+              className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left transition-colors enabled:hover:bg-muted/50"
             >
-              <Avatar prenom={m.prenom} nom={m.nom} />
+              <Avatar prenom={m.prenom} nom={m.nom} photo={m.photo_chemin ? photos[m.photo_chemin] : null} />
               <div className="min-w-0 flex-1">
                 <div className={m.actif ? 'font-medium' : 'font-medium text-muted-foreground line-through'}>{m.prenom} {m.nom}</div>
                 <div className="truncate text-xs text-muted-foreground">
@@ -76,10 +87,24 @@ export function Membres() {
                 {gestion && !m.user_id ? <span className="text-[11px] text-muted-foreground">accès non activé</span> : null}
               </div>
             </button>
+            {gestion || m.id === moi?.id ? (
+              <Button size="icon" variant="ghost" title="Carte de membre" aria-label="Carte de membre" onClick={() => setCarteDe(m)}><IdCard className="text-muted-foreground" /></Button>
+            ) : null}
+            </div>
           ))}
         </Encadre>
       )}
       <MembreForm membre={edition} fermer={() => setEdition(null)} />
+      {carteDe ? (
+        <CarteDialog
+          ouvert
+          fermer={() => setCarteDe(null)}
+          membreId={carteDe.id}
+          photoChemin={carteDe.photo_chemin}
+          gere={gestion}
+          titulaire={{ type: 'membre', prenom: carteDe.prenom, nom: carteDe.nom, numero: carteDe.numero_adherent, detail: [LIBELLES_ROLE[carteDe.role], carteDe.fonction].filter(Boolean).join(' · ') }}
+        />
+      ) : null}
     </>
   )
 }
@@ -121,6 +146,12 @@ function MembreForm({ membre, fermer }: { membre: Membre | 'nouveau' | null; fer
       <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-md">
         <DialogHeader><DialogTitle>{existant ? `${existant.prenom} ${existant.nom}` : 'Nouveau membre'}</DialogTitle></DialogHeader>
         <form onSubmit={enregistrer} className="grid grid-cols-1 gap-4">
+          {existant ? (
+            <div className="flex items-center gap-3">
+              <PhotoFiche dossier="membres" id={existant.id} chemin={existant.photo_chemin} prenom={existant.prenom} nom={existant.nom} modifiable />
+              <p className="text-xs text-muted-foreground">Photo d'identité, imprimée sur la carte de membre. Touchez l'appareil photo pour la prendre ou la changer.</p>
+            </div>
+          ) : null}
           <div className="grid grid-cols-2 gap-3">
             <Champ label="Prénom"><Input required value={v.prenom} onChange={(e) => setV({ ...v, prenom: e.target.value })} /></Champ>
             <Champ label="Nom"><Input required value={v.nom} onChange={(e) => setV({ ...v, nom: e.target.value })} /></Champ>

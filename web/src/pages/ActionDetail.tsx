@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, CalendarDays, FileSpreadsheet, FileText, Lock, LockOpen, Gift, MapPin, Paperclip, Pencil, Plus, Trash2, UserPlus, UserRound, Wallet } from 'lucide-react'
+import { ArrowLeft, CalendarDays, IdCard, FileSpreadsheet, FileText, Lock, LockOpen, Gift, MapPin, Paperclip, Pencil, Plus, Trash2, UserPlus, UserRound, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -106,6 +106,7 @@ export function ActionDetail() {
               ))}
               {!cloturee ? <Button variant="secondary" size="sm" onClick={() => setEdition(true)}><Pencil /> Modifier</Button> : null}
               <Button asChild variant="secondary" size="sm"><Link to={`/actions/${id}/rapport`}><FileText /> Rapport</Link></Button>
+              <Button asChild variant="secondary" size="sm" title="Imprimer les cartes des participants (pointage par QR code)"><Link to={`/cartes?action=${id}`}><IdCard /> Cartes</Link></Button>
             </div>
           ) : voitBeneficiaires ? (
             <Button asChild variant="secondary" size="sm"><Link to={`/actions/${id}/rapport`}><FileText /> Rapport</Link></Button>

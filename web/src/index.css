@@ -158,3 +158,13 @@
   .rapport section { break-inside: avoid; }
   .rapport tr { break-inside: avoid; }
 }
+
+/* Planches de cartes : A4, 2 × 5 cartes au format carte bancaire. */
+@page cartes { size: A4; margin: 8mm; }
+.cartes-racine { page: cartes; }
+.planche { display: grid; grid-template-columns: repeat(2, 85.6mm); grid-auto-rows: 54mm; gap: 1.5mm 6mm; justify-content: center; }
+@media print {
+  .feuille-cartes + .feuille-cartes { break-before: page; }
+  /* Rien d'autre que les cartes : un élément hors de la page nommée ajouterait une page blanche. */
+  #root:has(.cartes-racine) > :not(.cartes-racine) { display: none !important; }
+}
