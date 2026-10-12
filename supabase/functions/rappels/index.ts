@@ -3,7 +3,8 @@
 // Appels possibles :
 //  * pg_cron (en-tête x-cle-rappels, comparé à la clé du coffre) : { type: 'hebdo' | 'seances' } → envoi à tous les membres concernés ;
 //  * un membre connecté (jeton de session) : { type, apercu: true } → l'email lui est envoyé à lui seul,
-//    même vide, pour voir à quoi il ressemble ; un administrateur peut aussi déclencher l'envoi à tous.
+//    même vide, pour voir à quoi il ressemble ; un administrateur peut aussi déclencher l'envoi à tous ;
+//  * le bureau : { type: 'invitation', membre_id | acces_id } → email d'invitation à créer son compte.
 //
 // Secrets : EXPEDITEUR_EMAIL, et BREVO_API_KEY ou RESEND_API_KEY.
 // La clé des appels planifiés est dans le coffre de la base (fonction cle_rappels).
@@ -26,7 +27,10 @@ const echapper = (t: unknown) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '
 const dateFr = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'UTC' })
 const heure = (h: string | null) => (h ? h.slice(0, 5).replace(':', 'h') : '')
 
-function gabarit(titre: string, corps: string) {
+const PIED_RAPPELS = `Vous recevez cet email car vous êtes membre de l'AP2A. Pour ne plus le recevoir, ouvrez l'application,
+      cliquez sur votre nom en bas du menu et désactivez les rappels.`
+
+function gabarit(titre: string, corps: string, pied = PIED_RAPPELS) {
   return `<!doctype html><html lang="fr"><body style="margin:0;background:#f3f4f0;font-family:Arial,Helvetica,sans-serif;color:#13211b">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden">
@@ -39,8 +43,7 @@ function gabarit(titre: string, corps: string) {
       ${corps}
     </td></tr>
     <tr><td style="padding:16px 24px;border-top:1px solid #e2e6df;font-size:11px;color:#5c6b64">
-      Vous recevez cet email car vous êtes membre de l'AP2A. Pour ne plus le recevoir, ouvrez l'application,
-      cliquez sur votre nom en bas du menu et désactivez les rappels.
+      ${pied}
     </td></tr>
   </table></td></tr></table></body></html>`
 }
@@ -150,16 +153,62 @@ async function envoyer(a: string, sujet: string, html: string) {
   }
 }
 
+/** Invitation à créer son compte (membre ou partenaire). */
+function emailInvitation(prenom: string | null, email: string, partenaire: string | null) {
+  const corps = `<p style="margin:0 0 16px">Bonjour${prenom ? ` ${echapper(prenom)}` : ''},</p>
+    <p style="margin:0 0 12px">${partenaire
+      ? `L'association AP2A vous donne accès à son application, en tant que partenaire (${echapper(partenaire)}), pour suivre les actions que nous menons ensemble.`
+      : `Vous êtes inscrit(e) comme membre de l'AP2A. Vous pouvez maintenant utiliser l'application de l'association : actions, suivis des bénéficiaires, événements, votre carte de membre…`}</p>
+    <p style="margin:0 0 6px"><b>Pour créer votre accès :</b></p>
+    <ol style="margin:0 0 12px;padding-left:20px;line-height:1.7">
+      <li>Ouvrez l'application avec le bouton ci-dessous ;</li>
+      <li>choisissez <b>« Première connexion »</b> ;</li>
+      <li>saisissez cette adresse : <b>${echapper(email)}</b> ;</li>
+      <li>choisissez un mot de passe, puis confirmez avec le lien reçu par email.</li>
+    </ol>
+    ${bouton(APP, "Ouvrir l'application")}
+    <p style="margin:16px 0 0;font-size:12px;color:#5c6b64">Sur téléphone, vous pouvez ensuite l'ajouter à l'écran d'accueil comme une application.</p>`
+  return { sujet: partenaire ? 'AP2A — Votre accès partenaire' : 'AP2A — Votre accès à l\'application', html: gabarit('Bienvenue dans l\'application AP2A', corps, "Cet email vous a été envoyé par le bureau de l'AP2A. Si vous n'êtes pas concerné(e), vous pouvez l'ignorer.") }
+}
+
 const repondre = (corps: unknown, statut = 200) =>
   new Response(JSON.stringify(corps), { status: statut, headers: { ...cors, 'content-type': 'application/json' } })
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
-    const { type = 'hebdo', apercu = false } = await req.json().catch(() => ({}))
-    if (type !== 'hebdo' && type !== 'seances') return repondre({ erreur: 'Type inconnu' }, 400)
+    const { type = 'hebdo', apercu = false, membre_id = null, acces_id = null } = await req.json().catch(() => ({}))
+    if (type !== 'hebdo' && type !== 'seances' && type !== 'invitation') return repondre({ erreur: 'Type inconnu' }, 400)
 
     const service = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
+
+    // Invitation d'un membre ou d'un partenaire : réservée au bureau.
+    if (type === 'invitation') {
+      const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
+      const { data: u } = await service.auth.getUser(jeton)
+      const { data: moi } = u?.user ? await service.from('membres').select('id, role, actif').eq('user_id', u.user.id).maybeSingle() : { data: null }
+      if (!moi?.actif || !['admin', 'bureau'].includes(moi.role)) return repondre({ erreur: 'Seul le bureau peut envoyer une invitation' }, 403)
+      let destinataire: { prenom: string | null; email: string | null; user_id: string | null; partenaire: string | null; membre: string | null } | null = null
+      if (membre_id) {
+        const { data } = await service.from('membres').select('id, prenom, email, user_id, actif').eq('id', membre_id).maybeSingle()
+        if (data?.actif) destinataire = { prenom: data.prenom, email: data.email, user_id: data.user_id, partenaire: null, membre: data.id }
+      } else if (acces_id) {
+        const { data } = await service.from('acces_partenaires').select('prenom, email, user_id, revoque_le, partenaire:partenaires(nom, sigle)').eq('id', acces_id).maybeSingle()
+        const p = data?.partenaire as unknown as { nom: string; sigle: string | null } | null
+        if (data && !data.revoque_le) destinataire = { prenom: data.prenom, email: data.email, user_id: data.user_id, partenaire: p?.sigle || p?.nom || 'partenaire', membre: null }
+      }
+      if (!destinataire?.email) return repondre({ erreur: 'Personne introuvable ou sans adresse email' }, 400)
+      if (destinataire.user_id) return repondre({ erreur: 'Son accès est déjà activé' }, 400)
+      const { sujet, html } = emailInvitation(destinataire.prenom, destinataire.email, destinataire.partenaire)
+      try {
+        await envoyer(destinataire.email, sujet, html)
+        await service.from('rappels_envoyes').insert({ type: 'invitation', membre_id: destinataire.membre, email: destinataire.email, nb: 1, statut: 'envoye' })
+        return repondre({ envoyes: 1, echecs: 0, erreurs: [] })
+      } catch (e) {
+        await service.from('rappels_envoyes').insert({ type: 'invitation', membre_id: destinataire.membre, email: destinataire.email, nb: 1, statut: 'echec', erreur: (e as Error).message })
+        return repondre({ envoyes: 0, echecs: 1, erreurs: [(e as Error).message] }, 502)
+      }
+    }
 
     // Qui appelle ? La tâche planifiée (clé secrète) ou un membre connecté.
     const recue = req.headers.get('x-cle-rappels')

@@ -1,13 +1,14 @@
 import { useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Ban, Copy, KeyRound, MessageCircle, RotateCcw, UserPlus } from 'lucide-react'
+import { Ban, KeyRound, RotateCcw, UserPlus } from 'lucide-react'
+import { BoutonsInvitation } from '@/components/Invitation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Champ, Pastilles } from '@/components/champs'
-import { date, lienWhatsApp } from '@/lib/format'
-import { messageInvitation, TYPES_ACCES } from '@/lib/partenaires'
+import { date } from '@/lib/format'
+import { TYPES_ACCES } from '@/lib/partenaires'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 import type { AccesPartenaire, Partenaire, TypeAcces } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -36,7 +37,7 @@ export function AccesPartenaires({ partenaire, fermer }: { partenaire: Partenair
       email: v.email.trim().toLowerCase(), telephone: v.telephone.trim() || null,
     })
     if (error) return toast.error(messageErreur(error))
-    toast.success('Invitation créée : envoyez-lui le message d\'invitation.')
+    toast.success('Accès créé : envoyez-lui maintenant l\'invitation (email, WhatsApp ou copie).')
     setV(vide)
     setAjout(false)
     qc.invalidateQueries({ queryKey: cle })
@@ -86,15 +87,8 @@ export function AccesPartenaires({ partenaire, fermer }: { partenaire: Partenair
                 </Button>
               </div>
               {!x.revoque_le && !x.user_id ? (
-                <div className="mt-2 flex flex-wrap gap-2 pl-7">
-                  {x.telephone ? (
-                    <Button asChild size="sm" variant="secondary">
-                      <a target="_blank" rel="noreferrer" href={lienWhatsApp(x.telephone, messageInvitation(x.prenom, x.email, organisation))}><MessageCircle /> Inviter par WhatsApp</a>
-                    </Button>
-                  ) : null}
-                  <Button size="sm" variant="ghost" onClick={async () => { await navigator.clipboard.writeText(messageInvitation(x.prenom, x.email, organisation)); toast.success('Message copié') }}>
-                    <Copy /> Copier le message
-                  </Button>
+                <div className="mt-2 pl-7">
+                  <BoutonsInvitation personne={x} accesId={x.id} organisation={organisation} />
                 </div>
               ) : null}
             </div>

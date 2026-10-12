@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { IdCard, Plus, Printer } from 'lucide-react'
+import { IdCard, Plus, Printer, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,8 @@ import { OutilsListe } from '@/components/OutilsListe'
 import { correspond, trier } from '@/lib/recherche'
 import { Avatar, Liste as Encadre } from '@/components/design'
 import { CarteDialog } from '@/components/CarteDialog'
+import { BoutonsInvitation } from '@/components/Invitation'
+import { DialogDescription } from '@/components/ui/dialog'
 import { PhotoFiche } from '@/components/PhotoFiche'
 import { usePhotos } from '@/lib/photos'
 import { useAuth } from '@/lib/auth'
@@ -25,6 +27,8 @@ export function Membres() {
   const { a, membre: moi } = useAuth()
   const { data: membres, isLoading, error } = useMembres()
   const [carteDe, setCarteDe] = useState<Membre | null>(null)
+  const [inviter, setInviter] = useState<Membre | null>(null)
+  const [acces, setAcces] = useState<'' | 'actives' | 'attente'>('')
   const { data: photos = {} } = usePhotos((membres ?? []).map((m) => m.photo_chemin))
   const [edition, setEdition] = useState<Membre | 'nouveau' | null>(null)
   const [recherche, setRecherche] = useState('')
@@ -33,6 +37,7 @@ export function Membres() {
   const [role, setRole] = useState<Role | ''>('')
   const [inactifs, setInactifs] = useState(false)
   const retenus = (membres ?? []).filter((m) => (inactifs || m.actif) && (!role || m.role === role)
+    && (!acces || (acces === 'actives') === !!m.user_id)
     && correspond(recherche, m.prenom, m.nom, m.telephone, m.email, m.numero_adherent, m.fonction, LIBELLES_ROLE[m.role]))
   const ORDRE_ROLES: Role[] = ['admin', 'bureau', 'coordinateur', 'membre']
   const liste = tri === 'nom' ? trier(retenus, (m) => `${m.nom} ${m.prenom}`)
@@ -63,6 +68,10 @@ export function Membres() {
       >
         <div className="flex flex-wrap items-center gap-3">
           <Pastilles<Role | ''> value={role} onChange={(r) => setRole(r === role ? '' : r)} options={[['', 'Tous'], ...(Object.entries(LIBELLES_ROLE) as [Role, string][])]} />
+          {gestion ? (
+            <Pastilles<'' | 'actives' | 'attente'> value={acces} onChange={(v) => setAcces(v === acces ? '' : v)}
+              options={[['actives', 'Accès activé'], ['attente', `Accès non activé (${(membres ?? []).filter((m) => m.actif && !m.user_id).length})`]]} />
+          ) : null}
           <label className="flex items-center gap-2 text-sm text-muted-foreground"><Switch checked={inactifs} onCheckedChange={setInactifs} /> Inclure les inactifs</label>
         </div>
       </OutilsListe>
@@ -87,6 +96,9 @@ export function Membres() {
                 {gestion && !m.user_id ? <span className="text-[11px] text-muted-foreground">accès non activé</span> : null}
               </div>
             </button>
+            {gestion && !m.user_id && m.actif ? (
+              <Button size="icon" variant="ghost" title="Inviter à activer son accès" aria-label="Inviter" onClick={() => setInviter(m)}><Send className="text-primary" /></Button>
+            ) : null}
             {gestion || m.id === moi?.id ? (
               <Button size="icon" variant="ghost" title="Carte de membre" aria-label="Carte de membre" onClick={() => setCarteDe(m)}><IdCard className="text-muted-foreground" /></Button>
             ) : null}
@@ -94,7 +106,8 @@ export function Membres() {
           ))}
         </Encadre>
       )}
-      <MembreForm membre={edition} fermer={() => setEdition(null)} />
+      <MembreForm membre={edition} fermer={() => setEdition(null)} onCree={setInviter} />
+      {inviter ? <InviterMembre membre={inviter} fermer={() => setInviter(null)} /> : null}
       {carteDe ? (
         <CarteDialog
           ouvert
@@ -109,7 +122,7 @@ export function Membres() {
   )
 }
 
-function MembreForm({ membre, fermer }: { membre: Membre | 'nouveau' | null; fermer: () => void }) {
+function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | null; fermer: () => void; onCree?: (m: Membre) => void }) {
   const qc = useQueryClient()
   const { a, membre: moi } = useAuth()
   const [v, setV] = useState({ prenom: '', nom: '', telephone: '', email: '', fonction: '', role: 'membre' as Role, actif: true })
@@ -132,12 +145,14 @@ function MembreForm({ membre, fermer }: { membre: Membre | 'nouveau' | null; fer
     }
     const r = existant
       ? await supabase.from('membres').update(donnees).eq('id', existant.id)
-      : await supabase.from('membres').insert(donnees)
+      : await supabase.from('membres').insert(donnees).select().single()
     setEnvoi(false)
     if (r.error) return toast.error(messageErreur(r.error))
-    toast.success(existant ? 'Membre modifié' : 'Membre ajouté : il peut activer son accès avec cet email (« Première connexion »).')
+    toast.success(existant ? 'Membre modifié' : 'Membre ajouté')
     qc.invalidateQueries({ queryKey: ['membres'] })
     fermer()
+    // Nouveau membre avec email : on propose tout de suite de l'inviter.
+    if (!existant && r.data && (r.data as Membre).email) onCree?.(r.data as Membre)
   }
 
   const moiMeme = existant?.id === moi?.id
@@ -177,6 +192,32 @@ function MembreForm({ membre, fermer }: { membre: Membre | 'nouveau' | null; fer
             <Button type="submit" disabled={envoi}>Enregistrer</Button>
           </div>
         </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Invitation d'un membre à activer son accès à l'application. */
+function InviterMembre({ membre, fermer }: { membre: Membre; fermer: () => void }) {
+  return (
+    <Dialog open onOpenChange={(o) => !o && fermer()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Inviter {membre.prenom} {membre.nom}</DialogTitle>
+          <DialogDescription>
+            Pour utiliser l'application, il ou elle crée son mot de passe avec « Première connexion » et l'adresse de sa fiche.
+            Son accès dépendra de son rôle : <b>{LIBELLES_ROLE[membre.role]}</b>.
+          </DialogDescription>
+        </DialogHeader>
+        {membre.email ? (
+          <>
+            <div className="rounded-lg bg-muted/50 px-3 py-2 text-sm">Adresse : <b>{membre.email}</b>{membre.telephone ? <> · {membre.telephone}</> : null}</div>
+            <BoutonsInvitation personne={{ prenom: membre.prenom, email: membre.email, telephone: membre.telephone }} membreId={membre.id} />
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">Ajoutez d'abord son adresse email sur sa fiche : c'est elle qui lui servira d'identifiant.</p>
+        )}
+        <div className="flex justify-end"><Button variant="ghost" onClick={fermer}>Fermer</Button></div>
       </DialogContent>
     </Dialog>
   )

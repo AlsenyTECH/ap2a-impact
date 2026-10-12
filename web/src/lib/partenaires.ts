@@ -19,3 +19,9 @@ export const messageInvitation = (prenom: string | null, email: string, organisa
   `Bonjour${prenom ? ` ${prenom}` : ''}, l'association AP2A vous donne accès à son application pour ${organisation}.\n\n` +
   `1. Ouvrez https://ap2a-impact.vercel.app\n2. Choisissez « Première connexion »\n3. Saisissez cette adresse : ${email}\n` +
   `4. Choisissez un mot de passe, puis confirmez avec le lien reçu par email.\n\nMerci pour votre engagement à nos côtés.`
+
+/** Message d'invitation d'un membre à créer son accès. */
+export const messageInvitationMembre = (prenom: string | null, email: string) =>
+  `Bonjour${prenom ? ` ${prenom}` : ''}, vous pouvez maintenant utiliser l'application de l'AP2A (actions, suivis, événements, votre carte de membre).\n\n` +
+  `1. Ouvrez https://ap2a-impact.vercel.app\n2. Choisissez « Première connexion »\n3. Saisissez cette adresse : ${email}\n` +
+  `4. Choisissez un mot de passe, puis confirmez avec le lien reçu par email.`

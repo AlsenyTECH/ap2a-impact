@@ -14,7 +14,7 @@ import { messageErreur, supabase, verifier } from '@/lib/supabase'
 interface Envoi { id: number; envoye_le: string; type: string; email: string | null; nb: number; statut: string; erreur: string | null }
 
 const LIBELLES_ENVOI: Record<string, string> = {
-  hebdo: 'Suivis de la semaine', seances: 'Séances du jour', 'hebdo-apercu': 'Aperçu suivis', 'seances-apercu': 'Aperçu séances',
+  hebdo: 'Suivis de la semaine', seances: 'Séances du jour', 'hebdo-apercu': 'Aperçu suivis', 'seances-apercu': 'Aperçu séances', invitation: 'Invitation',
 }
 
 /** Appelle la fonction d'envoi des rappels (aperçu pour soi, ou envoi à tous pour un administrateur). */
