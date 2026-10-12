@@ -22,6 +22,7 @@ import { Cartes } from '@/pages/Cartes'
 import { Evenements } from '@/pages/Evenements'
 import { EvenementDetail } from '@/pages/EvenementDetail'
 import { Vitrine } from '@/pages/Vitrine'
+import { MediasVitrine } from '@/pages/MediasVitrine'
 
 export function App() {
   const { session, membre, chargement, deconnecter } = useAuth()
@@ -57,6 +58,7 @@ export function App() {
         <Route path="evenements/:id" element={<EvenementDetail />} />
         <Route path="impact" element={<Impact />} />
         <Route path="categories" element={<Categories />} />
+        <Route path="medias" element={<MediasVitrine />} />
         <Route path="membres" element={<Membres />} />
         <Route path="partenaires" element={<Partenaires />} />
         <Route path="*" element={<Navigate to="/" replace />} />

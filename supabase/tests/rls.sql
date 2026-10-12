@@ -367,4 +367,28 @@ select t.ok(jsonb_array_length(portail_actions() -> 'actions') = 1, 'bailleur : 
 set role anon;
 select t.ok((chiffres_publics() ->> 'personnes')::int >= 1 and chiffres_publics() ? 'actions' and not (chiffres_publics()::text like '%Diop%'), 'chiffres publics : totaux anonymes, sans nom');
 reset role;
+-- ===== Médias de la page publique =====
+set role authenticated;
+select t.qui('bureau@ap2a.sn');
+insert into vitrine_medias (type, chemin, titre, publie) values
+  ('photo', '11111111-1111-1111-1111-111111111111.webp', 'Remise des attestations', true),
+  ('photo', '22222222-2222-2222-2222-222222222222.webp', 'Brouillon', false);
+insert into vitrine_medias (type, youtube_id, emplacement, titre, publie) values ('youtube', 'dQw4w9WgXcQ', 'video', 'Le film', true);
+select t.ok((select count(*) from vitrine_medias) = 3, 'médias vitrine : le bureau voit aussi les brouillons');
+select t.ok((select cree_par from vitrine_medias where titre = 'Le film') = (select id from membres where email = 'bureau@ap2a.sn'), 'médias vitrine : auteur noté');
+select t.refuse($$insert into vitrine_medias (type, chemin) values ('photo', '../../etc/passwd')$$, 'médias vitrine : chemin de fichier contrôlé');
+select t.refuse($$insert into vitrine_medias (type, youtube_id, emplacement) values ('youtube', 'x"><script>', 'video')$$, 'médias vitrine : identifiant YouTube contrôlé');
+select t.refuse($$insert into storage.objects (bucket_id, name) values ('photos', 'vitrine-pas-ici.webp')$$, 'médias vitrine : pas de dépôt hors règles dans « photos »');
+insert into storage.objects (bucket_id, name) values ('vitrine', '11111111-1111-1111-1111-111111111111.webp');
+select t.qui('coord@ap2a.sn');
+select t.refuse($$insert into vitrine_medias (type, chemin, publie) values ('photo', '33333333-3333-3333-3333-333333333333.webp', true)$$, 'médias vitrine : un coordinateur ne publie pas');
+select t.refuse($$insert into storage.objects (bucket_id, name) values ('vitrine', '33333333-3333-3333-3333-333333333333.webp')$$, 'médias vitrine : un coordinateur ne dépose pas de fichier');
+update vitrine_medias set publie = true where titre = 'Brouillon';
+select t.ok((select count(*) from vitrine_medias) = 2, 'médias vitrine : un membre ne voit que le publié');
+reset role;
+select t.ok(not (select publie from vitrine_medias where titre = 'Brouillon'), 'médias vitrine : un coordinateur ne publie pas un brouillon');
+set role anon;
+select t.ok((select count(*) from vitrine_medias) = 2 and not exists (select 1 from vitrine_medias where titre = 'Brouillon'), 'médias vitrine : le public ne voit que le publié');
+select t.refuse($$insert into vitrine_medias (type, chemin, publie) values ('photo', '44444444-4444-4444-4444-444444444444.webp', true)$$, 'médias vitrine : le public ne dépose rien');
+reset role;
 \echo 'Tous les tests sont passés.'

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { BarChart3, BellRing, CalendarCheck, CalendarHeart, Handshake, Home, Landmark, ListChecks, LogOut, Menu, Shapes, Target, UsersRound, X } from 'lucide-react'
+import { BarChart3, BellRing, CalendarCheck, CalendarHeart, Handshake, Home, ImagePlay, Landmark, ListChecks, LogOut, Menu, Shapes, Target, UsersRound, X } from 'lucide-react'
 import { MonProfil } from '@/components/MonProfil'
 import { BandeauHorsLigne } from '@/components/BandeauHorsLigne'
 import { useAuth } from '@/lib/auth'
@@ -28,14 +28,24 @@ const GROUPES = [
       { vers: '/partenaires', libelle: 'Partenaires', icone: Handshake },
     ],
   },
-  { titre: 'Réglages', liens: [{ vers: '/categories', libelle: 'Catégories', icone: Shapes }, { vers: '/association', libelle: "L'association", icone: Landmark }] },
+  {
+    titre: 'Réglages',
+    liens: [
+      { vers: '/categories', libelle: 'Catégories', icone: Shapes },
+      { vers: '/medias', libelle: 'Médias du site', icone: ImagePlay, bureau: true },
+      { vers: '/association', libelle: "L'association", icone: Landmark },
+    ],
+  },
 ]
-const TOUS = GROUPES.flatMap((g) => g.liens)
+type Lien = { vers: string; libelle: string; icone: typeof Home; bureau?: boolean }
+const TOUS: Lien[] = GROUPES.flatMap((g) => g.liens)
 // Barre du bas sur téléphone : les 5 écrans du quotidien.
 const BAS = ['/', '/cibles', '/actions', '/suivis', '/impact'].map((v) => TOUS.find((l) => l.vers === v)!)
 
 export function Layout() {
-  const { membre, deconnecter } = useAuth()
+  const { membre, deconnecter, a } = useAuth()
+  // « Médias du site » : réservé au bureau, qui décide de ce qui est publié.
+  const visible = (l: Lien) => !l.bureau || a('admin', 'bureau')
   const [profil, setProfil] = useState(false)
   const [menu, setMenu] = useState(false)
   const { pathname } = useLocation()
@@ -57,7 +67,7 @@ export function Layout() {
             <div key={g.titre}>
               <div className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-muted/80">{g.titre}</div>
               <div className="space-y-0.5">
-                {g.liens.map(({ vers, libelle, icone: Icone }) => (
+                {(g.liens as Lien[]).filter(visible).map(({ vers, libelle, icone: Icone }) => (
                   <NavLink
                     key={vers}
                     to={vers}
@@ -117,7 +127,7 @@ export function Layout() {
                 </div>
               </div>
               <div className="py-1">
-                {TOUS.filter((l) => !BAS.includes(l)).map(({ vers, libelle, icone: Icone }) => (
+                {TOUS.filter((l) => !BAS.includes(l) && visible(l)).map(({ vers, libelle, icone: Icone }) => (
                   <NavLink key={vers} to={vers} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted">
                     <Icone className="size-[18px] text-muted-foreground" /> {libelle}
                   </NavLink>
