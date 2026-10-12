@@ -137,6 +137,55 @@ select t.qui('coord2@ap2a.sn');
 update presences set present = false;
 select t.ok((select count(*) from presences where not present) = 0, 'autre coordinateur : ne modifie pas l''appel');
 
+-- ===== Cartes, photos et pointage par scan =====
+select t.qui('coord@ap2a.sn');
+select t.ok((emettre_carte(null, (select id from cibles where nom = 'Diop'))).jeton ~ '^[0-9a-f]{32}$', 'coordinateur : émet la carte d''un participant (jeton aléatoire)');
+select t.ok((select numero_beneficiaire from cibles where nom = 'Diop') = 'B-00001', 'numéro de bénéficiaire attribué à la première carte');
+select t.refuse($$select emettre_carte(null, (select id from cibles where nom = 'ASC Jappo Unité 17'))$$, 'pas de carte pour un collectif');
+select t.refuse($$select emettre_carte((select id from membres where email = 'membre@ap2a.sn'))$$, 'coordinateur : carte d''un autre membre');
+select t.ok((emettre_carte(mon_membre_id())).membre_id = mon_membre_id(), 'membre : obtient sa propre carte');
+select t.ok(emettre_cartes_action((select id from actions)) = 0, 'cartes de l''action : seulement ceux qui n''en ont pas');
+reset role;
+select jeton as j_diop from cartes where cible_id is not null and revoquee_le is null \gset
+select jeton as j_coord from cartes where membre_id is not null and revoquee_le is null \gset
+set role anon;
+select t.ok(verifier_carte(:'j_diop') ->> 'statut' = 'valide' and verifier_carte(:'j_diop') ->> 'nom' = 'D.', 'vérification publique : carte valide, nom du bénéficiaire masqué');
+select t.ok(verifier_carte(:'j_coord') ->> 'numero' = 'AP2A-00003', 'vérification publique : numéro du membre');
+select t.ok(verifier_carte('0000') ->> 'statut' = 'inconnue', 'vérification publique : jeton inconnu');
+select t.refuse($$select * from cartes$$, 'anonyme : ne lit pas la liste des cartes');
+reset role;
+set role authenticated;
+select t.qui('membre@ap2a.sn');
+select t.ok(pointer_seance((select id from seances order by date limit 1), :'j_diop') ->> 'statut' = 'deja', 'scan : déjà présent signalé');
+delete from presences where seance_id = (select id from seances order by date desc limit 1);
+select t.ok(pointer_seance((select id from seances order by date desc limit 1), :'j_diop') ->> 'statut' = 'ok', 'scan : présence enregistrée par l''équipe');
+select t.ok((select mode = 'scan' and pointe_le is not null from presences where seance_id = (select id from seances order by date desc limit 1)), 'scan : heure et mode du pointage');
+select t.ok(pointer_seance((select id from seances order by date limit 1), :'j_coord') ->> 'statut' = 'carte_membre', 'scan : une carte de membre n''est pas un participant');
+insert into storage.objects (bucket_id, name) values ('photos', 'membres/' || mon_membre_id() || '.jpg');
+select t.refuse($$insert into storage.objects (bucket_id, name) values ('photos', 'membres/' || (select id from membres where email = 'admin@ap2a.sn') || '.jpg')$$, 'membre : changer la photo d''un autre membre');
+select t.refuse($$insert into storage.objects (bucket_id, name) values ('photos', 'cibles/' || (select id from cibles limit 1) || '.jpg')$$, 'membre simple : photo d''un bénéficiaire');
+select t.qui('coord2@ap2a.sn');
+select t.refuse($$select pointer_seance((select id from seances limit 1), 'x')$$, 'hors équipe : pas de pointage');
+select t.qui('coord@ap2a.sn');
+select emettre_carte(null, (select id from cibles where nom = 'Diop'));
+select t.ok(verifier_carte(:'j_diop') ->> 'statut' = 'revoquee', 'carte renouvelée : l''ancienne est révoquée');
+select t.ok(pointer_seance((select id from seances order by date limit 1), :'j_diop') ->> 'statut' = 'revoquee', 'scan : carte révoquée refusée');
+
+-- ===== Événements =====
+insert into evenements (titre, type, date) values ('Assemblée générale 2026', 'ag', current_date);
+select t.ok(pointer_evenement((select id from evenements), :'j_coord') ->> 'statut' = 'ok', 'événement : pointage par scan');
+select t.ok(pointer_evenement((select id from evenements), :'j_coord') ->> 'statut' = 'deja', 'événement : double scan signalé');
+select t.ok(pointer_evenement((select id from evenements), :'j_diop') ->> 'statut' = 'carte_beneficiaire', 'événement : carte de bénéficiaire refusée');
+insert into evenement_presences (evenement_id, membre_id) values ((select id from evenements), (select id from membres where email = 'membre@ap2a.sn'));
+select t.ok((select count(*) from evenement_presences) = 2, 'événement : pointage manuel');
+select t.qui('coord2@ap2a.sn');
+select t.refuse($$select pointer_evenement((select id from evenements), 'x')$$, 'autre coordinateur : ne pointe pas l''événement d''un autre');
+delete from evenements;
+select t.ok((select count(*) from evenements) = 1, 'autre coordinateur : ne supprime pas l''événement d''un autre');
+select t.qui('membre@ap2a.sn');
+select t.ok((select count(*) from evenement_presences) = 2, 'membre : voit les présences');
+select t.refuse($$insert into evenements (titre, date) values ('X', current_date)$$, 'membre simple : créer un événement');
+
 -- ===== Bureau et admin =====
 select t.qui('bureau@ap2a.sn');
 update actions set statut = 'terminee', date_fin = '2026-05-31';
