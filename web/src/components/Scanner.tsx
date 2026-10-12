@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 const MESSAGES: Record<ResultatPointage['statut'], string> = {
   ok: 'Présent', deja: 'Déjà pointé', inconnue: 'Carte inconnue', revoquee: 'Carte annulée',
   pas_inscrit: "Pas inscrit à cette action", carte_membre: 'Carte de membre (pas un participant)',
-  carte_beneficiaire: 'Carte de bénéficiaire (pas un membre)', non_invite: 'Présent, mais pas sur la liste des invités',
+  carte_beneficiaire: 'Carte de bénéficiaire (pas un membre)', non_invite: 'Présent, mais pas sur la liste des invités', cloture: 'Événement clôturé : pointage impossible',
 }
 const BONS = new Set(['ok', 'deja', 'non_invite'])
 

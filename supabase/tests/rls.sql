@@ -178,6 +178,21 @@ select t.ok(pointer_evenement((select id from evenements), :'j_coord') ->> 'stat
 select t.ok(pointer_evenement((select id from evenements), :'j_diop') ->> 'statut' = 'carte_beneficiaire', 'événement : carte de bénéficiaire refusée');
 insert into evenement_presences (evenement_id, membre_id) values ((select id from evenements), (select id from membres where email = 'membre@ap2a.sn'));
 select t.ok((select count(*) from evenement_presences) = 2, 'événement : pointage manuel');
+-- Clôture d'un événement
+select t.qui('coord@ap2a.sn');
+update evenements set cloture_le = now();
+select t.ok((select cloture_par from evenements) = mon_membre_id(), 'événement clôturé par son créateur, auteur noté');
+select t.ok(pointer_evenement((select id from evenements), :'j_coord') ->> 'statut' = 'cloture', 'événement clôturé : scan refusé');
+select t.refuse($$insert into evenement_presences (evenement_id, membre_id) values ((select id from evenements), (select id from membres where email = 'admin@ap2a.sn'))$$, 'événement clôturé : pointage manuel refusé');
+select t.refuse($$delete from evenement_presences$$, 'événement clôturé : retirer une présence');
+select t.refuse($$update evenements set lieu = 'Ailleurs'$$, 'événement clôturé : modifier les informations');
+update evenements set compte_rendu = 'Bureau réélu à l''unanimité.';
+select t.ok((select compte_rendu from evenements) like 'Bureau réélu%', 'événement clôturé : compte rendu modifiable');
+select t.refuse($$update evenements set cloture_le = null$$, 'coordinateur : rouvrir un événement');
+select t.qui('admin@ap2a.sn');
+update evenements set cloture_le = null;
+select t.ok((select cloture_le is null and cloture_par is null from evenements), 'admin : rouvre l''événement');
+update evenements set cloture_le = now();
 select t.qui('coord2@ap2a.sn');
 select t.refuse($$select pointer_evenement((select id from evenements), 'x')$$, 'autre coordinateur : ne pointe pas l''événement d''un autre');
 delete from evenements;

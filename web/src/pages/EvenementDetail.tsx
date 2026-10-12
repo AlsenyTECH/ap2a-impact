@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Check, Clock, FileSpreadsheet, MapPin, Pencil, Printer, ScanLine, Trash2, UserPlus, UsersRound } from 'lucide-react'
+import { ArrowLeft, Check, Clock, FileSpreadsheet, Lock, LockOpen, MapPin, Pencil, Printer, ScanLine, Trash2, UserPlus, UsersRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Chargement, Erreur, Pastilles } from '@/components/champs'
 import { Avatar, Liste as Encadre } from '@/components/design'
@@ -13,7 +14,8 @@ import { OutilsListe } from '@/components/OutilsListe'
 import { Scanner } from '@/components/Scanner'
 import { useAuth } from '@/lib/auth'
 import { exporterExcel } from '@/lib/export'
-import { date, LIBELLES_ROLE } from '@/lib/format'
+import { aujourdhui, date, LIBELLES_ROLE } from '@/lib/format'
+import { membreAvecNumero } from '@/lib/recherche'
 import { usePhotos } from '@/lib/photos'
 import { correspond, trier } from '@/lib/recherche'
 import { useMembres } from '@/lib/requetes'
@@ -55,7 +57,12 @@ export function EvenementDetail() {
   if (error) return <Erreur erreur={error} />
   if (isLoading || !ev) return <Chargement />
 
-  const gere = a('admin', 'bureau') || (a('coordinateur') && ev.cree_par === moi?.id)
+  const responsable = a('admin', 'bureau') || (a('coordinateur') && ev.cree_par === moi?.id)
+  const cloture = !!ev.cloture_le
+  // Une fois clôturé, l'événement est figé : plus de pointage ni de changement de la liste.
+  const gere = responsable && !cloture
+  const passe = ev.date < aujourdhui()
+  const cloturePar = membres.find((m) => m.id === ev.cloture_par)
   const presence = new Map(presences.map((p) => [p.membre_id, p]))
   const listeInvites = ev.invites === 'tous' ? membres.filter((m) => m.actif) : membres.filter((m) => invites.includes(m.id))
   // Présents non invités (scannés quand même) : on les montre aussi.
@@ -76,6 +83,17 @@ export function EvenementDetail() {
       : await supabase.from('evenement_presences').insert({ evenement_id: id, membre_id: m.id, mode: 'manuel' })
     if (error) return toast.error(messageErreur(error))
     rafraichir()
+  }
+
+  async function changerCloture(fermer: boolean) {
+    if (!confirm(fermer
+      ? 'Clôturer cet événement ? La liste de présence sera figée : plus de pointage ni de modification. Seul un administrateur pourra le rouvrir.'
+      : 'Rouvrir cet événement ? La liste de présence pourra de nouveau être modifiée.')) return
+    const { error } = await supabase.from('evenements').update({ cloture_le: fermer ? new Date().toISOString() : null }).eq('id', id)
+    if (error) return toast.error(messageErreur(error))
+    toast.success(fermer ? 'Événement clôturé' : 'Événement rouvert')
+    qc.invalidateQueries({ queryKey: ['evenement', id] })
+    qc.invalidateQueries({ queryKey: ['evenements'] })
   }
 
   async function supprimer() {
@@ -122,10 +140,12 @@ export function EvenementDetail() {
             {gere ? (
               <>
                 {ev.invites === 'selection' ? <Button variant="secondary" onClick={() => setChoixInvites(true)}><UserPlus /> Invités</Button> : null}
+                <Button variant="secondary" onClick={() => changerCloture(true)}><Lock /> Clôturer</Button>
                 <Button variant="ghost" onClick={() => setEdition(true)}><Pencil /> Modifier</Button>
-                <Button variant="ghost" className="text-destructive" onClick={supprimer}><Trash2 /></Button>
               </>
             ) : null}
+            {cloture && a('admin') ? <Button variant="secondary" onClick={() => changerCloture(false)}><LockOpen /> Rouvrir</Button> : null}
+            {gere || (cloture && a('admin')) ? <Button variant="ghost" className="text-destructive" onClick={supprimer} aria-label="Supprimer"><Trash2 /></Button> : null}
           </div>
         </div>
         <div className="grid grid-cols-3 gap-px border-t border-border/70 bg-border/70 text-center">
@@ -137,6 +157,26 @@ export function EvenementDetail() {
           ))}
         </div>
       </Card>
+
+      {cloture ? (
+        <div className="mb-5 flex items-start gap-3 rounded-xl border border-border bg-muted/50 p-4 text-sm">
+          <Lock className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+          <div>
+            <div className="font-semibold">Événement clôturé : liste de présence figée</div>
+            <div className="text-muted-foreground">
+              Clôturé le {new Date(ev.cloture_le!).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+              {cloturePar ? ` par ${membreAvecNumero(cloturePar)}` : ' automatiquement'}. Seul le compte rendu peut encore être complété{a('admin') ? ' ; en tant qu\'administrateur, vous pouvez le rouvrir' : ''}.
+            </div>
+          </div>
+        </div>
+      ) : gere && passe ? (
+        <div className="no-print mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e9a812]/40 bg-[#fdf3d8] p-4 text-sm">
+          <span>Cet événement est passé. Vérifiez la liste de présence puis <b>clôturez-le</b> pour la figer (sinon il le sera automatiquement 7 jours après).</span>
+          <Button size="sm" onClick={() => changerCloture(true)}><Lock /> Clôturer maintenant</Button>
+        </div>
+      ) : null}
+
+      <CompteRendu ev={ev} modifiable={responsable} />
 
       <div className="no-print">
         <OutilsListe
@@ -252,5 +292,43 @@ function ChoixInvites({ evenementId, membres, invites, fermer }: { evenementId: 
         </div>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** Compte rendu / procès-verbal : reste modifiable après la clôture. */
+function CompteRendu({ ev, modifiable }: { ev: Evenement; modifiable: boolean }) {
+  const qc = useQueryClient()
+  const [texte, setTexte] = useState(ev.compte_rendu ?? '')
+  const [edition, setEdition] = useState(false)
+  if (!modifiable && !ev.compte_rendu) return null
+
+  async function enregistrer() {
+    const { error } = await supabase.from('evenements').update({ compte_rendu: texte.trim() || null }).eq('id', ev.id)
+    if (error) return toast.error(messageErreur(error))
+    toast.success('Compte rendu enregistré')
+    setEdition(false)
+    qc.invalidateQueries({ queryKey: ['evenement', ev.id] })
+  }
+
+  return (
+    <section className="mb-6 rounded-xl border border-border bg-card p-4">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className="text-base font-semibold">Compte rendu</h2>
+        {modifiable && !edition ? <Button size="sm" variant="ghost" className="no-print" onClick={() => { setTexte(ev.compte_rendu ?? ''); setEdition(true) }}><Pencil /> {ev.compte_rendu ? 'Modifier' : 'Rédiger'}</Button> : null}
+      </div>
+      {edition ? (
+        <div className="space-y-2">
+          <Textarea rows={6} value={texte} onChange={(e) => setTexte(e.target.value)} placeholder="Décisions prises, votes, points à suivre…" />
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="ghost" onClick={() => setEdition(false)}>Annuler</Button>
+            <Button size="sm" onClick={enregistrer}>Enregistrer</Button>
+          </div>
+        </div>
+      ) : ev.compte_rendu ? (
+        <p className="whitespace-pre-line text-sm">{ev.compte_rendu}</p>
+      ) : (
+        <p className="text-sm text-muted-foreground">Pas encore de compte rendu. Notez les décisions prises pour le procès-verbal.</p>
+      )}
+    </section>
   )
 }

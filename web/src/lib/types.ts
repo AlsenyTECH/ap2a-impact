@@ -205,11 +205,14 @@ export interface Evenement {
   invites: 'tous' | 'selection'
   cree_par: string | null
   cree_le: string
+  cloture_le: string | null
+  cloture_par: string | null
+  compte_rendu: string | null
 }
 
 /** Réponse d'un pointage par scan (séance ou événement). */
 export interface ResultatPointage {
-  statut: 'ok' | 'deja' | 'inconnue' | 'revoquee' | 'pas_inscrit' | 'carte_membre' | 'carte_beneficiaire' | 'non_invite'
+  statut: 'ok' | 'deja' | 'inconnue' | 'revoquee' | 'pas_inscrit' | 'carte_membre' | 'carte_beneficiaire' | 'non_invite' | 'cloture'
   prenom?: string
   nom?: string
   numero?: string

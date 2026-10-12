@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarHeart, Clock, MapPin, Plus, UsersRound } from 'lucide-react'
+import { CalendarHeart, Clock, Lock, MapPin, Plus, UsersRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -31,7 +31,7 @@ export function Evenements() {
   const { a } = useAuth()
   const [recherche, setRecherche] = useState('')
   const [tri, setTri] = useState<'recents' | 'anciens' | 'titre' | 'presence'>('recents')
-  const [quand, setQuand] = useState<'' | 'venir' | 'passes'>('')
+  const [quand, setQuand] = useState<'' | 'venir' | 'passes' | 'clotures'>('')
   const [type, setType] = useState('')
   const [creation, setCreation] = useState(false)
 
@@ -48,7 +48,7 @@ export function Evenements() {
 
   const auj = aujourdhui()
   const retenus = (evenements ?? []).filter((e) => (!type || e.type === type)
-    && (!quand || (quand === 'venir' ? e.date >= auj : e.date < auj))
+    && (!quand || (quand === 'venir' ? e.date >= auj : quand === 'clotures' ? !!e.cloture_le : e.date < auj && !e.cloture_le))
     && correspond(recherche, e.titre, e.lieu, e.description, libelleType(e.type)))
   const liste = tri === 'recents' ? trier(retenus, (e) => e.date, 'desc')
     : tri === 'anciens' ? trier(retenus, (e) => e.date)
@@ -72,7 +72,7 @@ export function Evenements() {
         total={evenements ? liste.length : undefined}
       >
         <div className="flex flex-wrap gap-3">
-          <Pastilles<'' | 'venir' | 'passes'> value={quand} onChange={(v) => setQuand(v === quand ? '' : v)} options={[['', 'Tous'], ['venir', 'À venir'], ['passes', 'Passés']]} />
+          <Pastilles<'' | 'venir' | 'passes' | 'clotures'> value={quand} onChange={(v) => setQuand(v === quand ? '' : v)} options={[['', 'Tous'], ['venir', 'À venir'], ['passes', 'Passés, à clôturer'], ['clotures', 'Clôturés']]} />
           <Liste className="w-auto" value={type} onChange={(e) => setType(e.target.value)}>
             <option value="">Tous les types</option>
             {TYPES_EVENEMENT.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -90,7 +90,10 @@ export function Evenements() {
               <Link key={e.id} to={`/evenements/${e.id}`} className="flex gap-4 rounded-2xl border border-border/80 bg-card p-4 shadow-carte transition hover:-translate-y-0.5 hover:shadow-haute">
                 <BlocDate date={e.date} />
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium text-muted-foreground">{libelleType(e.type)}</div>
+                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                    {libelleType(e.type)}
+                    {e.cloture_le ? <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px]"><Lock className="size-3" /> Clôturé</span> : null}
+                  </div>
                   <div className="truncate font-semibold">{e.titre}</div>
                   <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     {e.heure_debut ? <span className="inline-flex items-center gap-1"><Clock className="size-3.5" />{heure(e.heure_debut)}</span> : null}
