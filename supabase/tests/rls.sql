@@ -390,5 +390,6 @@ select t.ok(not (select publie from vitrine_medias where titre = 'Brouillon'), '
 set role anon;
 select t.ok((select count(*) from vitrine_medias) = 2 and not exists (select 1 from vitrine_medias where titre = 'Brouillon'), 'médias vitrine : le public ne voit que le publié');
 select t.refuse($$insert into vitrine_medias (type, chemin, publie) values ('photo', '44444444-4444-4444-4444-444444444444.webp', true)$$, 'médias vitrine : le public ne dépose rien');
+select t.refuse($$select cree_par from vitrine_medias$$, 'médias vitrine : le public ne voit pas l''auteur');
 reset role;
 \echo 'Tous les tests sont passés.'

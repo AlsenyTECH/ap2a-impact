@@ -105,10 +105,11 @@ export function MediasVitrine() {
     const { error: e } = await supabase.from('vitrine_medias').delete().eq('id', m.id)
     if (e) return toast.error(messageErreur(e))
     const fichiers = [m.chemin, m.apercu].filter((c): c is string => !!c)
-    if (fichiers.length) await supabase.storage.from('vitrine').remove(fichiers)
+    const r = fichiers.length ? await supabase.storage.from('vitrine').remove(fichiers) : null
     setASupprimer(null)
     rafraichir()
-    toast.success('Média supprimé')
+    if (r?.error) toast.warning(`Média retiré de la page, mais le fichier n'a pas pu être effacé : ${messageErreur(r.error)}`)
+    else toast.success('Média supprimé')
   }
 
   return (
@@ -132,8 +133,9 @@ export function MediasVitrine() {
         <ShieldAlert className="mt-0.5 size-5 shrink-0" />
         <p>
           <b>Droit à l'image :</b> ne publiez que des images dont les personnes reconnaissables ont donné leur accord (celui des parents pour un mineur).
-          Jamais de patient reconnaissable lors des actions de santé : secret médical. Les photos sont réduites automatiquement ; une vidéo
-          ne doit pas dépasser 50 Mo (au-delà, mettez-la sur YouTube et ajoutez le lien).
+          Jamais de patient reconnaissable lors des actions de santé : secret médical. Les photos sont réduites automatiquement (et perdent leurs informations de lieu) ; une vidéo est publiée telle quelle, avec
+          la date et parfois le lieu enregistrés par le téléphone, et ne doit pas dépasser 50 Mo (au-delà, mettez-la sur YouTube et ajoutez le lien).
+          Un média supprimé disparaît de la page en moins d'une heure.
         </p>
       </div>
 

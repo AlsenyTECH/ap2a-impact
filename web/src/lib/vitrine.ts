@@ -94,11 +94,12 @@ export function vignetteVideo(fichier: File): Promise<Blob> {
 }
 
 export const TAILLE_MAX = 50 * 1024 * 1024
+const COLONNES_PUBLIQUES = 'id,type,emplacement,chemin,apercu,youtube_id,titre,legende,ordre,publie,cree_le'
 
 /** Envoie un fichier dans « vitrine » sous un nom aléatoire ; renvoie le chemin. */
 export async function deposer(blob: Blob, extension: 'webp' | 'mp4' | 'webm' | 'jpg' | 'png', type: string) {
   const chemin = `${crypto.randomUUID()}.${extension}`
-  const { error } = await supabase.storage.from('vitrine').upload(chemin, blob, { contentType: type, cacheControl: '31536000' })
+  const { error } = await supabase.storage.from('vitrine').upload(chemin, blob, { contentType: type, cacheControl: '3600' })
   if (error) throw error
   return chemin
 }
@@ -108,10 +109,11 @@ export const useMediasVitrine = (tous = false) => useQuery({
   queryKey: ['vitrine-medias', tous],
   staleTime: tous ? 0 : 5 * 60 * 1000,
   queryFn: async () => {
-    let q = supabase.from('vitrine_medias').select('*').order('emplacement').order('ordre').order('cree_le')
+    // Le public ne lit que les colonnes affichées (pas l'auteur).
+    let q = supabase.from('vitrine_medias').select(tous ? '*' : COLONNES_PUBLIQUES).order('emplacement').order('ordre').order('cree_le')
     if (!tous) q = q.eq('publie', true)
     const { data, error } = await q
     if (error) throw error
-    return data as MediaVitrine[]
+    return data as unknown as MediaVitrine[]
   },
 })
