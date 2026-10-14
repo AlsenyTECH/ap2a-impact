@@ -12,12 +12,12 @@ import { cn } from '@/lib/utils'
 import { messageErreur, supabase } from '@/lib/supabase'
 import type { Cible, TypeCible } from '@/lib/types'
 
-type Valeurs = Pick<Cible, 'nom' | 'prenom' | 'sexe' | 'date_naissance' | 'telephone' | 'sous_type' | 'responsable' | 'effectif' | 'zone_id' | 'adresse' | 'referent_id' | 'notes' | 'situation_id' | 'vulnerabilites' | 'metier'> & { categorie_id: number | null }
+type Valeurs = Pick<Cible, 'nom' | 'prenom' | 'sexe' | 'date_naissance' | 'telephone' | 'sous_type' | 'responsable' | 'effectif' | 'zone_id' | 'adresse' | 'referent_id' | 'notes' | 'situation_id' | 'vulnerabilites' | 'metier'> & { categorie_id: number | null; rappels_accord: boolean; rappels_canal: 'whatsapp' | 'sms' }
 
 const VIDE: Valeurs = {
   categorie_id: null, nom: '', prenom: '', sexe: null, date_naissance: null, telephone: '', sous_type: '',
   responsable: '', effectif: null, zone_id: null, adresse: '', referent_id: null, notes: '',
-  situation_id: null, vulnerabilites: [], metier: '',
+  situation_id: null, vulnerabilites: [], metier: '', rappels_accord: false, rappels_canal: 'whatsapp',
 }
 
 /** Chef d'un nouveau ménage : une personne existante, ou à créer. */
@@ -72,7 +72,7 @@ export function CibleForm({ ouvert, fermer, cible, typeInitial, apresCreation }:
     setDoublons([])
     setChef(CHEF_VIDE)
     if (cible) {
-      setV({ ...VIDE, ...cible, vulnerabilites: cible.vulnerabilites ?? [] })
+      setV({ ...VIDE, ...cible, vulnerabilites: cible.vulnerabilites ?? [], rappels_accord: cible.rappels_accord ?? false, rappels_canal: cible.rappels_canal ?? 'whatsapp' })
       setFamille(categories.find((k) => k.id === cible.categorie_id)?.famille_id ?? null)
     } else {
       setV(VIDE)
@@ -147,6 +147,8 @@ export function CibleForm({ ouvert, fermer, cible, typeInitial, apresCreation }:
         adresse: texte(v.adresse),
         referent_id: v.referent_id,
         notes: texte(v.notes),
+        rappels_accord: v.rappels_accord && !!texte(v.telephone),
+        rappels_canal: v.rappels_canal,
       }
       const r = cible
         ? await supabase.from('cibles').update(donnees).eq('id', cible.id).select().single()
@@ -284,6 +286,25 @@ export function CibleForm({ ouvert, fermer, cible, typeInitial, apresCreation }:
               <Champ label="Référent du suivi" aide="Le coordinateur qui suivra ce que la cible devient après les actions.">
                 <ListeMembres value={v.referent_id} onChange={(m) => maj('referent_id', m)} roles={['admin', 'bureau', 'coordinateur']} />
               </Champ>
+              {nature !== 'lieu' && (nature !== 'menage' || cible) ? (
+                <div className="rounded-xl border border-border bg-muted/30 p-3">
+                  <label className="flex items-start gap-2.5 text-sm">
+                    <input type="checkbox" className="mt-0.5 size-4 accent-[#0b7a57]" checked={v.rappels_accord} disabled={!texte(v.telephone)}
+                      onChange={(e) => maj('rappels_accord', e.target.checked)} />
+                    <span>
+                      <span className="font-medium">Accepte de recevoir des rappels de l'AP2A</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {texte(v.telephone) ? 'La veille de ses séances et des événements, et avant un appel de suivi. Demandez-lui son accord.' : 'Renseignez d\'abord un téléphone.'}
+                      </span>
+                    </span>
+                  </label>
+                  {v.rappels_accord && texte(v.telephone) ? (
+                    <div className="mt-2 pl-6">
+                      <Pastilles value={v.rappels_canal} onChange={(c) => maj('rappels_canal', c)} options={[['whatsapp', 'Par WhatsApp'], ['sms', 'Par SMS (sans WhatsApp)']]} />
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               <Champ label="Notes"><Textarea rows={2} value={v.notes ?? ''} onChange={(e) => maj('notes', e.target.value)} /></Champ>
             </>
           ) : null}

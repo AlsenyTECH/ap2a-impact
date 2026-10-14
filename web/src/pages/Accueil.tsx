@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, CalendarCheck, Coins, FlaskConical, ListChecks, Plus, Quote, Target, Users } from 'lucide-react'
+import { ArrowRight, CalendarCheck, Coins, FlaskConical, ListChecks, MessageCircle, Plus, Quote, Target, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Avatar, BlocDate, Indicateur, Liste, Section, StatutPastille } from '@/components/design'
 import { useAuth } from '@/lib/auth'
 import { date, fcfa, nomCible, SITUATION } from '@/lib/format'
+import { useRappelsCibles, useReglagesRappels } from '@/lib/rappels'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 import type { Action, SuiviDetail } from '@/lib/types'
 
@@ -50,6 +51,11 @@ export function Accueil() {
       return count ?? 0
     },
   })
+
+  // Rappels aux bénéficiaires à envoyer aujourd'hui (WhatsApp, ou SMS depuis son téléphone).
+  const { data: reglages } = useReglagesRappels()
+  const { data: rappels = [] } = useRappelsCibles(!!reglages?.cibles_actif)
+  const rappelsAEnvoyer = rappels.filter((r) => !r.envoye_le && !r.sms_auto).length
 
   const { data: prochaines = [] } = useQuery({
     queryKey: ['accueil', 'actions'],
@@ -104,6 +110,17 @@ export function Accueil() {
             <div className="text-sm text-[#7a5600]">Appelez les bénéficiaires et notez ce qu'ils sont devenus.</div>
           </div>
           <ArrowRight className="size-5 text-[#7a5600] transition-transform group-hover:translate-x-1" />
+        </Link>
+      ) : null}
+
+      {rappelsAEnvoyer ? (
+        <Link to="/rappels" className="group flex items-center gap-4 rounded-xl border border-primary/30 bg-primary/5 p-4 transition-colors hover:border-primary">
+          <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#1fa855] text-white"><MessageCircle className="size-5" /></span>
+          <div className="flex-1">
+            <div className="font-semibold">{rappelsAEnvoyer} rappel{rappelsAEnvoyer > 1 ? 's' : ''} à envoyer aux bénéficiaires</div>
+            <div className="text-sm text-muted-foreground">Séances et événements de demain, appels de suivi : un geste par personne sur WhatsApp.</div>
+          </div>
+          <ArrowRight className="size-5 text-muted-foreground transition-transform group-hover:translate-x-1" />
         </Link>
       ) : null}
 

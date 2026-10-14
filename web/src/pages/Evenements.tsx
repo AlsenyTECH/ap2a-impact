@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarHeart, Clock, Lock, MapPin, Plus, UsersRound } from 'lucide-react'
@@ -19,7 +19,7 @@ import { messageErreur, supabase, verifier } from '@/lib/supabase'
 import type { Evenement } from '@/lib/types'
 
 export const TYPES_EVENEMENT: [string, string][] = [
-  ['ag', 'Assemblée générale'], ['reunion', 'Réunion'], ['ceremonie', 'Cérémonie'],
+  ['ag', 'Assemblée générale'], ['reunion', 'Réunion'], ['ceremonie', 'Cérémonie'], ['remise', 'Remise de kits / attestations'],
   ['sensibilisation', 'Journée / sensibilisation'], ['autre', 'Autre'],
 ]
 export const libelleType = (t: string) => TYPES_EVENEMENT.find(([v]) => v === t)?.[1] ?? t
@@ -119,6 +119,27 @@ export function EvenementForm({ ouvert, fermer, evenement }: { ouvert: boolean; 
   const vide = { titre: '', type: 'reunion', date: aujourdhui(), heure_debut: '', heure_fin: '', lieu: '', description: '', invites: 'tous' as 'tous' | 'selection' }
   const [v, setV] = useState(vide)
   const [envoi, setEnvoi] = useState(false)
+  // Bénéficiaires invités : les participants des actions choisies.
+  const [actionsInvitees, setActionsInvitees] = useState<string[]>([])
+  const { data: actions = [] } = useQuery({
+    queryKey: ['actions-pour-evenement'],
+    enabled: ouvert,
+    queryFn: async () => verifier(await supabase.from('actions').select('id, titre, date_debut, statut').neq('statut', 'annulee').order('date_debut', { ascending: false }).limit(150)) as { id: string; titre: string; date_debut: string; statut: string }[],
+  })
+  const { data: liees, isPending: chargementLiees } = useQuery({
+    queryKey: ['evenement-actions', evenement?.id],
+    enabled: ouvert && !!evenement,
+    queryFn: async () => (verifier(await supabase.from('evenement_actions').select('action_id').eq('evenement_id', evenement!.id)) as { action_id: string }[]).map((x) => x.action_id),
+  })
+  // Rempli une seule fois par ouverture : un rafraîchissement n'efface pas ce qui a été coché.
+  const initialise = useRef(false)
+  const attenteLiees = !!evenement && chargementLiees
+  useEffect(() => {
+    if (!ouvert) { initialise.current = false; return }
+    if (initialise.current || attenteLiees) return
+    initialise.current = true
+    setActionsInvitees(evenement ? liees ?? [] : [])
+  }, [ouvert, evenement, liees, attenteLiees])
   useEffect(() => {
     if (ouvert) {
       setV(evenement
@@ -137,8 +158,17 @@ export function EvenementForm({ ouvert, fermer, evenement }: { ouvert: boolean; 
     const r = evenement
       ? await supabase.from('evenements').update(donnees).eq('id', evenement.id).select('id').single()
       : await supabase.from('evenements').insert(donnees).select('id').single()
+    if (r.error) { setEnvoi(false); return toast.error(messageErreur(r.error)) }
+    // Actions invitées : on ajoute les nouvelles, on retire celles décochées.
+    const avant = evenement ? liees ?? [] : []
+    const ajout = actionsInvitees.filter((x) => !avant.includes(x))
+    const retrait = avant.filter((x) => !actionsInvitees.includes(x))
+    const e1 = ajout.length ? (await supabase.from('evenement_actions').upsert(ajout.map((action_id) => ({ evenement_id: r.data.id, action_id })), { onConflict: 'evenement_id,action_id', ignoreDuplicates: true })).error : null
+    const e2 = retrait.length ? (await supabase.from('evenement_actions').delete().eq('evenement_id', r.data.id).in('action_id', retrait)).error : null
     setEnvoi(false)
-    if (r.error) return toast.error(messageErreur(r.error))
+    if (e1 || e2) toast.error(`Bénéficiaires invités : ${messageErreur(e1 ?? e2)}`)
+    qc.invalidateQueries({ queryKey: ['evenement-actions'] })
+    qc.invalidateQueries({ queryKey: ['rappels-cibles'] })
     qc.invalidateQueries({ queryKey: ['evenements'] })
     qc.invalidateQueries({ queryKey: ['evenement'] })
     toast.success(evenement ? 'Événement modifié' : 'Événement créé')
@@ -162,10 +192,22 @@ export function EvenementForm({ ouvert, fermer, evenement }: { ouvert: boolean; 
           <Champ label="Invités" aide="« Une sélection » : vous choisirez les membres invités sur la page de l'événement.">
             <Pastilles<'tous' | 'selection'> value={v.invites} onChange={(invites) => setV({ ...v, invites })} options={[['tous', 'Tous les membres'], ['selection', 'Une sélection']]} />
           </Champ>
+          <Champ label="Bénéficiaires invités" aide={v.type === 'remise' ? 'Les participants des actions cochées sont convoqués à la remise ; ceux qui l\'ont accepté reçoivent un rappel la veille.' : 'Facultatif : les participants des actions cochées sont invités et peuvent recevoir un rappel la veille.'}>
+            <div className="max-h-44 overflow-y-auto rounded-lg border border-input p-1">
+              {!actions.length ? <p className="p-2 text-sm text-muted-foreground">Aucune action.</p> : actions.map((x) => (
+                <label key={x.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted">
+                  <input type="checkbox" className="size-4 accent-[#0b7a57]" checked={actionsInvitees.includes(x.id)}
+                    onChange={(e) => setActionsInvitees((l) => (e.target.checked ? [...l, x.id] : l.filter((y) => y !== x.id)))} />
+                  <span className="min-w-0 flex-1 truncate">{x.titre}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{new Date(x.date_debut).getFullYear()}</span>
+                </label>
+              ))}
+            </div>
+          </Champ>
           <Champ label="Ordre du jour / description"><Textarea rows={3} value={v.description} onChange={(e) => setV({ ...v, description: e.target.value })} /></Champ>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={fermer}>Annuler</Button>
-            <Button type="submit" disabled={envoi}>Enregistrer</Button>
+            <Button type="submit" disabled={envoi || attenteLiees}>Enregistrer</Button>
           </div>
         </form>
       </DialogContent>

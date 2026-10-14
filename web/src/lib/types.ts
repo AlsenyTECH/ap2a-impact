@@ -62,6 +62,9 @@ export interface Cible {
   situation_id: number | null
   vulnerabilites: number[]
   metier: string | null
+  /** Accepte les rappels (veille des séances, événements, suivis) par WhatsApp ou SMS. */
+  rappels_accord?: boolean
+  rappels_canal?: 'whatsapp' | 'sms'
   /** Groupes dont la personne est membre (ménage, GPF, ASC...), séparés par des virgules. */
   groupes?: string | null
   categorie?: { libelle: string; famille: { nom: string } | null } | null

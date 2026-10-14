@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { BarChart3, BellRing, CalendarCheck, CalendarHeart, Handshake, Home, ImagePlay, Landmark, ListChecks, LogOut, Menu, Shapes, Target, UsersRound, X } from 'lucide-react'
+import { BarChart3, BellRing, CalendarCheck, CalendarHeart, Handshake, Home, ImagePlay, Landmark, MessageCircle, ListChecks, LogOut, Menu, Shapes, Target, UsersRound, X } from 'lucide-react'
 import { MonProfil } from '@/components/MonProfil'
 import { BandeauHorsLigne } from '@/components/BandeauHorsLigne'
 import { useAuth } from '@/lib/auth'
@@ -17,6 +17,7 @@ const GROUPES = [
       { vers: '/actions', libelle: 'Actions', icone: CalendarCheck },
       { vers: '/suivis', libelle: 'Suivis', icone: ListChecks },
       { vers: '/evenements', libelle: 'Événements', icone: CalendarHeart },
+      { vers: '/rappels', libelle: 'Rappels à envoyer', icone: MessageCircle },
       { vers: '/impact', libelle: 'Impact', icone: BarChart3 },
     ],
   },
@@ -32,6 +33,7 @@ const GROUPES = [
     titre: 'Réglages',
     liens: [
       { vers: '/categories', libelle: 'Catégories', icone: Shapes },
+      { vers: '/reglages-rappels', libelle: 'Rappels', icone: BellRing, bureau: true },
       { vers: '/medias', libelle: 'Médias du site', icone: ImagePlay, bureau: true },
       { vers: '/association', libelle: "L'association", icone: Landmark },
     ],

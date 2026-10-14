@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import { PhotoFiche } from '@/components/PhotoFiche'
 import { useAuth } from '@/lib/auth'
 import { LIBELLES_ROLE } from '@/lib/format'
+import { heureCourte, JOURS, useReglagesRappels } from '@/lib/rappels'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 
 interface Envoi { id: number; envoye_le: string; type: string; email: string | null; nb: number; statut: string; erreur: string | null }
@@ -34,6 +35,9 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
   const qc = useQueryClient()
   const [envoi, setEnvoi] = useState<string | null>(null)
   const admin = a('admin')
+  const { data: reglages } = useReglagesRappels()
+  const hebdo = reglages?.hebdo_actif ? `Chaque ${JOURS[reglages.hebdo_jour - 1]} à ${heureCourte(reglages.hebdo_heure)}` : null
+  const seances = reglages?.seances_actif ? (reglages.seances_veille ? `La veille d'une séance, à ${heureCourte(reglages.seances_heure)}` : `Le matin d'une séance, à ${heureCourte(reglages.seances_heure)}`) : null
 
   const { data: actif } = useQuery({
     queryKey: ['mes-rappels', membre?.id],
@@ -94,8 +98,9 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
               <span className="text-sm">
                 <span className="font-medium">Recevoir les rappels par email</span>
                 <span className="block text-muted-foreground">
-                  Chaque lundi matin : vos suivis de la semaine{a('admin', 'bureau', 'coordinateur') ? ' et les retards de plus de 15 jours' : ''}.
-                  Le matin d'une séance : un rappel pour faire l'appel.
+                  {hebdo ? `${hebdo} : vos suivis à venir${a('admin', 'bureau', 'coordinateur') ? ` et les retards de plus de ${reglages?.seuil_retard} jours` : ''}. ` : ''}
+                  {seances ? `${seances} : un rappel pour faire l'appel.` : ''}
+                  {!hebdo && !seances && reglages ? 'Les rappels automatiques sont désactivés par l\'administrateur.' : ''}
                 </span>
               </span>
             </span>
@@ -114,7 +119,7 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
         {admin ? (
           <section className="space-y-2 border-t border-border pt-4">
             <h3 className="text-sm font-semibold">Administration des rappels</h3>
-            <p className="text-xs text-muted-foreground">Envoi automatique le lundi à 7h47 (suivis) et chaque jour à 6h13 (séances). Vous pouvez aussi l'envoyer tout de suite.</p>
+            <p className="text-xs text-muted-foreground">Jours et heures d'envoi : <Link to="/reglages-rappels" onClick={fermer} className="font-medium text-primary underline">Réglages → Rappels</Link>. Vous pouvez aussi envoyer tout de suite.</p>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" disabled={!!envoi} onClick={() => lancer('hebdo', false)}><Send /> Envoyer les suivis à tous</Button>
               <Button size="sm" variant="secondary" disabled={!!envoi} onClick={() => lancer('seances', false)}><Send /> Envoyer les séances du jour</Button>

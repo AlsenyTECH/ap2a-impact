@@ -44,6 +44,12 @@ export function EvenementDetail() {
     queryFn: async () => verifier(await supabase.from('evenements').select('*').eq('id', id).single()) as Evenement,
   })
   const { data: membres = [] } = useMembres()
+  // Bénéficiaires invités : participants des actions reliées à l'événement.
+  const { data: actionsInvitees = [] } = useQuery({
+    queryKey: ['evenement-actions', id, 'detail'],
+    queryFn: async () => (verifier(await supabase.from('evenement_actions').select('action:actions(id, titre, beneficiaires(count))').eq('evenement_id', id)) as unknown as { action: { id: string; titre: string; beneficiaires: { count: number }[] } | null }[])
+      .map((x) => x.action).filter((x): x is NonNullable<typeof x> => !!x),
+  })
   const { data: invites = [] } = useQuery({
     queryKey: ['evenement-invites', id],
     queryFn: async () => (verifier(await supabase.from('evenement_invites').select('membre_id').eq('evenement_id', id)) as { membre_id: string }[]).map((x) => x.membre_id),
@@ -175,6 +181,17 @@ export function EvenementDetail() {
               {ev.lieu ? <span className="inline-flex items-center gap-1"><MapPin className="size-4" />{ev.lieu}</span> : null}
             </div>
             {ev.description ? <p className="mt-3 whitespace-pre-line text-sm">{ev.description}</p> : null}
+            {actionsInvitees.length ? (
+              <div className="mt-3 flex flex-wrap items-center gap-1.5 text-sm">
+                <span className="text-muted-foreground">Bénéficiaires invités :</span>
+                {actionsInvitees.map((x) => (
+                  <Link key={x.id} to={`/actions/${x.id}`} className="rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs font-medium hover:bg-muted">
+                    {x.titre} · {x.beneficiaires[0]?.count ?? 0}
+                  </Link>
+                ))}
+                {gere && !cloture ? <Link to="/rappels" className="text-xs font-medium text-primary hover:underline">Rappels de la veille →</Link> : null}
+              </div>
+            ) : null}
           </div>
           <div className="no-print flex flex-wrap gap-2 md:max-w-[50%] md:justify-end">
             {gere ? <Button onClick={() => setScan(true)}><ScanLine /> Scanner les cartes</Button> : null}

@@ -1,11 +1,13 @@
 // Rappels par email.
 //
 // Appels possibles :
-//  * pg_cron (en-tête x-cle-rappels, comparé à la clé du coffre) : { type: 'hebdo' | 'seances' } → envoi à tous les membres concernés ;
+//  * pg_cron (en-tête x-cle-rappels, comparé à la clé du coffre) : { type: 'hebdo' | 'seances' | 'sms', jour? } → envoi à tous
+//    les membres concernés, ou SMS automatiques aux bénéficiaires (heures réglées dans l'application) ;
 //  * un membre connecté (jeton de session) : { type, apercu: true } → l'email lui est envoyé à lui seul,
 //    même vide, pour voir à quoi il ressemble ; un administrateur peut aussi déclencher l'envoi à tous ;
 //  * le bureau : { type: 'invitation', membre_id | acces_id } → email d'invitation à créer son compte ;
-//  * l'administrateur : { type: 'changer_email', membre_id, email } → change l'adresse de connexion.
+//  * l'administrateur : { type: 'changer_email', membre_id, email } → change l'adresse de connexion ;
+//  * l'administrateur : { type: 'sms_test', telephone } → SMS d'essai (vérifie les crédits Brevo).
 //
 // Secrets : EXPEDITEUR_EMAIL, et BREVO_API_KEY ou RESEND_API_KEY.
 // La clé des appels planifiés est dans le coffre de la base (fonction cle_rappels).
@@ -22,7 +24,8 @@ const cors = {
 
 interface LigneSuivi { cible_id: string; nom: string; telephone: string | null; action: string; echeance: number; date_prevue: string; retard: number; charge?: string }
 interface LigneSeance { action_id: string; action: string; numero: number; theme: string | null; heure_debut: string | null; heure_fin: string | null; lieu: string | null; inscrits: number }
-interface Destinataire { membre_id: string; prenom: string; email: string; suivis?: LigneSuivi[]; retards?: LigneSuivi[]; seances?: LigneSeance[] }
+interface Destinataire { membre_id: string; prenom: string; email: string; suivis?: LigneSuivi[]; retards?: LigneSuivi[]; seances?: LigneSeance[]; seuil?: number; fenetre?: number; jour?: string }
+interface RappelSms { cible_id: string; telephone_intl: string; objet: string; objet_id: string; sms: string }
 
 const echapper = (t: unknown) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 const dateFr = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'UTC' })
@@ -73,29 +76,33 @@ function emailHebdo(d: Destinataire) {
   const suivis = d.suivis ?? []
   const retards = d.retards ?? []
   const enRetard = suivis.filter((s) => s.retard > 0).length
+  // Fenêtre réglée dans l'application (7 jours par défaut).
+  const n = d.fenetre ?? 7
+  const periode = n === 7 ? 'cette semaine' : n === 1 ? "d'ici demain" : `dans les ${n} prochains jours`
   let corps = `<p style="margin:0 0 16px">Bonjour ${echapper(d.prenom)},</p>`
   if (suivis.length) {
-    corps += `<p style="margin:0 0 12px">Vous avez <b>${suivis.length} suivi${suivis.length > 1 ? 's' : ''}</b> à faire cette semaine${enRetard ? `, dont <b style="color:#b42318">${enRetard} en retard</b>` : ''}.
+    corps += `<p style="margin:0 0 12px">Vous avez <b>${suivis.length} suivi${suivis.length > 1 ? 's' : ''}</b> à faire ${periode}${enRetard ? `, dont <b style="color:#b42318">${enRetard} en retard</b>` : ''}.
       Un appel suffit : demandez à la personne ce qu'elle est devenue, puis renseignez sa situation.</p>${tableauSuivis(suivis)}`
   } else {
-    corps += `<p style="margin:0 0 12px">Aucun suivi à faire pour vous cette semaine. Merci !</p>`
+    corps += `<p style="margin:0 0 12px">Aucun suivi à faire pour vous ${periode}. Merci !</p>`
   }
   if (retards.length) {
-    corps += `<h2 style="margin:28px 0 8px;font-size:16px">Retards de plus de 15 jours (toute l'association)</h2>
+    corps += `<h2 style="margin:28px 0 8px;font-size:16px">Retards de plus de ${d.seuil ?? 15} jours (toute l'association)</h2>
       <p style="margin:0 0 8px;font-size:13px;color:#5c6b64">En tant que gestionnaire, vous pouvez relancer le chargé du suivi ou le confier à quelqu'un d'autre.</p>
       ${tableauSuivis(retards, true)}`
   }
   corps += bouton(`${APP}/suivis`, 'Ouvrir mes suivis')
   const sujet = suivis.length
-    ? `${suivis.length} suivi${suivis.length > 1 ? 's' : ''} à faire cette semaine${enRetard ? ` (${enRetard} en retard)` : ''}`
-    : retards.length ? `${retards.length} suivi(s) en retard dans l'association` : 'Vos suivis de la semaine'
-  return { sujet: `AP2A — ${sujet}`, html: gabarit('Vos suivis de la semaine', corps), nb: suivis.length + retards.length }
+    ? `${suivis.length} suivi${suivis.length > 1 ? 's' : ''} à faire ${periode}${enRetard ? ` (${enRetard} en retard)` : ''}`
+    : retards.length ? `${retards.length} suivi(s) en retard dans l'association` : n === 7 ? 'Vos suivis de la semaine' : 'Vos prochains suivis'
+  return { sujet: `AP2A — ${sujet}`, html: gabarit(n === 7 ? 'Vos suivis de la semaine' : 'Vos prochains suivis', corps), nb: suivis.length + retards.length }
 }
 
 function emailSeances(d: Destinataire) {
   const seances = d.seances ?? []
+  const quand = d.jour && d.jour > new Date().toISOString().slice(0, 10) ? 'demain' : "aujourd'hui"
   let corps = `<p style="margin:0 0 16px">Bonjour ${echapper(d.prenom)},</p>`
-  if (!seances.length) corps += `<p>Aucune séance prévue aujourd'hui.</p>`
+  if (!seances.length) corps += `<p>Aucune séance prévue ${quand}.</p>`
   for (const s of seances) {
     corps += `<div style="border:1px solid #e2e6df;border-radius:10px;padding:14px 16px;margin:0 0 12px">
       <div style="font-weight:bold;font-size:15px">${echapper(s.action)}</div>
@@ -107,10 +114,10 @@ function emailSeances(d: Destinataire) {
       ${bouton(`${APP}/actions/${s.action_id}`, "Faire l'appel")}
     </div>`
   }
-  const sujet = !seances.length ? "Aucune séance aujourd'hui" : seances.length === 1
-    ? `Séance ${seances[0].numero} aujourd'hui${seances[0].heure_debut ? ` à ${heure(seances[0].heure_debut)}` : ''} — pensez à faire l'appel`
-    : `${seances.length} séances aujourd'hui — pensez à faire l'appel`
-  return { sujet: `AP2A — ${sujet}`, html: gabarit("Séances d'aujourd'hui", corps), nb: seances.length }
+  const sujet = !seances.length ? `Aucune séance ${quand}` : seances.length === 1
+    ? `Séance ${seances[0].numero} ${quand}${seances[0].heure_debut ? ` à ${heure(seances[0].heure_debut)}` : ''} — pensez à faire l'appel`
+    : `${seances.length} séances ${quand} — pensez à faire l'appel`
+  return { sujet: `AP2A — ${sujet}`, html: gabarit(quand === 'demain' ? 'Séances de demain' : "Séances d'aujourd'hui", corps), nb: seances.length }
 }
 
 /** Lit un secret en tolérant accents, majuscules et espaces dans son nom (« EXPÉDITEUR_EMAIL »…). */
@@ -154,6 +161,41 @@ async function envoyer(a: string, sujet: string, html: string) {
   }
 }
 
+/**
+ * SMS en caractères simples (alphabet GSM) : un accent comme « ê » ferait passer
+ * le message en Unicode, limité à 70 caractères, donc facturé deux ou trois fois.
+ */
+export function versGsm(t: string) {
+  return t
+    .replace(/[«»“”]/g, '"').replace(/[’‘]/g, "'").replace(/[–—]/g, '-').replace(/…/g, '...')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\x20-\x7E\n]/g, '')
+    .slice(0, 160)
+}
+
+/** Numéro international sans « + » (Sénégal par défaut). */
+export function numeroIntl(t: string) {
+  let d = t.replace(/\D/g, '')
+  if (d.startsWith('00')) d = d.slice(2)
+  if (d.length === 9) d = `221${d}`
+  return d
+}
+
+async function envoyerSms(numero: string, texte: string, expediteur: string) {
+  const brevo = secret('BREVO_API_KEY')
+  if (!brevo) throw new Error('Les SMS passent par Brevo : secret BREVO_API_KEY manquant')
+  const r = await fetch('https://api.brevo.com/v3/transactionalSMS/sms', {
+    method: 'POST',
+    headers: { 'api-key': brevo, 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({ sender: expediteur, recipient: numero, content: versGsm(texte), type: 'transactional' }),
+  })
+  if (!r.ok) {
+    const detail = (await r.text()).slice(0, 300)
+    if (r.status === 402 || /credit/i.test(detail)) throw new Error(`Crédits SMS Brevo insuffisants : achetez des crédits SMS dans Brevo. Détail : ${detail}`)
+    throw new Error(`SMS refusé (${r.status}) : ${detail}`)
+  }
+}
+
 /** Invitation à créer son compte (membre ou partenaire). */
 function emailInvitation(prenom: string | null, email: string, partenaire: string | null) {
   const corps = `<p style="margin:0 0 16px">Bonjour${prenom ? ` ${echapper(prenom)}` : ''},</p>
@@ -178,8 +220,9 @@ const repondre = (corps: unknown, statut = 200) =>
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
-    const { type = 'hebdo', apercu = false, membre_id = null, acces_id = null, email: nouvelEmail = null } = await req.json().catch(() => ({}))
-    if (!['hebdo', 'seances', 'invitation', 'changer_email'].includes(type)) return repondre({ erreur: 'Type inconnu' }, 400)
+    const { type = 'hebdo', apercu = false, membre_id = null, acces_id = null, email: nouvelEmail = null, jour: jourRecu = null, telephone = null } = await req.json().catch(() => ({}))
+    if (!['hebdo', 'seances', 'sms', 'sms_test', 'invitation', 'changer_email'].includes(type)) return repondre({ erreur: 'Type inconnu' }, 400)
+    const jour = typeof jourRecu === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(jourRecu) ? jourRecu : null
 
     const service = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
 
@@ -203,6 +246,25 @@ Deno.serve(async (req) => {
       const { error } = await service.from('membres').update({ email }).eq('id', m.id)
       if (error) return repondre({ erreur: error.message }, 400)
       return repondre({ ok: true })
+    }
+
+    // SMS d'essai : réservé à l'administrateur.
+    if (type === 'sms_test') {
+      const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
+      const { data: u } = await service.auth.getUser(jeton)
+      const { data: moi } = u?.user ? await service.from('membres').select('id, role, actif').eq('user_id', u.user.id).maybeSingle() : { data: null }
+      if (!moi?.actif || moi.role !== 'admin') return repondre({ erreur: "Seul un administrateur peut envoyer un SMS d'essai" }, 403)
+      const numero = numeroIntl(String(telephone ?? ''))
+      if (numero.length < 11 || numero.length > 15) return repondre({ erreur: 'Numéro de téléphone invalide' }, 400)
+      const { data: r } = await service.from('reglages_rappels').select('sms_expediteur').single()
+      try {
+        await envoyerSms(numero, "AP2A : ceci est un SMS d'essai. Les rappels par SMS fonctionnent.", r?.sms_expediteur ?? 'AP2A')
+        await service.from('rappels_envoyes').insert({ type: 'sms-test', membre_id: moi.id, email: `+${numero}`, nb: 1, statut: 'envoye' })
+        return repondre({ envoyes: 1, echecs: 0, erreurs: [] })
+      } catch (e) {
+        await service.from('rappels_envoyes').insert({ type: 'sms-test', membre_id: moi.id, email: `+${numero}`, nb: 1, statut: 'echec', erreur: (e as Error).message })
+        return repondre({ envoyes: 0, echecs: 1, erreurs: [(e as Error).message] }, 502)
+      }
     }
 
     // Invitation d'un membre ou d'un partenaire : réservée au bureau.
@@ -247,7 +309,47 @@ Deno.serve(async (req) => {
       else if (m.role !== 'admin') return repondre({ erreur: "Seul un administrateur peut envoyer les rappels à tous" }, 403)
     }
 
-    const { data, error } = await service.rpc('donnees_rappels', { p_type: type, p_membre: pour })
+    // SMS automatiques aux bénéficiaires (avec leur accord) : pas d'aperçu.
+    if (type === 'sms') {
+      if (pour) return repondre({ erreur: 'Pas d\'aperçu pour les SMS : utilisez le SMS d\'essai' }, 400)
+      const { data: r } = await service.from('reglages_rappels').select('sms_expediteur').single()
+      const { data: lignes, error: e } = await service.rpc('donnees_rappels_sms', jour ? { p_jour: jour } : {})
+      if (e) throw e
+      // Un même texte vers un même numéro (plusieurs suivis, fiches qui partagent un
+      // téléphone) ne part qu'une fois ; chaque rappel couvert est noté au journal.
+      const groupes = new Map<string, RappelSms[]>()
+      for (const l of (lignes ?? []) as RappelSms[]) {
+        const cle = `${numeroIntl(l.telephone_intl)}|${l.sms}`
+        groupes.set(cle, [...(groupes.get(cle) ?? []), l])
+      }
+      const noter = (liste: RappelSms[], statut: 'envoye' | 'echec', erreur?: string) =>
+        service.from('rappels_cibles').insert(liste.map((l) => ({ cible_id: l.cible_id, objet: l.objet, objet_id: l.objet_id, canal: 'sms', statut, erreur: erreur ?? null })))
+      const bilan = { envoyes: 0, echecs: 0, erreurs: [] as string[] }
+      let plusDeCredits: string | null = null
+      for (const [cle, liste] of groupes) {
+        const numero = cle.split('|')[0]
+        const erreur = plusDeCredits ?? (numero.length < 11 || numero.length > 15 ? `Numéro invalide pour un SMS (${liste[0].telephone_intl})` : null)
+        if (erreur) {
+          bilan.echecs++
+          await noter(liste, 'echec', erreur)
+          continue
+        }
+        try {
+          await envoyerSms(numero, liste[0].sms, r?.sms_expediteur ?? 'AP2A')
+          bilan.envoyes++
+          await noter(liste, 'envoye')
+        } catch (err) {
+          bilan.echecs++
+          bilan.erreurs.push((err as Error).message)
+          await noter(liste, 'echec', (err as Error).message)
+          // Plus de crédits : les suivants sont notés en échec (boutons manuels dans l'application).
+          if (/Crédits SMS/.test((err as Error).message)) plusDeCredits = (err as Error).message
+        }
+      }
+      return repondre(bilan, bilan.echecs && !bilan.envoyes ? 502 : 200)
+    }
+
+    const { data, error } = await service.rpc('donnees_rappels', { p_type: type, p_membre: pour, ...(jour && type === 'seances' ? { p_jour: jour } : {}) })
     if (error) throw error
     const destinataires = (data ?? []) as Destinataire[]
     // Aperçu sans séance aujourd'hui : on envoie quand même un email, pour voir la présentation.
