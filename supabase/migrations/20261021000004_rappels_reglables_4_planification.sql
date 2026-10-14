@@ -64,7 +64,8 @@ begin
   if not exists (select 1 from pg_extension where extname = 'pg_cron') then
     return;
   end if;
-  perform cron.unschedule(jobid) from cron.job where jobname in ('rappels-hebdo', 'rappels-seances');
+  -- Les anciennes tâches à heure fixe sont désactivées (gardées pour mémoire).
+  perform cron.alter_job(jobid, active := false) from cron.job where jobname in ('rappels-hebdo', 'rappels-seances');
   perform cron.schedule('rappels-auto', '1-59/15 * * * *', 'select public.lancer_rappels_dus()');
 end;
 $$;

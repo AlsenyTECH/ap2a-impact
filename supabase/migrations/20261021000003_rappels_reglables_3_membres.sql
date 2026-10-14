@@ -3,8 +3,9 @@
 -- ---------------------------------------------------------------------
 -- 6. Rappels aux membres : fenêtre et seuil réglables, séances de demain
 -- ---------------------------------------------------------------------
-drop function public.donnees_rappels(text, uuid);
-create function public.donnees_rappels(p_type text, p_membre uuid default null, p_jour date default null)
+-- Nouvelle fonction avec le jour en paramètre ; l'ancienne garde sa signature
+-- (simple remplacement, sans suppression) et lui délègue le travail.
+create or replace function public.donnees_rappels_jour(p_type text, p_membre uuid, p_jour date)
 returns jsonb language plpgsql stable security definer set search_path = public as $$
 declare
   resultat jsonb;
@@ -75,6 +76,13 @@ begin
   return resultat;
 end;
 $$;
-revoke all on function public.donnees_rappels(text, uuid, date) from public, anon, authenticated;
-grant execute on function public.donnees_rappels(text, uuid, date) to service_role;
+revoke all on function public.donnees_rappels_jour(text, uuid, date) from public, anon, authenticated;
+grant execute on function public.donnees_rappels_jour(text, uuid, date) to service_role;
+
+create or replace function public.donnees_rappels(p_type text, p_membre uuid default null)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select public.donnees_rappels_jour(p_type, p_membre, null)
+$$;
+revoke all on function public.donnees_rappels(text, uuid) from public, anon, authenticated;
+grant execute on function public.donnees_rappels(text, uuid) to service_role;
 

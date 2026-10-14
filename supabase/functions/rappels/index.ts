@@ -349,7 +349,7 @@ Deno.serve(async (req) => {
       return repondre(bilan, bilan.echecs && !bilan.envoyes ? 502 : 200)
     }
 
-    const { data, error } = await service.rpc('donnees_rappels', { p_type: type, p_membre: pour, ...(jour && type === 'seances' ? { p_jour: jour } : {}) })
+    const { data, error } = await service.rpc('donnees_rappels_jour', { p_type: type, p_membre: pour, p_jour: type === 'seances' ? jour : null })
     if (error) throw error
     const destinataires = (data ?? []) as Destinataire[]
     // Aperçu sans séance aujourd'hui : on envoie quand même un email, pour voir la présentation.
