@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, CalendarCheck, Coins, FlaskConical, ListChecks, MessageCircle, Plus, Quote, Target, Users } from 'lucide-react'
+import { ArrowRight, CalendarCheck, Coins, FlaskConical, ListChecks, MessageCircle, Package, Plus, Quote, Target, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Avatar, BlocDate, Indicateur, Liste, Section, StatutPastille } from '@/components/design'
 import { useAuth } from '@/lib/auth'
 import { date, fcfa, nomCible, SITUATION } from '@/lib/format'
+import { niveauStock, useKits } from '@/lib/kits'
 import { useRappelsCibles, useReglagesRappels } from '@/lib/rappels'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 import type { Action, SuiviDetail } from '@/lib/types'
@@ -112,6 +113,8 @@ export function Accueil() {
           <ArrowRight className="size-5 text-[#7a5600] transition-transform group-hover:translate-x-1" />
         </Link>
       ) : null}
+
+      {a('admin', 'bureau') ? <AlerteStock /> : null}
 
       {rappelsAEnvoyer ? (
         <Link to="/rappels" className="group flex items-center gap-4 rounded-xl border border-primary/30 bg-primary/5 p-4 transition-colors hover:border-primary">
@@ -247,5 +250,23 @@ function BandeauDemo() {
       </div>
       <Button variant="secondary" size="sm" onClick={effacer}>Effacer la démonstration</Button>
     </div>
+  )
+}
+
+/** Kits épuisés ou sous leur seuil d'alerte (pour le bureau, qui fait les achats). */
+function AlerteStock() {
+  const { data: kits = [] } = useKits()
+  const bas = kits.filter((k) => niveauStock(k) !== 'ok' && (k.seuil_alerte > 0 || k.entrees > 0))
+  if (!bas.length) return null
+  const epuises = bas.filter((k) => niveauStock(k) === 'epuise').length
+  return (
+    <Link to="/kits" className="group flex items-center gap-4 rounded-xl border border-[#e7b4b4] bg-[#fbe6e6]/60 p-4 transition-colors hover:border-[#a32b2b]">
+      <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#a32b2b] text-white"><Package className="size-5" /></span>
+      <div className="min-w-0 flex-1">
+        <div className="font-semibold text-[#7a1f1f]">{epuises ? `${epuises} kit${epuises > 1 ? 's' : ''} en rupture` : `${bas.length} kit${bas.length > 1 ? 's' : ''} bientôt épuisé${bas.length > 1 ? 's' : ''}`}</div>
+        <div className="truncate text-sm text-[#7a1f1f]/80">{bas.map((k) => `${k.nom} : ${k.stock}`).join(' · ')}</div>
+      </div>
+      <ArrowRight className="size-5 text-[#7a1f1f] transition-transform group-hover:translate-x-1" />
+    </Link>
   )
 }

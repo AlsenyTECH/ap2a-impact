@@ -12,12 +12,14 @@ import logo from '@/assets/logo_AP2A.jpeg'
  * en-tête de l'association, contenu, pied de page daté. « Imprimer » ouvre
  * la fenêtre d'impression, qui permet aussi d'enregistrer en PDF.
  */
-export function PageRapport({ retour, titre, sousTitre, outils, auteur, children }: {
+export function PageRapport({ retour, titre, sousTitre, outils, auteur, pied, children }: {
   retour: string
   titre: string
   sousTitre?: ReactNode
   outils?: ReactNode
   auteur?: string
+  /** Remplace le texte du pied de page. */
+  pied?: ReactNode
   children: ReactNode
 }) {
   const aujourdhui = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -48,7 +50,7 @@ export function PageRapport({ retour, titre, sousTitre, outils, auteur, children
         </div>
         <div className="mt-6 space-y-7">{children}</div>
         <footer className="mt-10 flex items-end justify-between gap-6 border-t border-[#e2e6df] pt-4 text-xs text-[#5c6b64]">
-          <div>Rapport généré avec l'application AP2A{auteur ? ` par ${auteur}` : ''}.<br />Les données personnelles des bénéficiaires restent confidentielles.</div>
+          <div>{pied ?? <>Rapport généré avec l'application AP2A{auteur ? ` par ${auteur}` : ''}.<br />Les données personnelles des bénéficiaires restent confidentielles.</>}</div>
           <div className="w-48 text-center">
             <div className="h-10" />
             <div className="border-t border-[#13211b]/40 pt-1">Signature et cachet</div>

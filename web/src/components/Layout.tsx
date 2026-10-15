@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { BarChart3, BellRing, CalendarCheck, CalendarHeart, Handshake, Home, ImagePlay, Landmark, MessageCircle, ListChecks, LogOut, Menu, Shapes, Target, UsersRound, X } from 'lucide-react'
+import { BarChart3, BellRing, CalendarCheck, CalendarHeart, Handshake, Home, ImagePlay, Landmark, MessageCircle, ListChecks, LogOut, Menu, Package, Shapes, Target, UsersRound, X } from 'lucide-react'
 import { MonProfil } from '@/components/MonProfil'
 import { BandeauHorsLigne } from '@/components/BandeauHorsLigne'
 import { useAuth } from '@/lib/auth'
@@ -27,6 +27,7 @@ const GROUPES = [
       { vers: '/cibles', libelle: 'Cibles', icone: Target },
       { vers: '/membres', libelle: 'Membres', icone: UsersRound },
       { vers: '/partenaires', libelle: 'Partenaires', icone: Handshake },
+      { vers: '/kits', libelle: 'Kits et stock', icone: Package },
     ],
   },
   {

@@ -478,4 +478,35 @@ select t.qui('bureau@ap2a.sn');
 select t.ok((select count(*) from rappels_cibles_a_envoyer()) = 0, 'rappels bénéficiaires : désactivés dans les réglages');
 reset role;
 update reglages_rappels set cibles_actif = true, sms_actif = false;
+-- ===== Kits : catalogue, stock, remise =====
+set role authenticated;
+select t.qui('coord2@ap2a.sn');
+select t.refuse($$insert into kits_modeles (nom) values ('Kit pirate')$$, 'kits : un coordinateur ne crée pas de modèle');
+select t.qui('bureau@ap2a.sn');
+insert into kits_modeles (nom, composition, valeur_unitaire_fcfa, seuil_alerte)
+  values ('Kit couture', '[{"libelle": "Ciseaux", "quantite": 1}, {"libelle": "Mètre ruban", "quantite": 1}]', 25000, 5);
+insert into kits_mouvements (modele_id, quantite, motif, cout_fcfa) select id, 20, 'achat', 500000 from kits_modeles where nom = 'Kit couture';
+select t.refuse($$insert into kits_mouvements (modele_id, quantite, motif) select id, -3, 'achat' from kits_modeles where nom = 'Kit couture'$$, 'stock : un achat ne peut pas être négatif');
+select t.refuse($$insert into kits_mouvements (modele_id, quantite, motif, apport_id) select id, -1, 'remise', (select id from apports limit 1) from kits_modeles where nom = 'Kit couture'$$, 'stock : une remise ne se saisit pas à la main');
+insert into apports (beneficiaire_id, nature, description, modele_id, quantite, valeur_fcfa)
+  select b.id, 'kit', 'Kit couture', (select id from kits_modeles where nom = 'Kit couture'), 2, 50000
+  from beneficiaires b join actions a on a.id = b.action_id join cibles c on c.id = b.cible_id where a.titre = 'Couture 2026' and c.prenom = 'Coumba';
+select t.ok((select stock from kits_stock join kits_modeles m on m.id = modele_id where m.nom = 'Kit couture') = 18, 'remise d''un kit du catalogue : sortie de stock automatique');
+update apports set quantite = 3 where description = 'Kit couture';
+select t.ok((select stock from kits_stock join kits_modeles m on m.id = modele_id where m.nom = 'Kit couture') = 17, 'quantité remise corrigée : stock corrigé');
+select t.refuse($$update apports set nature = 'don' where description = 'Kit couture'$$, 'un kit du catalogue reste un kit');
+select t.refuse($$update apports set signature_chemin = (select id from beneficiaires limit 1 offset 0) || '/x.png' where description = 'Kit couture' and beneficiaire_id <> (select id from beneficiaires limit 1 offset 0)$$, 'signature rangée avec les justificatifs du bénéficiaire');
+select emettre_carte(p_cible := (select id from cibles where prenom = 'Coumba'));
+select t.qui('coord2@ap2a.sn');
+select t.ok((carte_pour_remise((select id from actions where titre = 'Couture 2026'), (select jeton from cartes where cible_id = (select id from cibles where prenom = 'Coumba') and revoquee_le is null), (select id from kits_modeles where nom = 'Kit couture')) ->> 'statut') = 'deja', 'remise par scan : « a déjà reçu ce kit »');
+select t.ok((carte_pour_remise((select id from actions where titre = 'Couture 2026'), (select jeton from cartes where cible_id = (select id from cibles where prenom = 'Coumba') and revoquee_le is null), null) ->> 'statut') = 'ok', 'remise par scan : la personne est reconnue');
+select t.ok((carte_pour_remise((select id from actions where titre = 'Couture 2026'), 'nimportequoi', null) ->> 'statut') = 'inconnue', 'remise par scan : carte inconnue');
+select t.qui('membre@ap2a.sn');
+select t.refuse($$select carte_pour_remise((select id from actions where titre = 'Couture 2026'), 'x', null)$$, 'remise par scan : réservée à qui gère l''action');
+select t.ok((select count(*) from kits_stock) >= 1, 'stock lisible par les membres');
+select t.refuse($$insert into kits_mouvements (modele_id, quantite, motif) select id, 5, 'don' from kits_modeles limit 1$$, 'stock : un membre n''ajoute pas d''entrée');
+select t.qui('bureau@ap2a.sn');
+reset role;
+delete from apports where description = 'Kit couture';
+select t.ok((select stock from kits_stock join kits_modeles m on m.id = modele_id where m.nom = 'Kit couture') = 20, 'remise supprimée : le kit revient en stock');
 \echo 'Tous les tests sont passés.'

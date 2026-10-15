@@ -25,6 +25,8 @@ import { Vitrine } from '@/pages/Vitrine'
 import { MediasVitrine } from '@/pages/MediasVitrine'
 import { ReglagesRappels } from '@/pages/ReglagesRappels'
 import { RappelsAEnvoyer } from '@/pages/RappelsAEnvoyer'
+import { Kits } from '@/pages/Kits'
+import { BonRemise } from '@/pages/BonRemise'
 
 export function App() {
   const { session, membre, chargement, deconnecter } = useAuth()
@@ -47,6 +49,7 @@ export function App() {
     <Routes>
       {/* Rapports : pleine page, sans menu, prêts à imprimer */}
       <Route path="actions/:id/rapport" element={<RapportAction />} />
+      <Route path="actions/:id/remises" element={<BonRemise />} />
       <Route path="rapport" element={<RapportAnnuel />} />
       <Route path="cartes" element={<Cartes />} />
       <Route element={<Layout />}>
@@ -65,6 +68,7 @@ export function App() {
         <Route path="rappels" element={<RappelsAEnvoyer />} />
         <Route path="membres" element={<Membres />} />
         <Route path="partenaires" element={<Partenaires />} />
+        <Route path="kits" element={<Kits />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

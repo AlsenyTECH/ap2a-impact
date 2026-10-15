@@ -119,6 +119,10 @@ export interface Apport {
   numero_document: string | null
   fichier_chemin: string | null
   date_remise: string
+  modele_id: string | null
+  signature_chemin: string | null
+  signe_le: string | null
+  mode_remise: 'manuel' | 'scan'
   partenaire?: Pick<Partenaire, 'nom' | 'sigle'> | null
 }
 

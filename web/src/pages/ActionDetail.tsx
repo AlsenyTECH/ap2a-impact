@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, CalendarDays, IdCard, FileSpreadsheet, FileText, Lock, LockOpen, Gift, MapPin, Paperclip, Pencil, Plus, Trash2, UserPlus, UserRound, Wallet } from 'lucide-react'
+import { ArrowLeft, CalendarDays, IdCard, FileSpreadsheet, FileText, Lock, LockOpen, Gift, MapPin, Paperclip, Pencil, PenLine, Plus, Printer, ScanLine, Trash2, UserPlus, UserRound, Wallet, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,7 @@ import { ActionForm } from '@/components/ActionForm'
 import { ApportForm, ouvrirJustificatif } from '@/components/ApportForm'
 import { CibleForm } from '@/components/CibleForm'
 import { ImportExcel } from '@/components/ImportExcel'
+import { RemiseKits } from '@/components/RemiseKits'
 import { Chargement, Erreur, Liste, ListeMembres, Pastilles } from '@/components/champs'
 import { OutilsListe } from '@/components/OutilsListe'
 import { Seances } from '@/components/Seances'
@@ -25,7 +26,7 @@ import { useAuth } from '@/lib/auth'
 import { date, fcfa, LIBELLES_NATURE, LIBELLES_STATUT_BENEFICIAIRE, nomCible } from '@/lib/format'
 import { useAction, useCibles, usePartenaires, useTypesAction } from '@/lib/requetes'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
-import type { Beneficiaire, Cible, Membre, RolePartenaire, StatutAction, StatutBeneficiaire } from '@/lib/types'
+import type { Apport, Beneficiaire, Cible, Membre, RolePartenaire, StatutAction, StatutBeneficiaire } from '@/lib/types'
 
 const SUITE: Partial<Record<StatutAction, [StatutAction, string][]>> = {
   preparation: [['en_cours', "Démarrer l'action"], ['annulee', 'Annuler']],
@@ -185,6 +186,7 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
   const [recherche, setRecherche] = useState('')
   const [selection, setSelection] = useState<string[]>([])
   const [apportPour, setApportPour] = useState<string[] | null>(null)
+  const [remise, setRemise] = useState(false)
   const [creation, setCreation] = useState(false)
   const [importer, setImporter] = useState(false)
   const { data: suggestions = [] } = useCibles(recherche, '')
@@ -267,6 +269,17 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
 
   const basculer = (id: string) => setSelection((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
 
+  async function supprimerApport(x: Apport) {
+    if (!confirm(`Supprimer « ${x.description} » ?${x.modele_id ? ' Le kit revient dans le stock.' : ''}`)) return
+    const { error } = await supabase.from('apports').delete().eq('id', x.id)
+    if (error) return toast.error(messageErreur(error))
+    const fichiers = [x.fichier_chemin, x.signature_chemin].filter((f): f is string => !!f)
+    if (fichiers.length) await supabase.storage.from('justificatifs').remove(fichiers)
+    qc.invalidateQueries({ queryKey: ['beneficiaires', actionId] })
+    if (x.modele_id) qc.invalidateQueries({ queryKey: ['kits'] })
+    toast.success('Apport supprimé')
+  }
+
   return (
     <>
       {gere ? (
@@ -309,6 +322,14 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
           </button>
         ) : null}
       </div>
+      {liste.length ? (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {gere ? <Button size="sm" onClick={() => setRemise(true)}><ScanLine className="size-4" /> Remise de kits</Button> : null}
+          <Button asChild size="sm" variant="secondary" title="Bon de remise signé ou feuille d'émargement à imprimer">
+            <Link to={`/actions/${actionId}/remises`}><Printer className="size-4" /> Bon de remise</Link>
+          </Button>
+        </div>
+      ) : null}
       {importes ? (
         <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
           <span><b>{importes.size}</b> personne(s) importée(s) à l'instant — seules elles sont affichées.</span>
@@ -371,7 +392,10 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
                     {b.apports.map((x) => (
                       <span key={x.id} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs">
                         {LIBELLES_NATURE[x.nature]} : {x.description}{x.partenaire ? ` (${x.partenaire.sigle || x.partenaire.nom})` : ''}
+                        {x.quantite && x.quantite > 1 && x.modele_id ? ` × ${x.quantite}` : ''}
                         {x.fichier_chemin ? <button onClick={() => ouvrirJustificatif(x.fichier_chemin!)} aria-label="Justificatif"><Paperclip className="size-3 text-primary" /></button> : null}
+                        {x.signature_chemin ? <button onClick={() => ouvrirJustificatif(x.signature_chemin!)} aria-label="Signature" title={`Signé le ${date(x.signe_le!)}`}><PenLine className="size-3 text-primary" /></button> : null}
+                        {gere ? <button onClick={() => supprimerApport(x)} aria-label="Supprimer cet apport" className="text-muted-foreground hover:text-destructive"><X className="size-3" /></button> : null}
                       </span>
                     ))}
                   </div>
@@ -382,6 +406,7 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
         </div>
       )}
       <ApportForm ouvert={!!apportPour} fermer={() => { setApportPour(null); setSelection([]) }} beneficiaires={apportPour ?? []} partenaireParDefaut={partenaireParDefaut} />
+      {gere ? <RemiseKits ouvert={remise} fermer={() => setRemise(false)} actionId={actionId} beneficiaires={liste} /> : null}
       <CibleForm ouvert={creation} fermer={() => setCreation(false)} apresCreation={ajouter} />
       <ImportExcel ouvert={importer} fermer={() => setImporter(false)} actionId={actionId} onTermine={(ids) => setImportes(new Set(ids))} />
     </>
