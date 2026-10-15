@@ -66,12 +66,14 @@ export function ApportForm({ ouvert, fermer, beneficiaires, partenaireParDefaut 
 
   // Un kit du catalogue remplit la description, la valeur et le fournisseur.
   function choisirModele(id: string) {
-    setModele(id)
+    const avant = kits.find((x) => x.id === modele)
     const k = kits.find((x) => x.id === id)
-    if (!k) return
-    setDescription(k.nom)
-    if (k.valeur_unitaire_fcfa != null) setValeur(String(k.valeur_unitaire_fcfa * parPersonne))
-    if (k.partenaire_id) setPartenaire(k.partenaire_id)
+    setModele(id)
+    if (k) setDescription(k.nom)
+    else if (avant && description === avant.nom) setDescription('')
+    // Valeur et fournisseur viennent du catalogue : on ne garde pas ceux du kit choisi avant.
+    setValeur(k?.valeur_unitaire_fcfa != null ? String(k.valeur_unitaire_fcfa * parPersonne) : '')
+    setPartenaire(k?.partenaire_id ?? partenaireParDefaut ?? '')
   }
   function changerQuantite(v: string) {
     setQuantite(v)
@@ -111,6 +113,7 @@ export function ApportForm({ ouvert, fermer, beneficiaires, partenaireParDefaut 
       })))
       if (error) throw error
       if (kit) qc.invalidateQueries({ queryKey: ['kits'] })
+      qc.invalidateQueries({ queryKey: ['bon-remise'] })
       toast.success(seul ? 'Apport enregistré' : `Apport enregistré pour ${beneficiaires.length} bénéficiaires`)
       qc.invalidateQueries({ queryKey: ['beneficiaires'] })
       qc.invalidateQueries({ queryKey: ['parcours'] })

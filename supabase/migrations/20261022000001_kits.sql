@@ -93,7 +93,8 @@ alter table public.apports
 alter table public.apports add constraint apport_kit_du_catalogue check (modele_id is null or nature = 'kit');
 -- La signature est rangée avec les justificatifs du bénéficiaire.
 alter table public.apports add constraint apport_signature_rangee
-  check (signature_chemin is null or public.beneficiaire_du_fichier(signature_chemin) = beneficiaire_id);
+  check (signature_chemin is null or (coalesce(public.beneficiaire_du_fichier(signature_chemin) = beneficiaire_id, false)
+                                      and position('..' in signature_chemin) = 0));
 create index if not exists apports_modele on public.apports (modele_id) where modele_id is not null;
 
 -- Sortie de stock automatique (une ligne par remise ; quantité arrondie au kit supérieur).

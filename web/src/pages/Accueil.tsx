@@ -256,7 +256,7 @@ function BandeauDemo() {
 /** Kits épuisés ou sous leur seuil d'alerte (pour le bureau, qui fait les achats). */
 function AlerteStock() {
   const { data: kits = [] } = useKits()
-  const bas = kits.filter((k) => niveauStock(k) !== 'ok' && (k.seuil_alerte > 0 || k.entrees > 0))
+  const bas = kits.filter((k) => niveauStock(k) !== 'ok' && (k.seuil_alerte > 0 || !!k.dernier_mouvement))
   if (!bas.length) return null
   const epuises = bas.filter((k) => niveauStock(k) === 'epuise').length
   return (

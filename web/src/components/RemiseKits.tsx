@@ -63,7 +63,10 @@ export function RemiseKits({ ouvert, fermer, actionId, beneficiaires }: {
   const [mode, setMode] = useState<'scan' | 'liste'>('scan')
   const [courant, setCourant] = useState<Personne | null>(null)
   const [faits, setFaits] = useState<{ id: string; nom: string; heure: number; signe: boolean }[]>([])
+  const [stockDepart, setStockDepart] = useState(0)
+  const [preparation, setPreparation] = useState(false)
   const kit = kits.find((k) => k.id === kitId)
+  const q = Math.max(1, Math.round(Number(quantite)) || 1)
 
   useEffect(() => {
     if (!ouvert) return
@@ -78,10 +81,38 @@ export function RemiseKits({ ouvert, fermer, actionId, beneficiaires }: {
   ]), [beneficiaires, faits, kitId])
   const restants = beneficiaires.filter((b) => b.statut !== 'abandon' && !servis.has(b.id))
 
+  // On repart des données du serveur (un autre téléphone a pu remettre des kits),
+  // et on fige le stock de départ : le stock affiché ensuite = départ − remis ici.
+  async function commencer() {
+    setPreparation(true)
+    await Promise.all([
+      qc.refetchQueries({ queryKey: ['kits'] }),
+      qc.refetchQueries({ queryKey: ['beneficiaires', actionId] }),
+    ])
+    const frais = qc.getQueryData<KitModele[]>(['kits', false])?.find((k) => k.id === kitId)
+    setStockDepart(frais?.stock ?? kit?.stock ?? 0)
+    setPreparation(false)
+    setDemarre(true)
+  }
+
+  // Choix dans la liste : le serveur confirme que la personne n'a pas déjà reçu ce kit.
+  async function choisir(b: Beneficiaire) {
+    const { data, error } = await supabase.from('apports').select('date_remise')
+      .eq('beneficiaire_id', b.id).eq('modele_id', kitId).order('date_remise', { ascending: false }).limit(1)
+    if (error) return toast.error(messageErreur(error))
+    const deja = (data as { date_remise: string }[])[0]?.date_remise ?? null
+    signal(!deja)
+    setCourant({
+      statut: deja ? 'deja' : 'ok', beneficiaire_id: b.id, prenom: null, nom: b.cible ? nomCible(b.cible) : '—',
+      numero: b.cible?.numero_beneficiaire, photo: b.cible?.photo_chemin, deja_le: deja,
+    })
+  }
+
   function terminer() {
     if (faits.length) {
       qc.invalidateQueries({ queryKey: ['beneficiaires', actionId] })
       qc.invalidateQueries({ queryKey: ['kits'] })
+      qc.invalidateQueries({ queryKey: ['bon-remise', actionId] })
       toast.success(`${faits.length} kit${faits.length > 1 ? 's' : ''} remis`)
     }
     fermer()
@@ -92,7 +123,7 @@ export function RemiseKits({ ouvert, fermer, actionId, beneficiaires }: {
       <DialogContent className="max-h-[96dvh] overflow-y-auto p-4 sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Remise de kits</DialogTitle>
-          <DialogDescription>{demarre && kit ? `${kit.nom} · ${restants.length} personne${restants.length > 1 ? 's' : ''} à servir · stock ${kit.stock - faits.length * (Number(quantite) || 1)}` : 'Choisissez le kit, puis scannez les cartes.'}</DialogDescription>
+          <DialogDescription>{demarre && kit ? `${kit.nom} · ${restants.length} personne${restants.length > 1 ? 's' : ''} à servir · stock ${stockDepart - faits.length * q}` : 'Choisissez le kit, puis scannez les cartes.'}</DialogDescription>
         </DialogHeader>
 
         {!demarre ? (
@@ -115,12 +146,12 @@ export function RemiseKits({ ouvert, fermer, actionId, beneficiaires }: {
               <span><span className="font-medium">Faire signer chaque bénéficiaire</span><span className="block text-xs text-muted-foreground">La signature sert de preuve de réception sur le bon de remise.</span></span>
               <Switch checked={signatureExigee} onCheckedChange={setSignatureExigee} />
             </label>
-            {kit && kit.stock < restants.length * (Number(quantite) || 1) ? (
+            {kit && kit.stock < restants.length * q ? (
               <p className="rounded-lg bg-or-soft p-3 text-sm text-[#5c4100]">
                 Stock enregistré : {kit.stock} pour {restants.length} personne{restants.length > 1 ? 's' : ''}. Vous pouvez continuer (le stock passera en négatif), mais pensez à enregistrer l'entrée des kits.
               </p>
             ) : null}
-            <Button disabled={!kit || !(Number(quantite) >= 1)} onClick={() => setDemarre(true)}><ScanLine /> Commencer la remise</Button>
+            <Button disabled={!kit || !(Number(quantite) >= 1) || preparation} onClick={commencer}><ScanLine /> {preparation ? 'Préparation…' : 'Commencer la remise'}</Button>
           </div>
         ) : (
           <>
@@ -131,7 +162,7 @@ export function RemiseKits({ ouvert, fermer, actionId, beneficiaires }: {
               <Fiche
                 personne={courant}
                 kit={kit!}
-                quantite={Math.max(1, Math.round(Number(quantite)) || 1)}
+                quantite={q}
                 jour={jour}
                 signatureExigee={signatureExigee}
                 mode={mode}
@@ -143,10 +174,7 @@ export function RemiseKits({ ouvert, fermer, actionId, beneficiaires }: {
             ) : mode === 'scan' ? (
               <Camera actionId={actionId} kitId={kitId} onPersonne={(p) => { signal(p.statut === 'ok'); setCourant(p) }} />
             ) : (
-              <ListeRestants restants={restants} onChoix={(b) => setCourant({
-                statut: 'ok', beneficiaire_id: b.id, prenom: null, nom: b.cible ? nomCible(b.cible) : '—',
-                numero: b.cible?.numero_beneficiaire, photo: b.cible?.photo_chemin,
-              })} />
+              <ListeRestants restants={restants} onChoix={choisir} />
             )}
 
             <div className="flex items-center justify-between text-sm">

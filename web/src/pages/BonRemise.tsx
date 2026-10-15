@@ -32,6 +32,7 @@ export function BonRemise() {
 
   const { data: lignes } = useQuery({
     queryKey: ['bon-remise', id],
+    staleTime: 0,
     queryFn: async () => verifier(await supabase.from('beneficiaires')
       .select('id, statut, cible:cibles!beneficiaires_cible_id_fkey(prenom, nom, numero_beneficiaire), apports(*)')
       .eq('action_id', id).eq('apports.nature', 'kit')) as unknown as Ligne[],
@@ -39,12 +40,13 @@ export function BonRemise() {
 
   // Signatures : liens signés valables 10 minutes, le temps d'imprimer.
   const chemins = (lignes ?? []).flatMap((l) => l.apports.map((a) => a.signature_chemin)).filter((c): c is string => !!c)
-  const { data: images = {} } = useQuery({
+  const { data: images = {}, isLoading: chargeSignatures, isError: signaturesEnErreur, refetch: rechargerSignatures } = useQuery({
     queryKey: ['bon-remise-signatures', id, chemins.join('|')],
     enabled: chemins.length > 0,
     staleTime: 5 * 60_000,
     queryFn: async () => {
-      const { data } = await supabase.storage.from('justificatifs').createSignedUrls(chemins, 600)
+      const { data, error } = await supabase.storage.from('justificatifs').createSignedUrls(chemins, 600)
+      if (error) throw error
       return Object.fromEntries((data ?? []).filter((d) => d.signedUrl && d.path).map((d) => [d.path!, d.signedUrl])) as Record<string, string>
     },
   })
@@ -63,7 +65,7 @@ export function BonRemise() {
 
   // Kits remis dans cette action (pour le choix), et kit choisi.
   const utilises = new Set(lignes.flatMap((l) => l.apports.map((a) => a.modele_id)).filter(Boolean))
-  const choix = kits.filter((k) => utilises.has(k.id) || (vierge && k.actif))
+  const choix = kits.filter((k) => utilises.has(k.id) || (vierge && k.actif) || k.id === modeleId)
   const kit = kits.find((k) => k.id === modeleId)
 
   const outils = (
@@ -76,6 +78,10 @@ export function BonRemise() {
         <option value="">Bon de remise (signatures enregistrées)</option>
         <option value="1">Feuille d'émargement à signer</option>
       </Liste>
+      {!vierge && chemins.length && chargeSignatures ? <span className="text-xs text-muted-foreground">Chargement des signatures…</span> : null}
+      {!vierge && signaturesEnErreur ? (
+        <button className="text-xs font-medium text-destructive underline" onClick={() => rechargerSignatures()}>Signatures non chargées : réessayer</button>
+      ) : null}
     </>
   )
   const pied = <>Document établi avec l'application AP2A{membre ? ` par ${membre.prenom} ${membre.nom}` : ''}.<br />Les données personnelles des bénéficiaires restent confidentielles.</>

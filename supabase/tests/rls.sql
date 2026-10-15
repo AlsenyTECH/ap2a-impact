@@ -496,6 +496,8 @@ update apports set quantite = 3 where description = 'Kit couture';
 select t.ok((select stock from kits_stock join kits_modeles m on m.id = modele_id where m.nom = 'Kit couture') = 17, 'quantité remise corrigée : stock corrigé');
 select t.refuse($$update apports set nature = 'don' where description = 'Kit couture'$$, 'un kit du catalogue reste un kit');
 select t.refuse($$update apports set signature_chemin = (select id from beneficiaires limit 1 offset 0) || '/x.png' where description = 'Kit couture' and beneficiaire_id <> (select id from beneficiaires limit 1 offset 0)$$, 'signature rangée avec les justificatifs du bénéficiaire');
+select t.refuse($$update apports set signature_chemin = 'x.png' where description = 'Kit couture'$$, 'signature : chemin hors du dossier du bénéficiaire');
+select t.refuse($$update apports set signature_chemin = beneficiaire_id || '/../' || (select id from beneficiaires limit 1 offset 0) || '/x.png' where description = 'Kit couture'$$, 'signature : chemin avec « .. »');
 select emettre_carte(p_cible := (select id from cibles where prenom = 'Coumba'));
 select t.qui('coord2@ap2a.sn');
 select t.ok((carte_pour_remise((select id from actions where titre = 'Couture 2026'), (select jeton from cartes where cible_id = (select id from cibles where prenom = 'Coumba') and revoquee_le is null), (select id from kits_modeles where nom = 'Kit couture')) ->> 'statut') = 'deja', 'remise par scan : « a déjà reçu ce kit »');

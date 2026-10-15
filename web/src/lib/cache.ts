@@ -9,7 +9,7 @@ const SEPT_JOURS = 7 * 24 * 60 * 60 * 1000
  * (7 jours). Ne sont jamais gardés : le détail médical, les liens des photos
  * (ils expirent) et les pages d'impression.
  */
-const JAMAIS_GARDE = new Set(['consultations', 'photos', 'verification', 'cartes-impression', 'rappels-envoyes', 'journal'])
+const JAMAIS_GARDE = new Set(['consultations', 'photos', 'verification', 'cartes-impression', 'rappels-envoyes', 'journal', 'bon-remise', 'bon-remise-signatures'])
 
 export const client = new QueryClient({
   defaultOptions: {

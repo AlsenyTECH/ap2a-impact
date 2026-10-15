@@ -277,6 +277,7 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
     if (fichiers.length) await supabase.storage.from('justificatifs').remove(fichiers)
     qc.invalidateQueries({ queryKey: ['beneficiaires', actionId] })
     if (x.modele_id) qc.invalidateQueries({ queryKey: ['kits'] })
+    qc.invalidateQueries({ queryKey: ['bon-remise', actionId] })
     toast.success('Apport supprimé')
   }
 
