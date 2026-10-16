@@ -3,14 +3,18 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { client, persister } from './cache'
 import { nbEnAttente, viderHorsLigne } from './horsligne'
-import type { Membre, Role } from './types'
+import { CHAMPS_ROLE, roleA, type Permission } from './droits'
+import { appliquerTheme } from './theme'
+import type { Membre } from './types'
 
 interface Auth {
   session: Session | null
   membre: Membre | null
   chargement: boolean
-  /** Le membre a l'un de ces rôles. */
-  a: (...roles: Role[]) => boolean
+  /** Le membre a ce droit (selon son rôle). */
+  peut: (p: Permission) => boolean
+  /** Le membre a au moins un de ces droits. */
+  peutUn: (...p: Permission[]) => boolean
   deconnecter: () => Promise<void>
 }
 
@@ -38,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setChargement(true)
     // La fiche est gardée dans le téléphone : sans réseau, l'application reste utilisable.
     const cle = `ap2a-membre-${userId}`
-    supabase.from('membres').select('*').eq('user_id', userId).eq('actif', true).maybeSingle()
+    supabase.from('membres').select(`*, ${CHAMPS_ROLE}`).eq('user_id', userId).eq('actif', true).maybeSingle()
       .then(({ data, error }) => {
         if (annule) return
         let fiche = data as Membre | null
@@ -47,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           try { localStorage.setItem(cle, JSON.stringify(fiche)) } catch { /* stockage indisponible */ }
         }
+        if (fiche?.theme) appliquerTheme(fiche.theme)
         setMembre(fiche)
         setChargement(false)
       })
@@ -57,7 +62,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     membre,
     chargement,
-    a: (...roles) => !!membre && roles.includes(membre.role),
+    peut: (p) => roleA(membre?.role_info, p),
+    peutUn: (...p) => p.some((x) => roleA(membre?.role_info, x)),
     deconnecter: async () => {
       const n = nbEnAttente()
       if (n && !confirm(`${n} enregistrement(s) faits sans réseau n'ont pas encore été envoyés. En vous déconnectant maintenant, ils seront perdus. Continuer ?`)) return

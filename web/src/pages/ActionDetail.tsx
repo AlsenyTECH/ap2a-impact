@@ -38,7 +38,7 @@ const SUITE: Partial<Record<StatutAction, [StatutAction, string][]>> = {
 export function ActionDetail() {
   const { id = '' } = useParams()
   const qc = useQueryClient()
-  const { membre, a } = useAuth()
+  const { membre, peut } = useAuth()
   const { data: action, isLoading, error } = useAction(id)
   const { data: types = [] } = useTypesAction()
   const [edition, setEdition] = useState(false)
@@ -56,14 +56,14 @@ export function ActionDetail() {
   if (isLoading || !action) return <Chargement />
 
   // Même règle que la base : gestionnaire, ou coordinateur responsable/créateur.
-  const gere = a('admin', 'bureau') || (a('coordinateur') && [action.responsable_id, action.cree_par].includes(membre!.id))
+  const gere = peut('actions.gerer') || (peut('actions.creer') && [action.responsable_id, action.cree_par].includes(membre!.id))
   const dansEquipe = equipe.some((e) => e.membre.id === membre!.id)
-  const voitBeneficiaires = a('admin', 'bureau', 'coordinateur') || dansEquipe
+  const voitBeneficiaires = peut('cibles.voir') || dansEquipe
   // Une action clôturée est figée (la base le garantit aussi) : seul le
   // bilan se complète, seul un administrateur peut la rouvrir.
   const cloturee = action.statut === 'terminee' || action.statut === 'annulee'
   const modifiable = gere && !cloturee
-  const suites = (SUITE[action.statut] ?? []).filter(() => !cloturee || a('admin'))
+  const suites = (SUITE[action.statut] ?? []).filter(() => !cloturee || peut('actions.rouvrir'))
 
   async function changerStatut(statut: StatutAction) {
     const maj: { statut: StatutAction; date_fin?: string } = { statut }
@@ -142,7 +142,7 @@ export function ActionDetail() {
             <div className="font-semibold">Action {action.statut === 'terminee' ? 'clôturée' : 'annulée'} : liste figée</div>
             <div className="text-muted-foreground">
               Les bénéficiaires, ce qui a été remis, l'équipe et les séances ne peuvent plus être modifiés. Le bilan reste modifiable
-              et les suivis continuent. {a('admin') ? 'En tant qu\'administrateur, vous pouvez la rouvrir.' : 'Seul un administrateur peut la rouvrir.'}
+              et les suivis continuent. {peut('actions.rouvrir') ? 'En tant qu\'administrateur, vous pouvez la rouvrir.' : 'Seul un administrateur peut la rouvrir.'}
             </div>
           </div>
         </div>

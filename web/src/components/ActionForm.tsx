@@ -111,7 +111,7 @@ export function ActionForm({ ouvert, fermer, action }: { ouvert: boolean; fermer
           <Champ label="Lieu"><Input value={v.lieu ?? ''} onChange={(e) => maj('lieu', e.target.value)} placeholder="Centre 3FPT, École Unité 15…" /></Champ>
           <Champ label="Zone"><ListeZones value={v.zone_id} onChange={(z) => maj('zone_id', z)} /></Champ>
           <Champ label="Responsable">
-            <ListeMembres value={v.responsable_id} onChange={(m) => maj('responsable_id', m)} roles={['admin', 'bureau', 'coordinateur']} />
+            <ListeMembres value={v.responsable_id} onChange={(m) => maj('responsable_id', m)} droit="actions.creer" />
           </Champ>
           <Champ label="Budget (FCFA)">
             <Input type="number" min={0} inputMode="numeric" value={v.budget_fcfa ?? ''} onChange={(e) => maj('budget_fcfa', e.target.value ? Number(e.target.value) : null)} />

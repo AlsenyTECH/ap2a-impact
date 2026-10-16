@@ -27,6 +27,7 @@ import { ReglagesRappels } from '@/pages/ReglagesRappels'
 import { RappelsAEnvoyer } from '@/pages/RappelsAEnvoyer'
 import { Kits } from '@/pages/Kits'
 import { BonRemise } from '@/pages/BonRemise'
+import { Roles } from '@/pages/Roles'
 
 export function App() {
   const { session, membre, chargement, deconnecter } = useAuth()
@@ -69,6 +70,7 @@ export function App() {
         <Route path="membres" element={<Membres />} />
         <Route path="partenaires" element={<Partenaires />} />
         <Route path="kits" element={<Kits />} />
+        <Route path="roles" element={<Roles />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

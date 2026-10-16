@@ -284,12 +284,12 @@ export function CibleForm({ ouvert, fermer, cible, typeInitial, apresCreation }:
                 <Champ label="Adresse / repère"><Input value={v.adresse ?? ''} onChange={(e) => maj('adresse', e.target.value)} placeholder="Près de la mosquée…" /></Champ>
               </div>
               <Champ label="Référent du suivi" aide="Le coordinateur qui suivra ce que la cible devient après les actions.">
-                <ListeMembres value={v.referent_id} onChange={(m) => maj('referent_id', m)} roles={['admin', 'bureau', 'coordinateur']} />
+                <ListeMembres value={v.referent_id} onChange={(m) => maj('referent_id', m)} droit="suivis.faire" />
               </Champ>
               {nature !== 'lieu' && (nature !== 'menage' || cible) ? (
                 <div className="rounded-xl border border-border bg-muted/30 p-3">
                   <label className="flex items-start gap-2.5 text-sm">
-                    <input type="checkbox" className="mt-0.5 size-4 accent-[#0b7a57]" checked={v.rappels_accord} disabled={!texte(v.telephone)}
+                    <input type="checkbox" className="mt-0.5 size-4 accent-primary" checked={v.rappels_accord} disabled={!texte(v.telephone)}
                       onChange={(e) => maj('rappels_accord', e.target.checked)} />
                     <span>
                       <span className="font-medium">Accepte de recevoir des rappels de l'AP2A</span>

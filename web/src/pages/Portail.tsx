@@ -44,7 +44,7 @@ export function PortailPartenaire({ portail, deconnecter }: { portail: Portail; 
   const a = portail.acces!
   return (
     <div className="min-h-dvh bg-background">
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-[#0c2a20] text-white">
+      <header className="sticky top-0 z-30 border-b border-border/60 bg-sidebar text-white">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
           <img src={logo} alt="" className="h-9 w-12 rounded-md bg-white object-contain p-0.5" />
           <div className="min-w-0 flex-1 leading-tight">

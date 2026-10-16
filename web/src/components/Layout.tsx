@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { BarChart3, BellRing, CalendarCheck, CalendarHeart, Handshake, Home, ImagePlay, Landmark, MessageCircle, ListChecks, LogOut, Menu, Package, Shapes, Target, UsersRound, X } from 'lucide-react'
+import { BarChart3, BellRing, CalendarCheck, CalendarHeart, Handshake, Home, ImagePlay, Landmark, MessageCircle, ListChecks, LogOut, Menu, Package, Shapes, ShieldCheck, Target, UsersRound, X } from 'lucide-react'
 import { MonProfil } from '@/components/MonProfil'
 import { BandeauHorsLigne } from '@/components/BandeauHorsLigne'
 import { useAuth } from '@/lib/auth'
-import { LIBELLES_ROLE } from '@/lib/format'
+import { nomRole, type Permission } from '@/lib/droits'
 import { cn } from '@/lib/utils'
 import { Avatar } from '@/components/design'
 import logo from '@/assets/logo_AP2A.jpeg'
 
-const GROUPES = [
+type Lien = { vers: string; libelle: string; icone: typeof Home; droit?: Permission }
+const GROUPES: { titre: string; liens: Lien[] }[] = [
   {
     titre: 'Pilotage',
     liens: [
@@ -34,21 +35,21 @@ const GROUPES = [
     titre: 'Réglages',
     liens: [
       { vers: '/categories', libelle: 'Catégories', icone: Shapes },
-      { vers: '/reglages-rappels', libelle: 'Rappels', icone: BellRing, bureau: true },
-      { vers: '/medias', libelle: 'Médias du site', icone: ImagePlay, bureau: true },
+      { vers: '/roles', libelle: 'Rôles et droits', icone: ShieldCheck, droit: 'roles.gerer' },
+      { vers: '/reglages-rappels', libelle: 'Rappels', icone: BellRing, droit: 'rappels.voir' },
+      { vers: '/medias', libelle: 'Médias du site', icone: ImagePlay, droit: 'vitrine.gerer' },
       { vers: '/association', libelle: "L'association", icone: Landmark },
     ],
   },
 ]
-type Lien = { vers: string; libelle: string; icone: typeof Home; bureau?: boolean }
 const TOUS: Lien[] = GROUPES.flatMap((g) => g.liens)
 // Barre du bas sur téléphone : les 5 écrans du quotidien.
 const BAS = ['/', '/cibles', '/actions', '/suivis', '/impact'].map((v) => TOUS.find((l) => l.vers === v)!)
 
 export function Layout() {
-  const { membre, deconnecter, a } = useAuth()
-  // « Médias du site » : réservé au bureau, qui décide de ce qui est publié.
-  const visible = (l: Lien) => !l.bureau || a('admin', 'bureau')
+  const { membre, deconnecter, peut } = useAuth()
+  // Les réglages réservés n'apparaissent qu'à qui a le droit correspondant.
+  const visible = (l: Lien) => !l.droit || peut(l.droit)
   const [profil, setProfil] = useState(false)
   const [menu, setMenu] = useState(false)
   const { pathname } = useLocation()
@@ -70,7 +71,7 @@ export function Layout() {
             <div key={g.titre}>
               <div className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-muted/80">{g.titre}</div>
               <div className="space-y-0.5">
-                {(g.liens as Lien[]).filter(visible).map(({ vers, libelle, icone: Icone }) => (
+                {g.liens.filter(visible).map(({ vers, libelle, icone: Icone }) => (
                   <NavLink
                     key={vers}
                     to={vers}
@@ -84,8 +85,8 @@ export function Layout() {
                   >
                     {({ isActive }) => (
                       <>
-                        {isActive ? <span className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-or" /> : null}
-                        <Icone className={cn('size-[18px]', isActive ? 'text-or' : 'text-sidebar-muted group-hover:text-white')} />
+                        {isActive ? <span className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-marque" /> : null}
+                        <Icone className={cn('size-[18px]', isActive ? 'text-marque' : 'text-sidebar-muted group-hover:text-white')} />
                         {libelle}
                       </>
                     )}
@@ -100,7 +101,7 @@ export function Layout() {
             {membre ? <Avatar prenom={membre.prenom} nom={membre.nom} taille="sm" /> : null}
             <div className="min-w-0 flex-1 leading-tight">
               <div className="truncate text-sm font-medium">{membre?.prenom} {membre?.nom}</div>
-              <div className="truncate text-[11px] text-sidebar-muted">{membre ? `${LIBELLES_ROLE[membre.role]} · ${membre.numero_adherent}` : ''}</div>
+              <div className="truncate text-[11px] text-sidebar-muted">{membre ? `${nomRole(membre)} · ${membre.numero_adherent}` : ''}</div>
             </div>
           </button>
           <button onClick={deconnecter} title="Se déconnecter" className="rounded-lg p-2 text-sidebar-muted hover:bg-white/10 hover:text-white">
@@ -126,7 +127,7 @@ export function Layout() {
                 {membre ? <Avatar prenom={membre.prenom} nom={membre.nom} taille="sm" /> : null}
                 <div className="leading-tight">
                   <div className="text-sm font-semibold">{membre?.prenom} {membre?.nom}</div>
-                  <div className="text-xs text-muted-foreground">{membre ? LIBELLES_ROLE[membre.role] : ''}</div>
+                  <div className="text-xs text-muted-foreground">{membre ? nomRole(membre) : ''}</div>
                 </div>
               </div>
               <div className="py-1">

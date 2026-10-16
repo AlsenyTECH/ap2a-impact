@@ -29,8 +29,8 @@ const distincts = (valeurs: (string | null | undefined)[]) =>
   [...new Set(valeurs.filter((v): v is string => !!v))].sort((x, y) => x.localeCompare(y, 'fr'))
 
 export function Suivis() {
-  const { membre, a } = useAuth()
-  const gestionnaire = a('admin', 'bureau')
+  const { membre, peut } = useAuth()
+  const gestionnaire = peut('actions.gerer')
   const [ouvert, setOuvert] = useState<SuiviDetail | null>(null)
   const [etat, setEtat] = useState<Etat>('a_faire')
   const [miens, setMiens] = useState(!gestionnaire)
@@ -47,7 +47,7 @@ export function Suivis() {
     queryFn: async () => verifier(await supabase.from('suivis_detail').select('*').order('date_prevue').limit(3000)) as SuiviDetail[],
   })
 
-  if (!a('admin', 'bureau', 'coordinateur')) {
+  if (!peut('cibles.voir')) {
     return <EmptyState icon={CheckCircle2} title="Réservé aux coordinateurs" description="Les suivis des bénéficiaires sont faits par les coordinateurs désignés." />
   }
 

@@ -37,14 +37,14 @@ const vide = (libelle: string): Bilan => ({
 const pct = (n: number, total: number) => (total ? Math.round((100 * n) / total) : 0)
 
 export function Impact() {
-  const { a } = useAuth()
+  const { peut } = useAuth()
   const { data: types = [] } = useTypesAction()
   const [annee, setAnnee] = useState('')
   const [axe, setAxe] = useState<'type' | 'famille'>('type')
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['impact'],
-    enabled: a('admin', 'bureau', 'coordinateur'),
+    enabled: peut('impact.voir'),
     queryFn: async () => {
       const [benefs, suivis, apports] = await Promise.all([
         supabase.from('beneficiaires').select('id, action:actions!inner(type_id, statut, date_debut), cible:cibles!beneficiaires_cible_id_fkey(categorie:categories_cible(famille:familles_cible(nom)))').neq('statut', 'abandon').then(verifier),
@@ -93,7 +93,7 @@ export function Impact() {
     return { total, parType: [...parType.values()].sort((x, y) => y.beneficiaires - x.beneficiaires) }
   }, [data, types, annee, axe])
 
-  if (!a('admin', 'bureau', 'coordinateur')) {
+  if (!peut('impact.voir')) {
     return <EmptyState icon={BarChart3} title="Réservé au bureau et aux coordinateurs" />
   }
   if (error) return <Erreur erreur={error} />

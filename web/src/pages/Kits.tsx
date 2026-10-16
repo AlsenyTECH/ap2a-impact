@@ -28,8 +28,8 @@ const COULEURS_NIVEAU = {
 
 /** Catalogue des kits et suivi du stock (entrées, remises, pertes, inventaires). */
 export function Kits() {
-  const { a } = useAuth()
-  const gere = a('admin', 'bureau')
+  const { peut } = useAuth()
+  const gere = peut('kits.gerer')
   const [inactifs, setInactifs] = useState(false)
   const { data: kits = [], isLoading, error } = useKits(true)
   const [recherche, setRecherche] = useState('')

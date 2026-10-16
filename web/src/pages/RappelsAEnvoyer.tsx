@@ -20,7 +20,7 @@ const dateLongue = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString(
  * depuis son téléphone, ou un message pour le groupe WhatsApp.
  */
 export function RappelsAEnvoyer() {
-  const { a } = useAuth()
+  const { peut } = useAuth()
   const qc = useQueryClient()
   const { data: reglages } = useReglagesRappels()
   const { data: rappels = [], isLoading, error } = useRappelsCibles()
@@ -58,12 +58,12 @@ export function RappelsAEnvoyer() {
       <EnTete
         titre="Rappels à envoyer"
         sousTitre={visibles.length ? `${restants} message${restants > 1 ? 's' : ''} à envoyer sur ${visibles.length}. À faire de préférence en fin de journée.` : undefined}
-        actions={a('admin', 'bureau') ? <Button variant="secondary" asChild><Link to="/reglages-rappels"><Settings /> Réglages</Link></Button> : undefined}
+        actions={peut('rappels.voir') ? <Button variant="secondary" asChild><Link to="/reglages-rappels"><Settings /> Réglages</Link></Button> : undefined}
       />
 
       {reglages && !reglages.cibles_actif ? (
         <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          Les rappels aux bénéficiaires sont désactivés.{a('admin') ? <> Activez-les dans <Link className="font-medium text-primary underline" to="/reglages-rappels">Réglages → Rappels</Link>.</> : ' Un administrateur peut les activer.'}
+          Les rappels aux bénéficiaires sont désactivés.{peut('rappels.regler') ? <> Activez-les dans <Link className="font-medium text-primary underline" to="/reglages-rappels">Réglages → Rappels</Link>.</> : ' Un administrateur peut les activer.'}
         </p>
       ) : !visibles.length ? (
         <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">

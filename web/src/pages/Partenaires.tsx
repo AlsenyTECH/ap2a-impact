@@ -19,14 +19,14 @@ import type { Partenaire } from '@/lib/types'
 const VIDE = { nom: '', sigle: '', domaine: '', contact_nom: '', telephone: '', email: '', actif: true }
 
 export function Partenaires() {
-  const { a } = useAuth()
+  const { peut } = useAuth()
   const { data: tous, isLoading, error } = usePartenaires()
   const [recherche, setRecherche] = useState('')
   const [tri, setTri] = useState<'nom' | 'domaine'>('nom')
   const retenus = (tous ?? []).filter((p) => correspond(recherche, p.nom, p.sigle, p.domaine, p.contact_nom, p.telephone))
   const partenaires = tri === 'nom' ? trier(retenus, (p) => p.sigle || p.nom) : trier(retenus, (p) => p.domaine)
   const [edition, setEdition] = useState<Partenaire | 'nouveau' | null>(null)
-  const gestion = a('admin', 'bureau')
+  const gestion = peut('partenaires.gerer')
   const [accesDe, setAccesDe] = useState<Partenaire | null>(null)
   return (
     <>

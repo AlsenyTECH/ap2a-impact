@@ -16,8 +16,8 @@ interface EnvoiSms { id: number; envoye_le: string; objet: string; statut: strin
 
 /** Réglages des rappels automatiques : membres (email) et bénéficiaires (WhatsApp, SMS). */
 export function ReglagesRappels() {
-  const { a } = useAuth()
-  const admin = a('admin')
+  const { peut } = useAuth()
+  const admin = peut('rappels.regler')
   const qc = useQueryClient()
   const { data: r, isLoading, error } = useReglagesRappels()
   const [v, setV] = useState<Reglages | null>(null)
@@ -27,12 +27,12 @@ export function ReglagesRappels() {
 
   const { data: sms = [] } = useQuery({
     queryKey: ['rappels-sms-journal'],
-    enabled: a('admin', 'bureau'),
+    enabled: peut('rappels.voir'),
     queryFn: async () => verifier(await supabase.from('rappels_cibles').select('id, envoye_le, objet, statut, erreur, cible:cibles(prenom, nom)')
       .eq('canal', 'sms').order('envoye_le', { ascending: false }).limit(15)) as unknown as EnvoiSms[],
   })
 
-  if (!a('admin', 'bureau')) return <Navigate to="/" replace />
+  if (!peut('rappels.voir')) return <Navigate to="/" replace />
   if (isLoading || !v) return error ? <Erreur erreur={error} /> : <Chargement />
 
   const maj = <K extends keyof Reglages>(k: K, val: Reglages[K]) => setV((x) => (x ? { ...x, [k]: val } : x))
@@ -215,7 +215,7 @@ function Ligne({ titre, resume, actif, onActif, admin, disabled, children }: {
 function Case({ v, onChange, admin, texte }: { v: boolean; onChange: (v: boolean) => void; admin: boolean; texte: string }) {
   return (
     <label className="flex items-center gap-2 text-sm">
-      <input type="checkbox" className="size-4 accent-[#0b7a57]" checked={v} disabled={!admin} onChange={(e) => onChange(e.target.checked)} /> {texte}
+      <input type="checkbox" className="size-4 accent-primary" checked={v} disabled={!admin} onChange={(e) => onChange(e.target.checked)} /> {texte}
     </label>
   )
 }

@@ -83,8 +83,8 @@ function Ligne({ libelle, actif, gere, renommer, basculer, supprimer, children }
 }
 
 export function Categories() {
-  const { a } = useAuth()
-  const gere = a('admin', 'bureau')
+  const { peut } = useAuth()
+  const gere = peut('referentiels.gerer')
   return (
     <>
       <EnTete

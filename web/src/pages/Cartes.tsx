@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { CarteVisuelle, type TitulaireCarte } from '@/components/CarteQR'
 import { Chargement } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
-import { LIBELLES_ROLE } from '@/lib/format'
+import { nomRole } from '@/lib/droits'
 import { usePhotos } from '@/lib/photos'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 import type { Carte, Cible, Membre } from '@/lib/types'
@@ -22,7 +22,7 @@ type Fiche = TitulaireCarte & { id: string; photo_chemin?: string | null }
  */
 export function Cartes() {
   const [params] = useSearchParams()
-  const { a, membre: moi } = useAuth()
+  const { peut, membre: moi } = useAuth()
   const action = params.get('action')
   const cible = params.get('cible')
   const unMembre = params.get('membre')
@@ -59,11 +59,11 @@ export function Cartes() {
         const actives = verifier(await supabase.from('cartes').select('membre_id').not('membre_id', 'is', null).is('revoquee_le', null)) as Carte[]
         const avec = new Set(actives.map((x) => x.membre_id))
         for (const m of membres) {
-          if (!avec.has(m.id) && (a('admin', 'bureau') || m.id === moi?.id)) verifier(await supabase.rpc('emettre_carte', { p_membre: m.id }))
+          if (!avec.has(m.id) && (peut('membres.gerer') || m.id === moi?.id)) verifier(await supabase.rpc('emettre_carte', { p_membre: m.id }))
         }
         fiches = membres.map((m) => ({
           id: m.id, type: 'membre', prenom: m.prenom, nom: m.nom, numero: m.numero_adherent,
-          detail: [LIBELLES_ROLE[m.role], m.fonction].filter(Boolean).join(' · '), photo_chemin: m.photo_chemin, jeton: null,
+          detail: [nomRole(m), m.fonction].filter(Boolean).join(' · '), photo_chemin: m.photo_chemin, jeton: null,
         }))
       }
       // Jetons des cartes actives.

@@ -2,10 +2,11 @@ import type { ReactNode, SelectHTMLAttributes } from 'react'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { useMembres, useZones } from '@/lib/requetes'
+import { roleA, type Permission } from '@/lib/droits'
 import { Squelette } from '@/components/design'
 
 /** Libellé + champ, avec un texte d'aide optionnel. */
-export function Champ({ label, aide, children, className }: { label: string; aide?: string; children: ReactNode; className?: string }) {
+export function Champ({ label, aide, children, className }: { label: string; aide?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <div className={cn('space-y-1.5', className)}>
       <Label>{label}</Label>
@@ -50,14 +51,15 @@ export function ListeZones({ value, onChange }: { value: number | null; onChange
 }
 
 /** Choix d'un membre (référent, responsable...). */
-export function ListeMembres({ value, onChange, roles, vide = '— Aucun —' }: {
+export function ListeMembres({ value, onChange, droit, vide = '— Aucun —' }: {
   value: string | null
   onChange: (id: string | null) => void
-  roles?: string[]
+  /** Seulement les membres qui ont ce droit (et celui déjà choisi). */
+  droit?: Permission
   vide?: string
 }) {
   const { data: membres = [] } = useMembres()
-  const choix = membres.filter((m) => m.actif && (!roles || roles.includes(m.role)))
+  const choix = membres.filter((m) => m.id === value || (m.actif && (!droit || roleA(m.role_info, droit))))
   return (
     <Liste value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
       <option value="">{vide}</option>

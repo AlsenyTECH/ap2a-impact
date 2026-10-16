@@ -14,7 +14,8 @@ import { OutilsListe } from '@/components/OutilsListe'
 import { Scanner } from '@/components/Scanner'
 import { useAuth } from '@/lib/auth'
 import { exporterExcel } from '@/lib/export'
-import { aujourdhui, date, LIBELLES_ROLE } from '@/lib/format'
+import { aujourdhui, date } from '@/lib/format'
+import { nomRole } from '@/lib/droits'
 import { membreAvecNumero } from '@/lib/recherche'
 import { usePhotos } from '@/lib/photos'
 import { correspond, trier } from '@/lib/recherche'
@@ -31,7 +32,7 @@ export function EvenementDetail() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { a, membre: moi } = useAuth()
+  const { peut, membre: moi } = useAuth()
   const [edition, setEdition] = useState(false)
   const [scan, setScan] = useState(false)
   const [choixInvites, setChoixInvites] = useState(false)
@@ -73,7 +74,7 @@ export function EvenementDetail() {
   if (error) return <Erreur erreur={error} />
   if (isLoading || !ev) return <Chargement />
 
-  const responsable = a('admin', 'bureau') || (a('coordinateur') && ev.cree_par === moi?.id)
+  const responsable = peut('evenements.gerer') || (peut('evenements.creer') && ev.cree_par === moi?.id)
   const cloture = !!ev.cloture_le
   // Une fois clôturé, l'événement est figé : plus de pointage ni de changement de la liste.
   const gere = responsable && !cloture
@@ -158,7 +159,7 @@ export function EvenementDetail() {
       { titre: 'N° membre', valeur: (m) => m.numero_adherent, largeur: 14 },
       { titre: 'Prénom', valeur: (m) => m.prenom, largeur: 18 },
       { titre: 'Nom', valeur: (m) => m.nom, largeur: 18 },
-      { titre: 'Rôle', valeur: (m) => LIBELLES_ROLE[m.role] },
+      { titre: 'Rôle', valeur: (m) => nomRole(m) },
       { titre: 'Fonction', valeur: (m) => m.fonction, largeur: 20 },
       { titre: 'Présent', valeur: (m) => (presence.has(m.id) ? 'Oui' : 'Non') },
       { titre: 'Arrivée', valeur: (m) => (presence.get(m.id) ? new Date(presence.get(m.id)!.pointe_le).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null) },
@@ -204,8 +205,8 @@ export function EvenementDetail() {
                 <Button variant="ghost" onClick={() => setEdition(true)}><Pencil /> Modifier</Button>
               </>
             ) : null}
-            {cloture && a('admin') ? <Button variant="secondary" onClick={() => changerCloture(false)}><LockOpen /> Rouvrir</Button> : null}
-            {gere || (cloture && a('admin')) ? <Button variant="ghost" className="text-destructive" onClick={supprimer} aria-label="Supprimer"><Trash2 /></Button> : null}
+            {cloture && peut('evenements.rouvrir') ? <Button variant="secondary" onClick={() => changerCloture(false)}><LockOpen /> Rouvrir</Button> : null}
+            {gere || (cloture && peut('evenements.rouvrir')) ? <Button variant="ghost" className="text-destructive" onClick={supprimer} aria-label="Supprimer"><Trash2 /></Button> : null}
           </div>
         </div>
         <div className="grid grid-cols-3 gap-px border-t border-border/70 bg-border/70 text-center">
@@ -225,7 +226,7 @@ export function EvenementDetail() {
             <div className="font-semibold">Événement clôturé : liste de présence figée</div>
             <div className="text-muted-foreground">
               Clôturé le {new Date(ev.cloture_le!).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-              {cloturePar ? ` par ${membreAvecNumero(cloturePar)}` : ' automatiquement'}. Seul le compte rendu peut encore être complété{a('admin') ? ' ; en tant qu\'administrateur, vous pouvez le rouvrir' : ''}.
+              {cloturePar ? ` par ${membreAvecNumero(cloturePar)}` : ' automatiquement'}. Seul le compte rendu peut encore être complété{peut('evenements.rouvrir') ? ' ; en tant qu\'administrateur, vous pouvez le rouvrir' : ''}.
             </div>
           </div>
         </div>
@@ -306,7 +307,7 @@ function ChoixInvites({ evenementId, membres, invites, fermer }: { evenementId: 
   const [choix, setChoix] = useState(new Set(invites))
   const [recherche, setRecherche] = useState('')
   const [envoi, setEnvoi] = useState(false)
-  const visibles = trier(membres.filter((m) => correspond(recherche, m.prenom, m.nom, m.numero_adherent, m.fonction, LIBELLES_ROLE[m.role])), (m) => `${m.nom} ${m.prenom}`)
+  const visibles = trier(membres.filter((m) => correspond(recherche, m.prenom, m.nom, m.numero_adherent, m.fonction, nomRole(m))), (m) => `${m.nom} ${m.prenom}`)
 
   async function enregistrer() {
     setEnvoi(true)
@@ -338,7 +339,7 @@ function ChoixInvites({ evenementId, membres, invites, fermer }: { evenementId: 
           {visibles.map((m) => (
             <label key={m.id} className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm">
               <Checkbox checked={choix.has(m.id)} onCheckedChange={(c) => { const n = new Set(choix); if (c) n.add(m.id); else n.delete(m.id); setChoix(n) }} />
-              <span className="flex-1">{m.prenom} {m.nom} <span className="text-xs text-muted-foreground">· {m.numero_adherent} · {LIBELLES_ROLE[m.role]}</span></span>
+              <span className="flex-1">{m.prenom} {m.nom} <span className="text-xs text-muted-foreground">· {m.numero_adherent} · {nomRole(m)}</span></span>
             </label>
           ))}
         </div>

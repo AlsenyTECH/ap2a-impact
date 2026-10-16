@@ -10,8 +10,8 @@
 create function public.supprimer_donnees_demo() returns void
 language plpgsql security definer set search_path = public as $$
 begin
-  if not public.a_role('admin') then
-    raise exception 'Réservé à l''administrateur' using errcode = '42501';
+  if not public.a_permission('demo.gerer') then
+    raise exception 'Il faut le droit « Effacer les données de démonstration »' using errcode = '42501';
   end if;
   -- Les actions clôturées sont verrouillées : le verrou est levé le temps
   -- de cet effacement (et le journal ne l'enregistre pas).

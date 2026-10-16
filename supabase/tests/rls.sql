@@ -511,4 +511,50 @@ select t.qui('bureau@ap2a.sn');
 reset role;
 delete from apports where description = 'Kit couture';
 select t.ok((select stock from kits_stock join kits_modeles m on m.id = modele_id where m.nom = 'Kit couture') = 20, 'remise supprimée : le kit revient en stock');
+
+-- ---------------------------------------------------------------------
+-- Rôles et droits
+-- ---------------------------------------------------------------------
+set role authenticated;
+select t.qui('admin@ap2a.sn');
+select t.ok(a_permission('roles.gerer') and a_permission('demo.gerer') and cardinality(mes_permissions()) = (select count(*) from permissions), 'administrateur : tous les droits');
+select t.ok((select count(*) from membres m join roles r on r.id = m.role_id where r.code = m.role::text) = (select count(*) from membres), 'chaque membre a gardé son rôle');
+insert into roles (nom, permissions) values ('Magasinier', array['kits.gerer']);
+select t.ok((select code is null and not systeme from roles where nom = 'Magasinier'), 'rôle personnalisé créé');
+select t.refuse($$insert into roles (nom, permissions) values ('X', array['inconnu.droit'])$$, 'droit inconnu');
+select t.refuse($$update roles set permissions = '{}' where code = 'admin'$$, 'les droits de l''administrateur ne changent pas');
+delete from roles where code = 'bureau';
+select t.ok(exists (select 1 from roles where code = 'bureau'), 'un rôle d''origine ne se supprime pas');
+update membres set role_id = (select id from roles where nom = 'Magasinier') where email = 'coord2@ap2a.sn';
+select t.ok((select role from membres where email = 'coord2@ap2a.sn') = 'membre', 'rôle personnalisé attribué');
+select t.qui('coord2@ap2a.sn');
+select t.ok(a_permission('kits.gerer') and not a_permission('cibles.voir') and not voit_cibles(), 'magasinier : les kits, pas les cibles');
+insert into kits_mouvements (modele_id, quantite, motif) select id, 3, 'don' from kits_modeles where nom = 'Kit couture';
+select t.ok((select stock from kits_stock join kits_modeles m on m.id = modele_id where m.nom = 'Kit couture') = 23, 'magasinier : saisit une entrée de stock');
+select t.refuse($$insert into partenaires (nom) values ('Test magasinier')$$, 'magasinier : pas les partenaires');
+select t.ok(not peut_gerer_action((select id from actions where titre = 'Couture 2026')), 'magasinier : ne gère plus l''action dont il est responsable');
+select t.qui('bureau@ap2a.sn');
+select t.refuse($$insert into roles (nom, permissions) values ('Y', '{}')$$, 'bureau : ne crée pas de rôle');
+select t.refuse($$update membres set role_id = (select id from roles where code = 'coordinateur') where email = 'coord2@ap2a.sn'$$, 'bureau : n''attribue pas de rôle');
+select t.qui('admin@ap2a.sn');
+insert into roles (nom, permissions) values ('Gestion des rôles', array['roles.gerer', 'membres.gerer', 'kits.gerer']);
+update membres set role_id = (select id from roles where nom = 'Gestion des rôles') where email = 'coord@ap2a.sn';
+select t.qui('coord@ap2a.sn');
+select t.refuse($$insert into roles (nom, permissions) values ('Trop', array['cibles.gerer'])$$, 'pas de rôle avec un droit qu''on n''a pas');
+select t.refuse($$update roles set permissions = permissions || 'cibles.gerer'::text where nom = 'Magasinier'$$, 'pas d''ajout d''un droit qu''on n''a pas');
+select t.refuse($$update membres set role_id = (select id from roles where code = 'admin') where email = 'coord2@ap2a.sn'$$, 'pas d''attribution d''un rôle plus puissant que le sien');
+select t.refuse($$update membres set role_id = (select id from roles where code = 'membre') where email = 'admin@ap2a.sn'$$, 'pas de rétrogradation de plus puissant que soi');
+select t.refuse($$update membres set role_id = (select id from roles where code = 'membre') where email = 'coord@ap2a.sn'$$, 'pas de changement de son propre rôle');
+update membres set role_id = (select id from roles where code = 'membre') where email = 'coord2@ap2a.sn';
+select t.ok((select role from membres where email = 'coord2@ap2a.sn') = 'membre', 'gestion des rôles : attribue un rôle dans ses droits');
+select t.qui('admin@ap2a.sn');
+update roles set permissions = array['membres.gerer', 'kits.gerer'] where nom = 'Gestion des rôles';
+select t.refuse($$update membres set actif = false where email = 'admin@ap2a.sn'$$, 'il reste toujours quelqu''un pour gérer les rôles');
+update membres set role = 'bureau' where email = 'coord2@ap2a.sn';
+select t.ok((select r.code from membres m join roles r on r.id = m.role_id where m.email = 'coord2@ap2a.sn') = 'bureau', 'ancien champ rôle : le rôle suit');
+update membres set role = 'coordinateur' where email in ('coord@ap2a.sn', 'coord2@ap2a.sn');
+delete from roles where nom = 'Magasinier';
+select t.ok(not exists (select 1 from roles where nom = 'Magasinier'), 'rôle personnalisé inutilisé supprimé');
+select t.ok(membre_a_permission((select id from membres where email = 'coord@ap2a.sn'), 'impact.voir') and not membre_a_permission((select id from membres where email = 'coord@ap2a.sn'), 'kits.gerer'), 'droits d''un autre membre');
+reset role;
 \echo 'Tous les tests sont passés.'

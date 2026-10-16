@@ -51,8 +51,59 @@
   --sidebar-active: #134334;
   --sidebar-border: #1b3d31;
 
+  /* Accent de la marque (menu actif) et dégradés des bandeaux */
+  --marque: #e9a812;
+  --marque-clair: #f2c14e;
+  --degrade-1: #0b7a57;
+  --degrade-2: #0a5f45;
+  --degrade-3: #0c2a20;
+  --voile: rgb(12 42 32 / 0.4);
+
   --ombre-carte: 0 1px 2px rgb(19 33 27 / 0.04), 0 1px 3px rgb(19 33 27 / 0.06);
   --ombre-haute: 0 10px 30px -12px rgb(19 33 27 / 0.25);
+}
+
+/* =====================================================================
+   Thème « Bleu AP2A » : les couleurs du logo (bleu franc, ruban cyan,
+   bleu nuit). Choisi par chaque membre dans son profil ; le thème vert
+   ci-dessus reste celui par défaut.
+   ===================================================================== */
+:root[data-theme="ap2a"] {
+  --background: #f3f7fa;
+  --foreground: #0f1f2b;
+  --card-foreground: #0f1f2b;
+  --popover-foreground: #0f1f2b;
+
+  --primary: #0770aa;
+  --primary-hover: #065d8e;
+  --primary-soft: #e3f2fb;
+
+  --secondary: #eaf1f6;
+  --secondary-foreground: #172a38;
+  --muted: #eaf1f6;
+  --muted-foreground: #56687a;
+  --accent: #e3f2fb;
+  --accent-foreground: #05507d;
+
+  --border: #dde6ed;
+  --input: #d5e0e8;
+  --ring: #0a88c6;
+
+  --sidebar: #032d45;
+  --sidebar-foreground: #e6f1f8;
+  --sidebar-muted: #8fb3c9;
+  --sidebar-active: #0a4566;
+  --sidebar-border: #0b3b57;
+
+  --marque: #00b0e0;
+  --marque-clair: #5fd3f3;
+  --degrade-1: #0a88c6;
+  --degrade-2: #0770aa;
+  --degrade-3: #003f60;
+  --voile: rgb(3 45 69 / 0.4);
+
+  --ombre-carte: 0 1px 2px rgb(15 31 43 / 0.04), 0 1px 3px rgb(15 31 43 / 0.06);
+  --ombre-haute: 0 10px 30px -12px rgb(15 31 43 / 0.25);
 }
 
 @theme inline {
@@ -88,6 +139,12 @@
   --color-sidebar-muted: var(--sidebar-muted);
   --color-sidebar-active: var(--sidebar-active);
   --color-sidebar-border: var(--sidebar-border);
+  --color-marque: var(--marque);
+  --color-marque-clair: var(--marque-clair);
+  --color-degrade-1: var(--degrade-1);
+  --color-degrade-2: var(--degrade-2);
+  --color-degrade-3: var(--degrade-3);
+  --color-voile: var(--voile);
 
   --radius-sm: calc(var(--radius) - 6px);
   --radius-md: calc(var(--radius) - 4px);

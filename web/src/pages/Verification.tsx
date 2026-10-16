@@ -13,6 +13,7 @@ interface Verif {
   nom?: string
   numero?: string
   role?: Role
+  role_nom?: string | null
   depuis?: string
   emise_le?: string
   revoquee_le?: string | null
@@ -69,7 +70,7 @@ export function Verification() {
                   <div className="inline-block rounded-md bg-muted px-2.5 py-1 font-mono text-sm font-bold">{data.numero}</div>
                   <div className="text-sm text-muted-foreground">
                     {data.type === 'membre'
-                      ? <>{data.role ? LIBELLES_ROLE[data.role] : 'Membre'}{data.depuis ? ` · membre depuis ${date(data.depuis)}` : ''}</>
+                      ? <>{data.role_nom ?? (data.role ? LIBELLES_ROLE[data.role] : 'Membre')}{data.depuis ? ` · membre depuis ${date(data.depuis)}` : ''}</>
                       : 'Personne accompagnée par l\'association'}
                   </div>
                   {data.statut === 'revoquee' ? (

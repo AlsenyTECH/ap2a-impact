@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { Chargement, Champ, EnTete, Erreur, Pastilles } from '@/components/champs'
+import { Chargement, Champ, EnTete, Erreur, Liste, Pastilles } from '@/components/champs'
 import { OutilsListe } from '@/components/OutilsListe'
 import { correspond, trier } from '@/lib/recherche'
 import { Avatar, Liste as Encadre } from '@/components/design'
@@ -18,31 +18,32 @@ import { DialogDescription } from '@/components/ui/dialog'
 import { PhotoFiche } from '@/components/PhotoFiche'
 import { usePhotos } from '@/lib/photos'
 import { useAuth } from '@/lib/auth'
-import { LIBELLES_ROLE } from '@/lib/format'
+import { droitsDe, nomRole, useRoles, usePermissions } from '@/lib/droits'
 import { useMembres } from '@/lib/requetes'
 import { messageErreur, supabase } from '@/lib/supabase'
-import type { Membre, Role } from '@/lib/types'
+import type { Membre } from '@/lib/types'
 
 export function Membres() {
-  const { a, membre: moi } = useAuth()
+  const { peut, membre: moi } = useAuth()
   const { data: membres, isLoading, error } = useMembres()
+  const { data: roles = [] } = useRoles()
   const [carteDe, setCarteDe] = useState<Membre | null>(null)
   const [inviter, setInviter] = useState<Membre | null>(null)
   const [acces, setAcces] = useState<'' | 'actives' | 'attente'>('')
   const { data: photos = {} } = usePhotos((membres ?? []).map((m) => m.photo_chemin))
   const [edition, setEdition] = useState<Membre | 'nouveau' | null>(null)
   const [recherche, setRecherche] = useState('')
-  const gestion = a('admin', 'bureau')
+  const gestion = peut('membres.gerer')
   const [tri, setTri] = useState<'nom' | 'numero' | 'role' | 'recents'>('nom')
-  const [role, setRole] = useState<Role | ''>('')
+  const [role, setRole] = useState('')
   const [inactifs, setInactifs] = useState(false)
-  const retenus = (membres ?? []).filter((m) => (inactifs || m.actif) && (!role || m.role === role)
+  const retenus = (membres ?? []).filter((m) => (inactifs || m.actif) && (!role || m.role_id === role)
     && (!acces || (acces === 'actives') === !!m.user_id)
-    && correspond(recherche, m.prenom, m.nom, m.telephone, m.email, m.numero_adherent, m.fonction, LIBELLES_ROLE[m.role]))
-  const ORDRE_ROLES: Role[] = ['admin', 'bureau', 'coordinateur', 'membre']
+    && correspond(recherche, m.prenom, m.nom, m.telephone, m.email, m.numero_adherent, m.fonction, nomRole(m)))
+  const ordreRole = new Map(roles.map((r, i) => [r.id, i]))
   const liste = tri === 'nom' ? trier(retenus, (m) => `${m.nom} ${m.prenom}`)
     : tri === 'numero' ? trier(retenus, (m) => m.numero_adherent)
-    : tri === 'role' ? trier(retenus, (m) => ORDRE_ROLES.indexOf(m.role))
+    : tri === 'role' ? trier(retenus, (m) => ordreRole.get(m.role_id) ?? 99)
     : trier(retenus, (m) => m.date_adhesion, 'desc')
 
   return (
@@ -67,7 +68,7 @@ export function Membres() {
         total={membres ? liste.length : undefined}
       >
         <div className="flex flex-wrap items-center gap-3">
-          <Pastilles<Role | ''> value={role} onChange={(r) => setRole(r === role ? '' : r)} options={[['', 'Tous'], ...(Object.entries(LIBELLES_ROLE) as [Role, string][])]} />
+          <Pastilles<string> value={role} onChange={(r) => setRole(r === role ? '' : r)} options={[['', 'Tous'], ...roles.filter((r) => (membres ?? []).some((m) => m.role_id === r.id)).map((r) => [r.id, r.nom] as [string, string])]} />
           {gestion ? (
             <Pastilles<'' | 'actives' | 'attente'> value={acces} onChange={(v) => setAcces(v === acces ? '' : v)}
               options={[['actives', 'Accès activé'], ['attente', `Accès non activé (${(membres ?? []).filter((m) => m.actif && !m.user_id).length})`]]} />
@@ -92,7 +93,7 @@ export function Membres() {
                 </div>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">
-                <Badge variant={m.role === 'membre' ? 'outline' : 'secondary'}>{LIBELLES_ROLE[m.role]}</Badge>
+                <Badge variant={m.role_info?.code === 'membre' ? 'outline' : 'secondary'}>{nomRole(m)}</Badge>
                 {gestion ? (m.user_id ? <span className="text-[11px] font-medium text-primary">accès activé</span> : <span className="text-[11px] text-muted-foreground">accès non activé</span>) : null}
               </div>
             </button>
@@ -115,7 +116,7 @@ export function Membres() {
           membreId={carteDe.id}
           photoChemin={carteDe.photo_chemin}
           gere={gestion}
-          titulaire={{ type: 'membre', prenom: carteDe.prenom, nom: carteDe.nom, numero: carteDe.numero_adherent, detail: [LIBELLES_ROLE[carteDe.role], carteDe.fonction].filter(Boolean).join(' · ') }}
+          titulaire={{ type: 'membre', prenom: carteDe.prenom, nom: carteDe.nom, numero: carteDe.numero_adherent, detail: [nomRole(carteDe), carteDe.fonction].filter(Boolean).join(' · ') }}
         />
       ) : null}
     </>
@@ -124,15 +125,18 @@ export function Membres() {
 
 function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | null; fermer: () => void; onCree?: (m: Membre) => void }) {
   const qc = useQueryClient()
-  const { a, membre: moi } = useAuth()
-  const [v, setV] = useState({ prenom: '', nom: '', telephone: '', email: '', fonction: '', role: 'membre' as Role, actif: true })
+  const { peut, membre: moi } = useAuth()
+  const { data: roles = [] } = useRoles()
+  const { data: tousDroits = [] } = usePermissions()
+  const roleMembre = roles.find((r) => r.code === 'membre')?.id ?? ''
+  const [v, setV] = useState({ prenom: '', nom: '', telephone: '', email: '', fonction: '', role_id: '', actif: true })
   const [envoi, setEnvoi] = useState(false)
   const existant = membre && membre !== 'nouveau' ? membre : null
 
   useEffect(() => {
     if (membre) setV(existant
-      ? { prenom: existant.prenom, nom: existant.nom, telephone: existant.telephone ?? '', email: existant.email ?? '', fonction: existant.fonction ?? '', role: existant.role, actif: existant.actif }
-      : { prenom: '', nom: '', telephone: '', email: '', fonction: '', role: 'membre', actif: true })
+      ? { prenom: existant.prenom, nom: existant.nom, telephone: existant.telephone ?? '', email: existant.email ?? '', fonction: existant.fonction ?? '', role_id: existant.role_id, actif: existant.actif }
+      : { prenom: '', nom: '', telephone: '', email: '', fonction: '', role_id: '', actif: true })
   }, [membre, existant])
 
   async function enregistrer(e: FormEvent) {
@@ -141,7 +145,7 @@ function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | n
     const donnees = {
       prenom: v.prenom.trim(), nom: v.nom.trim(), telephone: v.telephone.trim() || null,
       email: v.email.trim().toLowerCase() || null, fonction: v.fonction.trim() || null, actif: v.actif,
-      ...(a('admin') ? { role: v.role } : {}),
+      ...(peut('roles.gerer') && v.role_id && v.role_id !== existant?.role_id ? { role_id: v.role_id } : {}),
     }
     const r = existant
       ? await supabase.from('membres').update(donnees).eq('id', existant.id)
@@ -175,13 +179,22 @@ function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | n
           <Champ label="Email" aide={existant?.user_id ? "Accès activé : c'est son adresse de connexion." : "Nécessaire pour qu'il ou elle se connecte à l'application."}>
             <Input type="email" value={v.email} disabled={!!existant?.user_id} onChange={(e) => setV({ ...v, email: e.target.value })} />
           </Champ>
-          {existant?.user_id && a('admin') ? <ChangerEmail membre={existant} apres={(email) => setV({ ...v, email })} /> : null}
+          {existant?.user_id && peut('membres.comptes') ? <ChangerEmail membre={existant} apres={(email) => setV({ ...v, email })} /> : null}
           <Champ label="Fonction dans l'association"><Input value={v.fonction} placeholder="Présidente, trésorier, chargé de communication…" onChange={(e) => setV({ ...v, fonction: e.target.value })} /></Champ>
-          {a('admin') && !moiMeme ? (
-            <Champ label="Rôle dans l'application" aide="Coordinateur : crée des actions et suit les bénéficiaires. Bureau : gère tout le contenu. Administrateur : gère aussi les rôles.">
-              <Pastilles<Role> value={v.role} onChange={(role) => setV({ ...v, role })} options={Object.entries(LIBELLES_ROLE) as [Role, string][]} />
-            </Champ>
-          ) : null}
+          {peut('roles.gerer') && !moiMeme ? (() => {
+            // On n'attribue que des rôles qui n'ont pas plus de droits que soi.
+            const mesDroits = new Set(droitsDe(moi?.role_info, tousDroits))
+            const permis = (id: string) => droitsDe(roles.find((r) => r.id === id), tousDroits).every((d) => mesDroits.has(d))
+            const choisi = roles.find((r) => r.id === (v.role_id || roleMembre))
+            const bloque = !!existant && !permis(existant.role_id)
+            return (
+              <Champ label="Rôle dans l'application" aide={bloque ? "Ce membre a des droits que vous n'avez pas : vous ne pouvez pas changer son rôle." : <>{choisi?.description ?? ''} <Link to="/roles" className="font-medium text-primary">Voir les droits de chaque rôle</Link></>}>
+                <Liste value={v.role_id || roleMembre} disabled={bloque} onChange={(e) => setV({ ...v, role_id: e.target.value })}>
+                  {roles.map((r) => <option key={r.id} value={r.id} disabled={!permis(r.id)}>{r.nom}{permis(r.id) ? '' : ' (plus de droits que vous)'}</option>)}
+                </Liste>
+              </Champ>
+            )
+          })() : null}
           {existant && !moiMeme ? (
             <label className="flex items-center justify-between text-sm">
               Membre actif (un membre inactif n'a plus accès)
@@ -207,7 +220,7 @@ function InviterMembre({ membre, fermer }: { membre: Membre; fermer: () => void 
           <DialogTitle>Inviter {membre.prenom} {membre.nom}</DialogTitle>
           <DialogDescription>
             Pour utiliser l'application, il ou elle crée son mot de passe avec « Première connexion » et l'adresse de sa fiche.
-            Son accès dépendra de son rôle : <b>{LIBELLES_ROLE[membre.role]}</b>.
+            Son accès dépendra de son rôle : <b>{nomRole(membre)}</b>.
           </DialogDescription>
         </DialogHeader>
         {membre.email ? (

@@ -19,6 +19,10 @@ export interface Membre {
   telephone: string | null
   email: string | null
   role: Role
+  role_id: string
+  /** Le rôle (et ses droits), quand il est chargé avec la fiche. */
+  role_info?: import('./droits').RoleResume | null
+  theme?: import('./theme').Theme
   fonction: string | null
   numero_adherent: string
   date_adhesion: string

@@ -15,7 +15,7 @@ import { useCategories, useCibles, useFamilles, useProfils, type TriCibles } fro
 import { OutilsListe } from '@/components/OutilsListe'
 
 export function Cibles() {
-  const { a } = useAuth()
+  const { peutUn } = useAuth()
   const [recherche, setRecherche] = useState('')
   const [tri, setTri] = useState<TriCibles>('recentes')
   const [famille, setFamille] = useState<number | null>(null)
@@ -51,7 +51,7 @@ export function Cibles() {
       { titre: 'Référent du suivi', valeur: (c) => (c.referent ? `${c.referent.prenom} ${c.referent.nom}` : null), largeur: 20 },
     ], 'Cibles')
   }
-  const peutCreer = a('admin', 'bureau', 'coordinateur')
+  const peutCreer = peutUn('cibles.ajouter', 'cibles.gerer')
 
   return (
     <>

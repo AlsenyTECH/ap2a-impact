@@ -157,6 +157,13 @@ interface Chiffres { actions: number; personnes: number; femmes: number; jeunes:
 /* ------------------------------------------------------------------ */
 
 export function Vitrine({ connecte = false }: { connecte?: boolean }) {
+  // La page publique garde ses couleurs, quel que soit le thème choisi dans l'application.
+  useEffect(() => {
+    const racine = document.documentElement
+    const theme = racine.getAttribute('data-theme')
+    racine.removeAttribute('data-theme')
+    return () => { if (theme) racine.setAttribute('data-theme', theme) }
+  }, [])
   const [menu, setMenu] = useState(false)
   const [defile, setDefile] = useState(false)
   useEffect(() => {

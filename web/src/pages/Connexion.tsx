@@ -48,7 +48,7 @@ export function Connexion() {
   return (
     <div className="grid min-h-dvh bg-background lg:grid-cols-[1.1fr_1fr]">
       {/* Présentation (ordinateur) */}
-      <div className="relative hidden overflow-hidden bg-gradient-to-br from-[#0b7a57] via-[#0a5f45] to-[#0c2a20] p-12 text-white lg:flex lg:flex-col lg:justify-between">
+      <div className="relative hidden overflow-hidden bg-gradient-to-br from-degrade-1 via-degrade-2 to-degrade-3 p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <svg aria-hidden className="absolute -bottom-24 -right-24 size-[28rem] opacity-[0.07]" viewBox="0 0 200 200">
           <circle cx="100" cy="100" r="90" fill="none" stroke="white" strokeWidth="14" />
           <circle cx="100" cy="100" r="58" fill="none" stroke="white" strokeWidth="14" />

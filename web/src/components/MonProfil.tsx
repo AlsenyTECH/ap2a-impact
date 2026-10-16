@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Switch } from '@/components/ui/switch'
 import { PhotoFiche } from '@/components/PhotoFiche'
 import { useAuth } from '@/lib/auth'
-import { LIBELLES_ROLE } from '@/lib/format'
+import { nomRole } from '@/lib/droits'
+import { appliquerTheme, THEMES, themeEnregistre, type Theme } from '@/lib/theme'
 import { heureCourte, JOURS, useReglagesRappels } from '@/lib/rappels'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 
@@ -31,10 +32,10 @@ async function appelerRappels(type: 'hebdo' | 'seances', apercu: boolean) {
 
 /** Mon profil : numéro de membre, rappels par email, aperçu, et (admin) journal des envois. */
 export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => void }) {
-  const { membre, a } = useAuth()
+  const { membre, peut } = useAuth()
   const qc = useQueryClient()
   const [envoi, setEnvoi] = useState<string | null>(null)
-  const admin = a('admin')
+  const admin = peut('rappels.regler')
   const { data: reglages } = useReglagesRappels()
   const hebdo = reglages?.hebdo_actif ? `Chaque ${JOURS[reglages.hebdo_jour - 1]} à ${heureCourte(reglages.hebdo_heure)}` : null
   const seances = reglages?.seances_actif ? (reglages.seances_veille ? `La veille d'une séance, à ${heureCourte(reglages.seances_heure)}` : `Le matin d'une séance, à ${heureCourte(reglages.seances_heure)}`) : null
@@ -46,7 +47,7 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
   })
   const { data: journal = [] } = useQuery({
     queryKey: ['rappels-envoyes'],
-    enabled: ouvert && a('admin', 'bureau', 'coordinateur'),
+    enabled: ouvert,
     queryFn: async () => verifier(await supabase.from('rappels_envoyes').select('*').order('envoye_le', { ascending: false }).limit(15)) as Envoi[],
   })
 
@@ -85,7 +86,7 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
           <PhotoFiche dossier="membres" id={membre.id} chemin={membre.photo_chemin} prenom={membre.prenom} nom={membre.nom} modifiable taille="lg" />
           <div className="min-w-0 flex-1 leading-tight">
             <div className="font-semibold">{membre.prenom} {membre.nom}</div>
-            <div className="text-sm text-muted-foreground">{LIBELLES_ROLE[membre.role]} · <b className="text-foreground">{membre.numero_adherent}</b></div>
+            <div className="text-sm text-muted-foreground">{nomRole(membre)} · <b className="text-foreground">{membre.numero_adherent}</b></div>
             <div className="truncate text-xs text-muted-foreground">{membre.email ?? 'Pas d\'adresse email'}</div>
             <Button asChild size="sm" variant="secondary" className="mt-2"><Link to={`/cartes?membre=${membre.id}`} onClick={fermer}><IdCard /> Ma carte de membre</Link></Button>
           </div>
@@ -98,7 +99,7 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
               <span className="text-sm">
                 <span className="font-medium">Recevoir les rappels par email</span>
                 <span className="block text-muted-foreground">
-                  {hebdo ? `${hebdo} : vos suivis à venir${a('admin', 'bureau', 'coordinateur') ? ` et les retards de plus de ${reglages?.seuil_retard} jours` : ''}. ` : ''}
+                  {hebdo ? `${hebdo} : vos suivis à venir${peut('impact.voir') ? ` et les retards de plus de ${reglages?.seuil_retard} jours` : ''}. ` : ''}
                   {seances ? `${seances} : un rappel pour faire l'appel.` : ''}
                   {!hebdo && !seances && reglages ? 'Les rappels automatiques sont désactivés par l\'administrateur.' : ''}
                 </span>
@@ -115,6 +116,8 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
             <p className="pl-8 text-xs text-muted-foreground">Demandez au bureau d'ajouter votre adresse email à votre fiche pour recevoir les rappels.</p>
           )}
         </section>
+
+        <ChoixTheme />
 
         {admin ? (
           <section className="space-y-2 border-t border-border pt-4">
@@ -145,5 +148,36 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
         ) : null}
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** Couleurs de l'application : le vert d'origine ou le bleu du logo AP2A. */
+function ChoixTheme() {
+  const [theme, setTheme] = useState<Theme>(themeEnregistre())
+  async function choisir(t: Theme) {
+    setTheme(t)
+    appliquerTheme(t)
+    // Gardé aussi sur la fiche : le thème suit le membre sur ses autres appareils.
+    const { error } = await supabase.rpc('choisir_theme', { p_theme: t })
+    if (error && navigator.onLine) toast.error(messageErreur(error))
+  }
+  return (
+    <section className="space-y-2 border-t border-border pt-4">
+      <h3 className="text-sm font-semibold">Couleurs de l'application</h3>
+      <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Couleurs de l'application">
+        {THEMES.map((t) => (
+          <button key={t.id} type="button" role="radio" aria-checked={theme === t.id} onClick={() => choisir(t.id)}
+            className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${theme === t.id ? 'border-primary bg-primary-soft' : 'border-border hover:bg-muted/50'}`}>
+            <span className="flex shrink-0 overflow-hidden rounded-lg border border-black/10">
+              {t.couleurs.map((c) => <span key={c} className="h-9 w-3.5" style={{ background: c }} />)}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">{t.nom}</span>
+              <span className="block text-xs text-muted-foreground">{t.description}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   )
 }

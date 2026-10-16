@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 // icône pour les ménages, groupes, établissements et lieux.
 // ---------------------------------------------------------------------
 const TEINTES = [
-  'bg-[#e3f3ec] text-[#06573e]', 'bg-[#e6eefb] text-[#1f4e99]', 'bg-[#fdf3d8] text-[#7a5600]', 'bg-[#fbe8ef] text-[#9b2c55]',
+  'bg-primary-soft text-accent-foreground', 'bg-[#e6eefb] text-[#1f4e99]', 'bg-[#fdf3d8] text-[#7a5600]', 'bg-[#fbe8ef] text-[#9b2c55]',
   'bg-[#ece8fb] text-[#4f3aa3]', 'bg-[#e1f3f7] text-[#13647a]', 'bg-[#fbebe2] text-[#9a4a1a]', 'bg-[#eef1ec] text-[#3d4b44]',
 ]
 const teinte = (texte: string) => TEINTES[[...texte].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % TEINTES.length]
@@ -117,7 +117,7 @@ export function Indicateur({ icone: Icone, valeur, libelle, detail, ton = 'vert'
   ton?: 'vert' | 'or' | 'bleu' | 'rose'
 }) {
   const tons = {
-    vert: 'bg-[#e3f3ec] text-[#06573e]', or: 'bg-[#fdf3d8] text-[#7a5600]',
+    vert: 'bg-primary-soft text-accent-foreground', or: 'bg-[#fdf3d8] text-[#7a5600]',
     bleu: 'bg-[#e6eefb] text-[#1f4e99]', rose: 'bg-[#fbe8ef] text-[#9b2c55]',
   }
   return (

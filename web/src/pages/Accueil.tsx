@@ -22,8 +22,8 @@ const compter = async (table: string, filtre?: [string, string]) => {
 type ActionAvecType = Action & { type: { libelle: string; code: string } | null }
 
 export function Accueil() {
-  const { membre, a } = useAuth()
-  const voitTout = a('admin', 'bureau', 'coordinateur')
+  const { membre, peut } = useAuth()
+  const voitTout = peut('cibles.voir')
   const aujourdhui = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   const { data: chiffres } = useQuery({
@@ -77,7 +77,7 @@ export function Accueil() {
   return (
     <div className="space-y-7">
       {/* Bandeau d'accueil */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0b7a57] via-[#0a5f45] to-[#0c2a20] p-6 text-white shadow-haute md:p-8">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-degrade-1 via-degrade-2 to-degrade-3 p-6 text-white shadow-haute md:p-8">
         <svg aria-hidden className="absolute -right-10 -top-10 size-64 opacity-[0.08]" viewBox="0 0 200 200">
           <circle cx="100" cy="100" r="90" fill="none" stroke="white" strokeWidth="18" />
           <circle cx="100" cy="100" r="45" fill="none" stroke="white" strokeWidth="18" />
@@ -90,7 +90,7 @@ export function Accueil() {
           </p>
           {voitTout ? (
             <div className="mt-5 flex flex-wrap gap-2">
-              <Button asChild size="sm" className="bg-white text-[#0a5f45] hover:bg-white/90">
+              <Button asChild size="sm" className="bg-white text-degrade-2 hover:bg-white/90">
                 <Link to="/actions"><Plus /> Nouvelle action</Link>
               </Button>
               <Button asChild size="sm" className="border border-white/25 bg-white/10 text-white hover:bg-white/20">
@@ -101,7 +101,7 @@ export function Accueil() {
         </div>
       </div>
 
-      {a('admin') ? <BandeauDemo /> : null}
+      {peut('demo.gerer') ? <BandeauDemo /> : null}
 
       {aFaire ? (
         <Link to="/suivis" className="group flex items-center gap-4 rounded-xl border border-or/40 bg-or-soft p-4 transition-colors hover:border-or">
@@ -114,7 +114,7 @@ export function Accueil() {
         </Link>
       ) : null}
 
-      {a('admin', 'bureau') ? <AlerteStock /> : null}
+      {peut('kits.gerer') ? <AlerteStock /> : null}
 
       {rappelsAEnvoyer ? (
         <Link to="/rappels" className="group flex items-center gap-4 rounded-xl border border-primary/30 bg-primary/5 p-4 transition-colors hover:border-primary">
@@ -137,15 +137,15 @@ export function Accueil() {
       ) : null}
 
       {/* L'empreinte de la fondatrice */}
-      <Link to="/association" className="group relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-or/30 bg-gradient-to-r from-[#0c2a20] to-[#123b2d] p-5 text-white shadow-carte transition hover:shadow-haute sm:flex-row sm:items-center md:p-6">
-        <span className="flex size-16 shrink-0 items-center justify-center rounded-full border-2 border-[#f2c14e] font-heading text-xl font-bold text-[#f2c14e]">FKD</span>
+      <Link to="/association" className="group relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-or/30 bg-gradient-to-r from-sidebar to-sidebar-active p-5 text-white shadow-carte transition hover:shadow-haute sm:flex-row sm:items-center md:p-6">
+        <span className="flex size-16 shrink-0 items-center justify-center rounded-full border-2 border-marque-clair font-heading text-xl font-bold text-marque-clair">FKD</span>
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-2 font-heading text-lg font-semibold leading-snug md:text-xl">
-            <Quote className="mt-1 size-4 shrink-0 text-[#f2c14e]" /> Refaire des Parcelles cette cité assainie où il fait bon vivre.
+            <Quote className="mt-1 size-4 shrink-0 text-marque-clair" /> Refaire des Parcelles cette cité assainie où il fait bon vivre.
           </div>
           <div className="mt-1 text-sm text-white/70">Fatou Kiné Diakhaté, fondatrice de l'AP2A · première femme Directrice de Cabinet adjointe du Président de la République</div>
         </div>
-        <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-[#f2c14e]">Page de l'association <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" /></span>
+        <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-marque-clair">Page de l'association <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" /></span>
       </Link>
 
       <div className="grid grid-cols-1 gap-7 lg:grid-cols-5">

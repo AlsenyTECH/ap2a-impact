@@ -225,13 +225,16 @@ Deno.serve(async (req) => {
     const jour = typeof jourRecu === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(jourRecu) ? jourRecu : null
 
     const service = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
+    // Le membre a-t-il ce droit (selon son rôle) ?
+    const droit = async (membreId: string, permission: string) =>
+      (await service.rpc('membre_a_permission', { p_membre: membreId, p: permission })).data === true
 
     // Changer l'adresse de connexion d'un membre dont l'accès est activé : réservé à l'administrateur.
     if (type === 'changer_email') {
       const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
       const { data: u } = await service.auth.getUser(jeton)
       const { data: moi } = u?.user ? await service.from('membres').select('id, role, actif').eq('user_id', u.user.id).maybeSingle() : { data: null }
-      if (!moi?.actif || moi.role !== 'admin') return repondre({ erreur: "Seul un administrateur peut changer une adresse de connexion" }, 403)
+      if (!moi?.actif || !(await droit(moi.id, 'membres.comptes'))) return repondre({ erreur: "Il faut le droit « Gérer les comptes de connexion » pour changer une adresse de connexion" }, 403)
       const email = String(nouvelEmail ?? '').trim().toLowerCase()
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return repondre({ erreur: 'Adresse email invalide' }, 400)
       const { data: m } = await service.from('membres').select('id, user_id, email').eq('id', membre_id).maybeSingle()
@@ -253,7 +256,7 @@ Deno.serve(async (req) => {
       const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
       const { data: u } = await service.auth.getUser(jeton)
       const { data: moi } = u?.user ? await service.from('membres').select('id, role, actif').eq('user_id', u.user.id).maybeSingle() : { data: null }
-      if (!moi?.actif || moi.role !== 'admin') return repondre({ erreur: "Seul un administrateur peut envoyer un SMS d'essai" }, 403)
+      if (!moi?.actif || !(await droit(moi.id, 'rappels.regler'))) return repondre({ erreur: "Il faut le droit « Régler les rappels » pour envoyer un SMS d'essai" }, 403)
       const numero = numeroIntl(String(telephone ?? ''))
       if (numero.length < 11 || numero.length > 15) return repondre({ erreur: 'Numéro de téléphone invalide' }, 400)
       const { data: r } = await service.from('reglages_rappels').select('sms_expediteur').single()
@@ -272,7 +275,9 @@ Deno.serve(async (req) => {
       const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
       const { data: u } = await service.auth.getUser(jeton)
       const { data: moi } = u?.user ? await service.from('membres').select('id, role, actif').eq('user_id', u.user.id).maybeSingle() : { data: null }
-      if (!moi?.actif || !['admin', 'bureau'].includes(moi.role)) return repondre({ erreur: 'Seul le bureau peut envoyer une invitation' }, 403)
+      if (!moi?.actif) return repondre({ erreur: 'Non autorisé' }, 403)
+      if (membre_id && !(await droit(moi.id, 'membres.gerer'))) return repondre({ erreur: 'Il faut le droit « Gérer les membres » pour inviter un membre' }, 403)
+      if (!membre_id && !(await droit(moi.id, 'partenaires.gerer'))) return repondre({ erreur: 'Il faut le droit « Gérer les partenaires » pour inviter un partenaire' }, 403)
       let destinataire: { prenom: string | null; email: string | null; user_id: string | null; partenaire: string | null; membre: string | null } | null = null
       if (membre_id) {
         const { data } = await service.from('membres').select('id, prenom, email, user_id, actif').eq('id', membre_id).maybeSingle()
@@ -306,7 +311,7 @@ Deno.serve(async (req) => {
       const { data: m } = await service.from('membres').select('id, role, actif').eq('user_id', u.user.id).maybeSingle()
       if (!m?.actif) return repondre({ erreur: 'Non autorisé' }, 403)
       if (apercu) pour = m.id
-      else if (m.role !== 'admin') return repondre({ erreur: "Seul un administrateur peut envoyer les rappels à tous" }, 403)
+      else if (!(await droit(m.id, 'rappels.regler'))) return repondre({ erreur: "Il faut le droit « Régler les rappels » pour envoyer les rappels à tous" }, 403)
     }
 
     // SMS automatiques aux bénéficiaires (avec leur accord) : pas d'aperçu.

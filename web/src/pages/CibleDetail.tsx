@@ -21,7 +21,7 @@ import type { Suivi } from '@/lib/types'
 
 export function CibleDetail() {
   const { id = '' } = useParams()
-  const { a } = useAuth()
+  const { peutUn } = useAuth()
   const { data: cible, isLoading, error } = useCible(id)
   const { data: parcours = [] } = useParcours(id)
   const [filtre, setFiltre] = useState('')
@@ -34,7 +34,7 @@ export function CibleDetail() {
   const [edition, setEdition] = useState(false)
   const [carte, setCarte] = useState(false)
   const [suivi, setSuivi] = useState<{ suivi: Suivi | null; beneficiaireId: string } | null>(null)
-  const suit = a('admin', 'bureau', 'coordinateur')
+  const suit = peutUn('cibles.ajouter', 'cibles.gerer')
 
   if (error) return <Erreur erreur={error} />
   if (isLoading || !cible) return <Chargement />

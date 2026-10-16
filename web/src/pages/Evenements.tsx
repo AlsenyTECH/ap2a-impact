@@ -28,7 +28,7 @@ export const heure = (h: string | null) => (h ? h.slice(0, 5).replace(':', 'h') 
 type Ligne = Evenement & { presents: { count: number }[]; invites_liste: { count: number }[] }
 
 export function Evenements() {
-  const { a } = useAuth()
+  const { peutUn } = useAuth()
   const [recherche, setRecherche] = useState('')
   const [tri, setTri] = useState<'recents' | 'anciens' | 'titre' | 'presence'>('recents')
   const [quand, setQuand] = useState<'' | 'venir' | 'passes' | 'clotures'>('')
@@ -60,7 +60,7 @@ export function Evenements() {
       <EnTete
         titre="Événements"
         sousTitre="Assemblées, réunions, cérémonies : présences pointées avec la carte de membre"
-        actions={a('admin', 'bureau', 'coordinateur') ? <Button onClick={() => setCreation(true)}><Plus className="size-4" /> Nouvel événement</Button> : null}
+        actions={peutUn('evenements.creer', 'evenements.gerer') ? <Button onClick={() => setCreation(true)}><Plus className="size-4" /> Nouvel événement</Button> : null}
       />
       <OutilsListe
         recherche={recherche}
@@ -196,7 +196,7 @@ export function EvenementForm({ ouvert, fermer, evenement }: { ouvert: boolean; 
             <div className="max-h-44 overflow-y-auto rounded-lg border border-input p-1">
               {!actions.length ? <p className="p-2 text-sm text-muted-foreground">Aucune action.</p> : actions.map((x) => (
                 <label key={x.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted">
-                  <input type="checkbox" className="size-4 accent-[#0b7a57]" checked={actionsInvitees.includes(x.id)}
+                  <input type="checkbox" className="size-4 accent-primary" checked={actionsInvitees.includes(x.id)}
                     onChange={(e) => setActionsInvitees((l) => (e.target.checked ? [...l, x.id] : l.filter((y) => y !== x.id)))} />
                   <span className="min-w-0 flex-1 truncate">{x.titre}</span>
                   <span className="shrink-0 text-xs text-muted-foreground">{new Date(x.date_debut).getFullYear()}</span>

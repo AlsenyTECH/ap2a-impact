@@ -16,7 +16,7 @@ import type { StatutAction } from '@/lib/types'
 type Tri = 'recentes' | 'anciennes' | 'titre' | 'budget'
 
 export function Actions() {
-  const { a } = useAuth()
+  const { peutUn } = useAuth()
   const [statut, setStatut] = useState<StatutAction | ''>('')
   const [type, setType] = useState('')
   const [recherche, setRecherche] = useState('')
@@ -38,7 +38,7 @@ export function Actions() {
       <EnTete
         titre="Actions"
         sousTitre="Formations, dépistages, distributions, journées de nettoyage…"
-        actions={a('admin', 'bureau', 'coordinateur') ? <Button onClick={() => setCreation(true)}><Plus className="size-4" /> Nouvelle</Button> : null}
+        actions={peutUn('actions.creer', 'actions.gerer') ? <Button onClick={() => setCreation(true)}><Plus className="size-4" /> Nouvelle</Button> : null}
       />
       <OutilsListe<Tri>
         recherche={recherche}

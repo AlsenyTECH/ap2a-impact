@@ -1,3 +1,4 @@
+import { CHAMPS_ROLE } from './droits'
 import { useQuery } from '@tanstack/react-query'
 import { supabase, verifier } from './supabase'
 import { normaliser, trier } from './recherche'
@@ -53,7 +54,7 @@ export const useProfils = () =>
 export const useMembres = () =>
   useQuery({
     queryKey: ['membres'],
-    queryFn: async () => verifier(await supabase.from('membres').select('*').order('nom').order('prenom')) as Membre[],
+    queryFn: async () => verifier(await supabase.from('membres').select(`*, ${CHAMPS_ROLE}`).order('nom').order('prenom')) as Membre[],
   })
 
 const CHAMPS_CIBLE = '*, zone:zones(chemin, nom), referent:membres!cibles_referent_id_fkey(prenom, nom, numero_adherent), categorie:categories_cible(libelle, famille:familles_cible(nom))'

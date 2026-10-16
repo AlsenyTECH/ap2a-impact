@@ -35,7 +35,7 @@ const nomPropre = (f: File) => f.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, 
 
 /** Écran du bureau : déposer, légender, ordonner et publier les médias de la page publique. */
 export function MediasVitrine() {
-  const { a } = useAuth()
+  const { peut } = useAuth()
   const qc = useQueryClient()
   const { data: medias = [], isLoading, error } = useMediasVitrine(true)
   const entree = useRef<HTMLInputElement>(null)
@@ -43,7 +43,7 @@ export function MediasVitrine() {
   const [youtube, setYoutube] = useState(false)
   const [aSupprimer, setASupprimer] = useState<MediaVitrine | null>(null)
 
-  if (!a('admin', 'bureau')) return <Navigate to="/" replace />
+  if (!peut('vitrine.gerer')) return <Navigate to="/" replace />
   const rafraichir = () => qc.invalidateQueries({ queryKey: ['vitrine-medias'] })
   const prochainOrdre = (e: EmplacementMedia) => Math.max(0, ...medias.filter((m) => m.emplacement === e).map((m) => m.ordre)) + 1
 
