@@ -4,10 +4,10 @@
 //  * pg_cron (en-tête x-cle-rappels, comparé à la clé du coffre) : { type: 'hebdo' | 'seances' | 'sms', jour? } → envoi à tous
 //    les membres concernés, ou SMS automatiques aux bénéficiaires (heures réglées dans l'application) ;
 //  * un membre connecté (jeton de session) : { type, apercu: true } → l'email lui est envoyé à lui seul,
-//    même vide, pour voir à quoi il ressemble ; un administrateur peut aussi déclencher l'envoi à tous ;
-//  * le bureau : { type: 'invitation', membre_id | acces_id } → email d'invitation à créer son compte ;
-//  * l'administrateur : { type: 'changer_email', membre_id, email } → change l'adresse de connexion ;
-//  * l'administrateur : { type: 'sms_test', telephone } → SMS d'essai (vérifie les crédits Brevo).
+//    même vide, pour voir à quoi il ressemble ; droit « rappels.regler » : envoi à tous ;
+//  * droit « membres.gerer » / « partenaires.gerer » : { type: 'invitation', membre_id | acces_id } → invitation ;
+//  * droit « membres.comptes » : { type: 'changer_email', membre_id, email } → change l'adresse de connexion ;
+//  * droit « rappels.regler » : { type: 'sms_test', telephone } → SMS d'essai (vérifie les crédits Brevo).
 //
 // Secrets : EXPEDITEUR_EMAIL, et BREVO_API_KEY ou RESEND_API_KEY.
 // La clé des appels planifiés est dans le coffre de la base (fonction cle_rappels).
