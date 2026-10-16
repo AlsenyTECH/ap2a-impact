@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase, verifier } from './supabase'
 import { LIBELLES_ROLE } from './format'
-import type { Membre } from './types'
+import type { Membre, Role } from './types'
 
 /** Les droits, fonctionnalité par fonctionnalité (même liste que la table « permissions »). */
 export type Permission =
@@ -34,6 +34,19 @@ export const CHAMPS_ROLE = 'role_info:roles!membres_role_id_fkey(id, code, nom, 
 /** L'administrateur a tous les droits, y compris ceux ajoutés plus tard. */
 export function roleA(role: RoleResume | null | undefined, p: Permission) {
   return !!role && (role.code === 'admin' || role.permissions.includes(p))
+}
+
+// Droits d'origine des quatre rôles : seulement pour une fiche gardée dans le
+// téléphone avant la mise à jour, sans son rôle (le serveur reste seul juge).
+const ORIGINE: Record<Role, Permission[]> = {
+  admin: [],
+  bureau: ['cibles.voir', 'cibles.ajouter', 'cibles.gerer', 'actions.creer', 'actions.gerer', 'suivis.faire', 'impact.voir',
+    'evenements.creer', 'evenements.gerer', 'kits.gerer', 'partenaires.gerer', 'membres.gerer', 'referentiels.gerer', 'vitrine.gerer', 'rappels.voir', 'journal.voir'],
+  coordinateur: ['cibles.voir', 'cibles.ajouter', 'actions.creer', 'suivis.faire', 'impact.voir', 'evenements.creer'],
+  membre: [],
+}
+export function roleDuMembre(m: Pick<Membre, 'role' | 'role_id'> & { role_info?: RoleResume | null }): RoleResume {
+  return m.role_info ?? { id: m.role_id, code: m.role, nom: LIBELLES_ROLE[m.role], permissions: ORIGINE[m.role] }
 }
 
 export function droitsDe(role: RoleResume | null | undefined, tous: DefinitionDroit[]): Permission[] {

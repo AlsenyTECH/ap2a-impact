@@ -60,7 +60,7 @@ export function ActionDetail() {
   const dansEquipe = equipe.some((e) => e.membre.id === membre!.id)
   const voitBeneficiaires = peut('cibles.voir') || dansEquipe
   // Une action clôturée est figée (la base le garantit aussi) : seul le
-  // bilan se complète, seul un administrateur peut la rouvrir.
+  // bilan se complète, seul qui a le droit « Rouvrir une action clôturée » peut la rouvrir.
   const cloturee = action.statut === 'terminee' || action.statut === 'annulee'
   const modifiable = gere && !cloturee
   const suites = (SUITE[action.statut] ?? []).filter(() => !cloturee || peut('actions.rouvrir'))
@@ -142,7 +142,7 @@ export function ActionDetail() {
             <div className="font-semibold">Action {action.statut === 'terminee' ? 'clôturée' : 'annulée'} : liste figée</div>
             <div className="text-muted-foreground">
               Les bénéficiaires, ce qui a été remis, l'équipe et les séances ne peuvent plus être modifiés. Le bilan reste modifiable
-              et les suivis continuent. {peut('actions.rouvrir') ? 'En tant qu\'administrateur, vous pouvez la rouvrir.' : 'Seul un administrateur peut la rouvrir.'}
+              et les suivis continuent. {peut('actions.rouvrir') ? 'Vous pouvez la rouvrir.' : 'Seule une personne ayant le droit « Rouvrir une action clôturée » peut la rouvrir.'}
             </div>
           </div>
         </div>

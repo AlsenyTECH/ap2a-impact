@@ -228,6 +228,12 @@ Deno.serve(async (req) => {
     // Le membre a-t-il ce droit (selon son rôle) ?
     const droit = async (membreId: string, permission: string) =>
       (await service.rpc('membre_a_permission', { p_membre: membreId, p: permission })).data === true
+    // Les droits de la fiche visée sont-ils tous des droits de l'appelant ?
+    const couvre = async (appelant: string, vise: string) => {
+      const [a, v] = await Promise.all([service.rpc('droits_membre', { p_membre: appelant }), service.rpc('droits_membre', { p_membre: vise })])
+      const mes = new Set((a.data as string[] | null) ?? [])
+      return !a.error && !v.error && ((v.data as string[] | null) ?? []).every((d) => mes.has(d))
+    }
 
     // Changer l'adresse de connexion d'un membre dont l'accès est activé : réservé à l'administrateur.
     if (type === 'changer_email') {
@@ -239,6 +245,7 @@ Deno.serve(async (req) => {
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return repondre({ erreur: 'Adresse email invalide' }, 400)
       const { data: m } = await service.from('membres').select('id, user_id, email').eq('id', membre_id).maybeSingle()
       if (!m) return repondre({ erreur: 'Membre introuvable' }, 404)
+      if (m.id === moi.id || !(await couvre(moi.id, m.id))) return repondre({ erreur: "Vous ne pouvez pas changer l'adresse de connexion de quelqu'un qui a plus de droits que vous (ni la vôtre)" }, 403)
       const { data: autreMembre } = await service.from('membres').select('id').eq('email', email).neq('id', m.id).maybeSingle()
       const { data: autreAcces } = await service.from('acces_partenaires').select('id').eq('email', email).maybeSingle()
       if (autreMembre || autreAcces) return repondre({ erreur: 'Cette adresse est déjà utilisée par une autre fiche' }, 400)
@@ -281,6 +288,7 @@ Deno.serve(async (req) => {
       let destinataire: { prenom: string | null; email: string | null; user_id: string | null; partenaire: string | null; membre: string | null } | null = null
       if (membre_id) {
         const { data } = await service.from('membres').select('id, prenom, email, user_id, actif').eq('id', membre_id).maybeSingle()
+        if (data?.actif && !(await couvre(moi.id, data.id))) return repondre({ erreur: "Vous ne pouvez pas inviter quelqu'un qui a plus de droits que vous" }, 403)
         if (data?.actif) destinataire = { prenom: data.prenom, email: data.email, user_id: data.user_id, partenaire: null, membre: data.id }
       } else if (acces_id) {
         const { data } = await service.from('acces_partenaires').select('prenom, email, user_id, revoque_le, partenaire:partenaires(nom, sigle)').eq('id', acces_id).maybeSingle()

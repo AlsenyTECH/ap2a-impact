@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Chargement, Champ, EnTete, Erreur, Liste } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
-import { droitsDe, parGroupe, roleA, usePermissions, useRoles, type DefinitionDroit, type Permission, type RoleApp } from '@/lib/droits'
+import { droitsDe, parGroupe, roleA, roleDuMembre, usePermissions, useRoles, type DefinitionDroit, type Permission, type RoleApp } from '@/lib/droits'
 import { useMembres } from '@/lib/requetes'
 import { messageErreur, supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -79,7 +79,7 @@ export function Roles() {
                   <Button size="sm" variant="secondary" onClick={() => setEdition(r)}>
                     {gere && r.code !== 'admin' ? <><Pencil /> Modifier</> : <><ShieldCheck /> Voir les droits</>}
                   </Button>
-                  {gere ? <Button size="sm" variant="ghost" onClick={() => setEdition({ ...r, id: '', code: null, systeme: false, nom: `${r.nom} (copie)` })}><Copy /> Copier</Button> : null}
+                  {gere ? <Button size="sm" variant="ghost" onClick={() => setEdition({ ...r, permissions: droitsDe(r, droits), id: '', code: null, systeme: false, nom: `${r.nom} (copie)` })}><Copy /> Copier</Button> : null}
                   {gere && !r.systeme ? <Button size="sm" variant="ghost" className="text-destructive" onClick={() => supprimer(r)} aria-label="Supprimer"><Trash2 /></Button> : null}
                 </div>
               </CardContent>
@@ -138,14 +138,14 @@ function RoleForm({ role, fermer, droits, roles, lectureSeule, nbMembres }: {
   nbMembres: number
 }) {
   const qc = useQueryClient()
-  const { membre: moi } = useAuth()
+  const { membre: moi, recharger } = useAuth()
   const existant = role && role !== 'nouveau' && role.id ? role : null
   const admin = existant?.code === 'admin'
   const [nom, setNom] = useState('')
   const [description, setDescription] = useState('')
   const [choisis, setChoisis] = useState<Set<Permission>>(new Set())
   const [envoi, setEnvoi] = useState(false)
-  const mesDroits = new Set(droitsDe(moi?.role_info, droits))
+  const mesDroits = new Set(moi ? droitsDe(roleDuMembre(moi), droits) : [])
   const fige = lectureSeule || admin
 
   useEffect(() => {
@@ -155,7 +155,7 @@ function RoleForm({ role, fermer, droits, roles, lectureSeule, nbMembres }: {
     setDescription(base?.description ?? '')
     // Nouveau rôle (ou copie) : seulement des droits qu'on a soi-même.
     const depart = base ? droitsDe(base, droits) : []
-    setChoisis(new Set(base?.id ? depart : depart.filter((d) => roleA(moi?.role_info, d))))
+    setChoisis(new Set(base?.id ? depart : depart.filter((d) => !!moi && roleA(roleDuMembre(moi), d))))
   }, [role, droits, moi])
 
   function basculer(d: Permission, oui: boolean) {
@@ -184,6 +184,7 @@ function RoleForm({ role, fermer, droits, roles, lectureSeule, nbMembres }: {
     toast.success(existant ? 'Rôle modifié' : 'Rôle créé')
     qc.invalidateQueries({ queryKey: ['roles'] })
     qc.invalidateQueries({ queryKey: ['membres'] })
+    if (existant && existant.id === moi?.role_id) recharger()
     fermer()
   }
 

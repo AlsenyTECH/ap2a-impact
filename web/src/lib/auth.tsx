@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { client, persister } from './cache'
 import { nbEnAttente, viderHorsLigne } from './horsligne'
-import { CHAMPS_ROLE, roleA, type Permission } from './droits'
+import { CHAMPS_ROLE, roleA, roleDuMembre, type Permission } from './droits'
 import { appliquerTheme } from './theme'
 import type { Membre } from './types'
 
@@ -15,6 +15,8 @@ interface Auth {
   peut: (p: Permission) => boolean
   /** Le membre a au moins un de ces droits. */
   peutUn: (...p: Permission[]) => boolean
+  /** Relit sa fiche (après un changement de son rôle). */
+  recharger: () => void
   deconnecter: () => Promise<void>
 }
 
@@ -24,6 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [membre, setMembre] = useState<Membre | null>(null)
   const [chargement, setChargement] = useState(true)
+  const [version, setVersion] = useState(0)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -56,14 +59,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setChargement(false)
       })
     return () => { annule = true }
-  }, [userId])
+  }, [userId, version])
 
   const valeur: Auth = {
     session,
     membre,
     chargement,
-    peut: (p) => roleA(membre?.role_info, p),
-    peutUn: (...p) => p.some((x) => roleA(membre?.role_info, x)),
+    peut: (p) => !!membre && roleA(roleDuMembre(membre), p),
+    peutUn: (...p) => !!membre && p.some((x) => roleA(roleDuMembre(membre), x)),
+    recharger: () => setVersion((v) => v + 1),
     deconnecter: async () => {
       const n = nbEnAttente()
       if (n && !confirm(`${n} enregistrement(s) faits sans réseau n'ont pas encore été envoyés. En vous déconnectant maintenant, ils seront perdus. Continuer ?`)) return

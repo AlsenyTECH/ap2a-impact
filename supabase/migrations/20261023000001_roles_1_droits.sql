@@ -67,7 +67,7 @@ create table public.roles (
 
 insert into public.roles (code, nom, description, systeme, ordre, permissions) values
   ('admin', 'Administrateur', 'Tous les droits, y compris les rôles et les réglages.', true, 1,
-   array(select code from public.permissions order by ordre)),
+   array(select code from public.permissions order by code)),
   ('bureau', 'Bureau', 'Gère l''association au quotidien.', true, 2, array[
    'cibles.voir', 'cibles.ajouter', 'cibles.gerer', 'actions.creer', 'actions.gerer', 'suivis.faire', 'impact.voir',
    'evenements.creer', 'evenements.gerer', 'kits.gerer', 'partenaires.gerer', 'membres.gerer',
@@ -122,14 +122,17 @@ grant execute on function public.droits_membre(uuid) to authenticated;
 grant execute on function public.membre_a_permission(uuid, text) to authenticated;
 grant execute on function public.a_permission(text) to authenticated;
 grant execute on function public.mes_permissions() to authenticated;
+grant execute on function public.droits_membre(uuid), public.membre_a_permission(uuid, text) to service_role;
 
 -- Reste-t-il quelqu'un (d'actif, autre que p_sauf) pour gérer les rôles ?
+-- (Il faut aussi pouvoir modifier les fiches membres pour attribuer un rôle.)
 create or replace function public.reste_gestionnaire_roles(p_sauf_membre uuid, p_sauf_role uuid) returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (
     select 1 from public.membres m join public.roles r on r.id = m.role_id
     where m.actif and m.id is distinct from p_sauf_membre
-      and (r.code = 'admin' or (r.id is distinct from p_sauf_role and 'roles.gerer' = any(r.permissions))))
+      and (r.code = 'admin' or (r.id is distinct from p_sauf_role
+                                and 'roles.gerer' = any(r.permissions) and 'membres.gerer' = any(r.permissions))))
 $$;
 revoke all on function public.reste_gestionnaire_roles(uuid, uuid) from public, anon, authenticated;
 
@@ -171,17 +174,22 @@ begin
     if new.code is distinct from old.code or new.systeme is distinct from old.systeme then
       raise exception 'Le code d''un rôle d''origine ne change pas' using errcode = '42501';
     end if;
-    if old.code = 'admin' and new.permissions is distinct from old.permissions then
+    if old.code = 'admin' and not (new.permissions <@ old.permissions and old.permissions <@ new.permissions) then
       raise exception 'L''administrateur a toujours tous les droits' using errcode = '42501';
     end if;
   end if;
-  -- On ne donne pas un droit qu'on n'a pas soi-même.
-  select array_agg(x) into v_en_trop from unnest(new.permissions) x where not (x = any(public.mes_permissions()));
-  if v_en_trop is not null and (tg_op = 'INSERT' or not (v_en_trop <@ old.permissions)) then
-    raise exception 'Vous ne pouvez pas donner des droits que vous n''avez pas : %', array_to_string(v_en_trop, ', ') using errcode = '42501';
+  -- On ne donne (ni ne retire) pas un droit qu'on n'a pas soi-même.
+  select array_agg(x) into v_en_trop from (
+    select x from unnest(new.permissions) x where tg_op = 'INSERT' or not (x = any(old.permissions))
+    union
+    select x from unnest(case when tg_op = 'UPDATE' then old.permissions else '{}'::text[] end) x where not (x = any(new.permissions))
+  ) changes where not (x = any(public.mes_permissions()));
+  if v_en_trop is not null then
+    raise exception 'Vous ne pouvez pas donner ou retirer des droits que vous n''avez pas : %', array_to_string(v_en_trop, ', ') using errcode = '42501';
   end if;
   -- Il doit rester quelqu'un pour gérer les rôles.
-  if tg_op = 'UPDATE' and 'roles.gerer' = any(old.permissions) and not ('roles.gerer' = any(new.permissions))
+  if tg_op = 'UPDATE' and old.permissions @> array['roles.gerer', 'membres.gerer']
+     and not (new.permissions @> array['roles.gerer', 'membres.gerer'])
      and not public.reste_gestionnaire_roles(null, new.id) then
     raise exception 'Plus personne ne pourrait gérer les rôles' using errcode = '42501';
   end if;
@@ -189,3 +197,101 @@ begin
 end $$;
 create trigger roles_proteger before insert or update or delete on public.roles
   for each row execute function public.proteger_role();
+
+-- ---------------------------------------------------------------------
+-- 5. Rôle, compte et email d'un membre
+-- ---------------------------------------------------------------------
+-- L'ancien champ « role » et le nouveau « role_id » restent d'accord. Seul qui
+-- gère les rôles change un rôle, jamais le sien, et sans donner ni retirer
+-- plus de droits qu'il n'en a. Relier un compte, ou changer l'email d'une fiche
+-- pas encore reliée (c'est l'email qui relie le compte), demande aussi d'avoir
+-- au moins les droits de cette fiche.
+create or replace function public.verifier_changement_role() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  v_mes text[];
+  v_cible text[];
+  v_avant text[];
+begin
+  if tg_op = 'INSERT' then
+    if new.role_id is null then new.role_id := (select id from public.roles where code = new.role::text); end if;
+  elsif new.role_id is distinct from old.role_id then
+    null;
+  elsif new.role is distinct from old.role then
+    new.role_id := (select id from public.roles where code = new.role::text);
+  end if;
+  new.role := coalesce((select case when r.code in ('admin', 'bureau', 'coordinateur', 'membre') then r.code::public.role_membre end
+                        from public.roles r where r.id = new.role_id), 'membre');
+
+  if auth.uid() is null then
+    return new;   -- liaison automatique d'un compte, migrations, tâches internes
+  end if;
+  v_mes := public.mes_permissions();
+  select case when code = 'admin' then array(select code from public.permissions) else permissions end
+    into v_cible from public.roles where id = new.role_id;
+  if tg_op = 'UPDATE' then
+    select case when code = 'admin' then array(select code from public.permissions) else permissions end
+      into v_avant from public.roles where id = old.role_id;
+  end if;
+
+  if tg_op = 'INSERT' then
+    if new.role_id is distinct from (select id from public.roles where code = 'membre') then
+      if not public.a_permission('roles.gerer') then
+        raise exception 'Il faut le droit « Gérer les rôles » pour attribuer ce rôle' using errcode = '42501';
+      end if;
+      if not (v_cible <@ v_mes) then
+        raise exception 'Vous ne pouvez pas attribuer un rôle qui a plus de droits que vous' using errcode = '42501';
+      end if;
+    end if;
+    if new.user_id is not null and not public.a_permission('membres.comptes') then
+      raise exception 'Il faut le droit « Gérer les comptes de connexion » pour relier un compte à une fiche' using errcode = '42501';
+    end if;
+    return new;
+  end if;
+
+  if new.role_id is distinct from old.role_id then
+    if not public.a_permission('roles.gerer') then
+      raise exception 'Il faut le droit « Gérer les rôles » pour changer un rôle' using errcode = '42501';
+    end if;
+    if old.user_id = auth.uid() then
+      raise exception 'Vous ne pouvez pas changer votre propre rôle' using errcode = '42501';
+    end if;
+    if not (v_cible <@ v_mes) or not (v_avant <@ v_mes) then
+      raise exception 'Vous ne pouvez pas changer le rôle de quelqu''un qui a (ou aurait) plus de droits que vous' using errcode = '42501';
+    end if;
+  end if;
+  if new.user_id is distinct from old.user_id then
+    if not public.a_permission('membres.comptes') then
+      raise exception 'Il faut le droit « Gérer les comptes de connexion » pour relier un compte à une fiche' using errcode = '42501';
+    end if;
+    if old.user_id = auth.uid() or new.user_id = auth.uid() then
+      raise exception 'Vous ne pouvez pas changer le compte relié à votre propre fiche' using errcode = '42501';
+    end if;
+    if not (v_avant <@ v_mes) then
+      raise exception 'Vous ne pouvez pas changer le compte de quelqu''un qui a plus de droits que vous' using errcode = '42501';
+    end if;
+  end if;
+  if old.user_id is null and new.email is distinct from old.email and not (v_avant <@ v_mes and v_cible <@ v_mes) then
+    raise exception 'Vous ne pouvez pas changer l''adresse d''une fiche qui a plus de droits que vous' using errcode = '42501';
+  end if;
+  -- Il doit rester quelqu'un pour gérer les rôles.
+  if public.membre_a_permission(old.id, 'roles.gerer') and public.membre_a_permission(old.id, 'membres.gerer')
+     and (not new.actif or new.user_id is distinct from old.user_id
+          or not ('roles.gerer' = any(v_cible) and 'membres.gerer' = any(v_cible)))
+     and not public.reste_gestionnaire_roles(old.id, null) then
+    raise exception 'Plus personne ne pourrait gérer les rôles' using errcode = '42501';
+  end if;
+  return new;
+end $$;
+
+create or replace function public.garder_gestionnaire_roles() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is not null and public.membre_a_permission(old.id, 'roles.gerer') and public.membre_a_permission(old.id, 'membres.gerer')
+     and not public.reste_gestionnaire_roles(old.id, null) then
+    raise exception 'Plus personne ne pourrait gérer les rôles' using errcode = '42501';
+  end if;
+  return old;
+end $$;
+create trigger membres_garder_roles before delete on public.membres
+  for each row execute function public.garder_gestionnaire_roles();

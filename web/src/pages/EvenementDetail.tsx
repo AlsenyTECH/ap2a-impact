@@ -137,7 +137,7 @@ export function EvenementDetail() {
 
   async function changerCloture(fermer: boolean) {
     if (!confirm(fermer
-      ? 'Clôturer cet événement ? La liste de présence sera figée : plus de pointage ni de modification. Seul un administrateur pourra le rouvrir.'
+      ? 'Clôturer cet événement ? La liste de présence sera figée : plus de pointage ni de modification. Seul qui a le droit « Rouvrir un événement clôturé » pourra le rouvrir.'
       : 'Rouvrir cet événement ? La liste de présence pourra de nouveau être modifiée.')) return
     const { error } = await supabase.from('evenements').update({ cloture_le: fermer ? new Date().toISOString() : null }).eq('id', id)
     if (error) return toast.error(messageErreur(error))
@@ -226,7 +226,7 @@ export function EvenementDetail() {
             <div className="font-semibold">Événement clôturé : liste de présence figée</div>
             <div className="text-muted-foreground">
               Clôturé le {new Date(ev.cloture_le!).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-              {cloturePar ? ` par ${membreAvecNumero(cloturePar)}` : ' automatiquement'}. Seul le compte rendu peut encore être complété{peut('evenements.rouvrir') ? ' ; en tant qu\'administrateur, vous pouvez le rouvrir' : ''}.
+              {cloturePar ? ` par ${membreAvecNumero(cloturePar)}` : ' automatiquement'}. Seul le compte rendu peut encore être complété{peut('evenements.rouvrir') ? ' ; vous pouvez le rouvrir' : ''}.
             </div>
           </div>
         </div>

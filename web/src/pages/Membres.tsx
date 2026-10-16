@@ -18,7 +18,7 @@ import { DialogDescription } from '@/components/ui/dialog'
 import { PhotoFiche } from '@/components/PhotoFiche'
 import { usePhotos } from '@/lib/photos'
 import { useAuth } from '@/lib/auth'
-import { droitsDe, nomRole, useRoles, usePermissions } from '@/lib/droits'
+import { droitsDe, nomRole, roleDuMembre, useRoles, usePermissions } from '@/lib/droits'
 import { useMembres } from '@/lib/requetes'
 import { messageErreur, supabase } from '@/lib/supabase'
 import type { Membre } from '@/lib/types'
@@ -183,7 +183,7 @@ function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | n
           <Champ label="Fonction dans l'association"><Input value={v.fonction} placeholder="Présidente, trésorier, chargé de communication…" onChange={(e) => setV({ ...v, fonction: e.target.value })} /></Champ>
           {peut('roles.gerer') && !moiMeme ? (() => {
             // On n'attribue que des rôles qui n'ont pas plus de droits que soi.
-            const mesDroits = new Set(droitsDe(moi?.role_info, tousDroits))
+            const mesDroits = new Set(moi ? droitsDe(roleDuMembre(moi), tousDroits) : [])
             const permis = (id: string) => droitsDe(roles.find((r) => r.id === id), tousDroits).every((d) => mesDroits.has(d))
             const choisi = roles.find((r) => r.id === (v.role_id || roleMembre))
             const bloque = !!existant && !permis(existant.role_id)
