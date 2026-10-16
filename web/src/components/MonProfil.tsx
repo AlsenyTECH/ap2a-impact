@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import { PhotoFiche } from '@/components/PhotoFiche'
 import { useAuth } from '@/lib/auth'
 import { nomRole } from '@/lib/droits'
-import { appliquerTheme, THEMES, themeEnregistre, type Theme } from '@/lib/theme'
+import { choisirTheme, THEMES, useTheme, type Theme } from '@/lib/theme'
 import { heureCourte, JOURS, useReglagesRappels } from '@/lib/rappels'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 
@@ -153,12 +153,10 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
 
 /** Couleurs de l'application : le vert d'origine ou le bleu du logo AP2A. */
 function ChoixTheme() {
-  const [theme, setTheme] = useState<Theme>(themeEnregistre())
+  const theme = useTheme()
   async function choisir(t: Theme) {
-    setTheme(t)
-    appliquerTheme(t)
     // Gardé aussi sur la fiche : le thème suit le membre sur ses autres appareils.
-    const { error } = await supabase.rpc('choisir_theme', { p_theme: t })
+    const error = await choisirTheme(t)
     if (error && navigator.onLine) toast.error(messageErreur(error))
   }
   return (

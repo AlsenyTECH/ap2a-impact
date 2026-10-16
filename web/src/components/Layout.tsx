@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { BarChart3, BellRing, CalendarCheck, CalendarHeart, Handshake, Home, ImagePlay, Landmark, MessageCircle, ListChecks, LogOut, Menu, Package, Shapes, ShieldCheck, Target, UsersRound, X } from 'lucide-react'
+import { BarChart3, BellRing, CalendarCheck, CalendarHeart, Handshake, Home, ImagePlay, Landmark, MessageCircle, ListChecks, LogOut, Menu, Package, Palette, Shapes, ShieldCheck, Target, UsersRound, X } from 'lucide-react'
 import { MonProfil } from '@/components/MonProfil'
 import { BandeauHorsLigne } from '@/components/BandeauHorsLigne'
 import { useAuth } from '@/lib/auth'
 import { nomRole, type Permission } from '@/lib/droits'
+import { choisirTheme, useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { Avatar } from '@/components/design'
 import logo from '@/assets/logo_AP2A.jpeg'
@@ -50,6 +51,9 @@ export function Layout() {
   const { membre, deconnecter, peut } = useAuth()
   // Les réglages réservés n'apparaissent qu'à qui a le droit correspondant.
   const visible = (l: Lien) => !l.droit || peut(l.droit)
+  const theme = useTheme()
+  const autreTheme = theme === 'ap2a' ? 'parcelles' : 'ap2a'
+  const libelleTheme = theme === 'ap2a' ? 'Passer au vert des Parcelles' : 'Passer au bleu AP2A'
   const [profil, setProfil] = useState(false)
   const [menu, setMenu] = useState(false)
   const { pathname } = useLocation()
@@ -104,6 +108,9 @@ export function Layout() {
               <div className="truncate text-[11px] text-sidebar-muted">{membre ? `${nomRole(membre)} · ${membre.numero_adherent}` : ''}</div>
             </div>
           </button>
+          <button onClick={() => choisirTheme(autreTheme)} title={libelleTheme} aria-label={libelleTheme} className="rounded-lg p-2 text-sidebar-muted hover:bg-white/10 hover:text-white">
+            <Palette className="size-4" />
+          </button>
           <button onClick={deconnecter} title="Se déconnecter" className="rounded-lg p-2 text-sidebar-muted hover:bg-white/10 hover:text-white">
             <LogOut className="size-4" />
           </button>
@@ -139,6 +146,9 @@ export function Layout() {
               </div>
               <button onClick={() => { setMenu(false); setProfil(true) }} className="flex w-full items-center gap-3 rounded-lg border-t border-border px-3 py-2.5 text-sm font-medium hover:bg-muted">
                 <BellRing className="size-[18px] text-muted-foreground" /> Mon profil et mes rappels
+              </button>
+              <button onClick={() => choisirTheme(autreTheme)} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted">
+                <Palette className="size-[18px] text-muted-foreground" /> {libelleTheme}
               </button>
               <button onClick={deconnecter} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-muted">
                 <LogOut className="size-[18px]" /> Se déconnecter

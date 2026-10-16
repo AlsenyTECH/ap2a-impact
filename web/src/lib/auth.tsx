@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           try { localStorage.setItem(cle, JSON.stringify(fiche)) } catch { /* stockage indisponible */ }
         }
-        if (fiche?.theme) appliquerTheme(fiche.theme)
+        if (fiche?.theme) appliquerTheme(fiche.theme, true)
         setMembre(fiche)
         setChargement(false)
       })
