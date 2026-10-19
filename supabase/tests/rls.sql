@@ -35,7 +35,7 @@ insert into auth.users (email) values
 update auth.users set email = lower(email);
 
 select t.ok((select count(*) from membres where user_id is not null) = 5, 'les 5 comptes sont reliés à leur fiche (email insensible à la casse)');
-select t.ok((select numero_adherent from membres where email = 'admin@ap2a.sn') = 'AP2A-00001', 'numéro d''adhérent automatique');
+select t.ok(numero_valide((select numero_adherent from membres where email = 'admin@ap2a.sn')) and (select numero_adherent from membres where email = 'admin@ap2a.sn') like 'M' || to_char(current_date, 'YY') || '-%', 'numéro d''adhérent automatique (aléatoire, contrôlé)');
 select t.ok((select count(*) from zones where niveau = 'region') = 14, '14 régions');
 select t.ok((select count(*) from zones where niveau = 'departement') = 46, '46 départements');
 select t.ok(exists (select 1 from zones where chemin = 'Dakar > Dakar > Parcelles Assainies > Unité 17'), 'Unité 17 des Parcelles Assainies');
@@ -140,7 +140,7 @@ select t.ok((select count(*) from presences where not present) = 0, 'autre coord
 -- ===== Cartes, photos et pointage par scan =====
 select t.qui('coord@ap2a.sn');
 select t.ok((emettre_carte(null, (select id from cibles where nom = 'Diop'))).jeton ~ '^[0-9a-f]{32}$', 'coordinateur : émet la carte d''un participant (jeton aléatoire)');
-select t.ok((select numero_beneficiaire from cibles where nom = 'Diop') = 'B-00001', 'numéro de bénéficiaire attribué à la première carte');
+select t.ok(numero_valide((select numero_beneficiaire from cibles where nom = 'Diop')) and (select numero_beneficiaire from cibles where nom = 'Diop') like 'B%', 'numéro de bénéficiaire attribué à la première carte');
 select t.refuse($$select emettre_carte(null, (select id from cibles where nom = 'ASC Jappo Unité 17'))$$, 'pas de carte pour un collectif');
 select t.refuse($$select emettre_carte((select id from membres where email = 'membre@ap2a.sn'))$$, 'coordinateur : carte d''un autre membre');
 select t.ok((emettre_carte(mon_membre_id())).membre_id = mon_membre_id(), 'membre : obtient sa propre carte');
@@ -150,7 +150,7 @@ select jeton as j_diop from cartes where cible_id is not null and revoquee_le is
 select jeton as j_coord from cartes where membre_id is not null and revoquee_le is null \gset
 set role anon;
 select t.ok(verifier_carte(:'j_diop') ->> 'statut' = 'valide' and verifier_carte(:'j_diop') ->> 'nom' = 'D.', 'vérification publique : carte valide, nom du bénéficiaire masqué');
-select t.ok(verifier_carte(:'j_coord') ->> 'numero' = 'AP2A-00003', 'vérification publique : numéro du membre');
+select t.ok(numero_valide(verifier_carte(:'j_coord') ->> 'numero') and verifier_carte(:'j_coord') ->> 'numero' like 'M%', 'vérification publique : numéro du membre');
 select t.ok(verifier_carte('0000') ->> 'statut' = 'inconnue', 'vérification publique : jeton inconnu');
 select t.refuse($$select * from cartes$$, 'anonyme : ne lit pas la liste des cartes');
 reset role;
@@ -278,7 +278,7 @@ select t.refuse($$update actions set statut = 'en_cours'$$, 'bureau : rouvrir un
 -- Journal
 select t.ok(exists (select 1 from journal where table_nom = 'actions' and details->'statut'->>1 = 'terminee' and membre_id = mon_membre_id()), 'journal : clôture enregistrée avec son auteur');
 select t.ok(exists (select 1 from journal where table_nom = 'beneficiaires' and operation = 'INSERT' and libelle = 'Mamadou Diop'), 'journal : ajout de bénéficiaire enregistré avec son nom');
-select t.ok(exists (select 1 from journal where table_nom = 'action_equipe' and libelle like 'Aminata Ba (AP2A-%)'), 'journal : membre d''équipe identifié par son numéro');
+select t.ok(exists (select 1 from journal where table_nom = 'action_equipe' and libelle like 'Aminata Ba (M%-%)'), 'journal : membre d''équipe identifié par son numéro');
 select t.refuse($$insert into journal (table_nom, operation) values ('x', 'y')$$, 'journal : écriture directe interdite');
 select t.refuse($$update membres set role = 'bureau' where email = 'membre@ap2a.sn'$$, 'bureau : changer un rôle');
 select t.qui('admin@ap2a.sn');
@@ -320,7 +320,7 @@ update beneficiaires set statut = 'termine';
 update actions set statut = 'terminee';
 select t.ok((select count(*) from suivis) = 4, 'retour puis reclôture : suivis replanifiés');
 select t.ok((select fait_le from suivis where echeance_mois = 3) = '2026-09-02' and (select date_prevue from suivis where echeance_mois = 3) = '2026-09-30', 'suivi déjà fait : jamais recalé');
-select t.ok((select cible_groupes from suivis_detail limit 1) like 'ASC Jappo%' and (select charge_numero from suivis_detail limit 1) like 'AP2A-%', 'vue des suivis : groupes et numéro du chargé');
+select t.ok((select cible_groupes from suivis_detail limit 1) like 'ASC Jappo%' and (select charge_numero from suivis_detail limit 1) like 'M%-%', 'vue des suivis : groupes et numéro du chargé');
 
 -- Un coordinateur qui n'est ni responsable ni référent ne renseigne pas.
 reset role;
@@ -583,4 +583,19 @@ reset role;
 set role anon;
 select t.refuse($$select mon_apercu_rappels('hebdo')$$, 'aperçu : pas pour les visiteurs');
 reset role;
+-- Numéros de carte : format, contrôle, unicité
+select t.ok((select bool_and(numero_valide(n)) and count(distinct n) = 2000 from (select nouveau_numero('B') n from generate_series(1, 2000)) x), 'numéros : 2000 tirages valides et distincts');
+select t.ok((select bool_and(n ~ '^B[0-9]{2}-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{3}$') from (select nouveau_numero('B') n from generate_series(1, 200)) x), 'numéros : format B26-XXXX-XXC, sans I, L, O, U');
+select t.ok(numero_valide(lower(replace(nouveau_numero('M'), '-', ' '))), 'numéros : saisie en minuscules et sans tirets acceptée');
+-- toute faute sur un caractère est détectée
+select t.ok(not exists (
+  select 1 from (select nouveau_numero('B') n from generate_series(1, 50)) x,
+    generate_series(1, 9) pos, generate_series(0, 31) v,
+    lateral (select replace(x.n, '-', '') c) y
+  where substr(y.c, pos + 1, 1) <> substr(alphabet_crockford(), v + 1, 1) and pos between 3 and 9
+    and numero_valide(left(y.c, pos) || substr(alphabet_crockford(), v + 1, 1) || substr(y.c, pos + 2))), 'numéros : toute faute de frappe sur un caractère est détectée');
+-- deux caractères voisins inversés : détecté (sauf paire particulière du Luhn mod 32)
+select t.ok((select count(*) filter (where numero_valide(left(c, p - 1) || substr(c, p + 1, 1) || substr(c, p, 1) || substr(c, p + 2)))::float / count(*) < 0.01
+  from (select replace(nouveau_numero('B'), '-', '') c from generate_series(1, 300)) x, generate_series(4, 9) p
+  where substr(c, p, 1) <> substr(c, p + 1, 1)), 'numéros : inversion de deux caractères voisins détectée (> 99 %)');
 \echo 'Tous les tests sont passés.'

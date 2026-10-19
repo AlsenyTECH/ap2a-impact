@@ -70,7 +70,7 @@ export function CarteVisuelle({ t, className }: { t: TitulaireCarte; className?:
           <div className="mt-[0.8mm] text-[3.6mm] font-bold leading-[1.1]">{t.prenom}</div>
           <div className="text-[3.6mm] font-bold uppercase leading-[1.1]">{t.nom}</div>
           {t.detail ? <div className="mt-[0.8mm] line-clamp-2 text-[2.2mm] text-[#3d4b44]">{t.detail}</div> : null}
-          <div className="mt-[1.2mm] inline-block rounded-[0.8mm] bg-[#f1f6f3] px-[1.2mm] py-[0.3mm] font-mono text-[2.6mm] font-bold tracking-wide text-[#06573e]">{t.numero ?? '—'}</div>
+          <div className="mt-[1.2mm] inline-block whitespace-nowrap rounded-[0.8mm] bg-[#f1f6f3] px-[1.2mm] py-[0.3mm] font-mono text-[2.6mm] font-bold tracking-wide text-[#06573e]">{t.numero ?? '—'}</div>
         </div>
         <div className="flex shrink-0 flex-col items-center">
           {qr ? <img src={qr} alt="QR code de vérification" className="size-[21mm]" /> : <div className="size-[21mm] rounded bg-[#f1f6f3]" />}

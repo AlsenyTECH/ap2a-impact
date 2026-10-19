@@ -30,7 +30,6 @@ delete from public.journal_medical;
 delete from public.donnees_demo;
 delete from public.membres where lower(coalesce(email, '')) not in ('mathsnexus2024@gmail.com', 'thdiakhate@gmail.com');
 delete from auth.users where lower(email) not in ('mathsnexus2024@gmail.com', 'thdiakhate@gmail.com');
-select setval('public.numeros_beneficiaires', 1, false);   -- les cartes repartent à B-00001
 
 commit;
 
