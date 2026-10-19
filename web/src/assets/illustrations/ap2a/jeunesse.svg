@@ -1,0 +1,190 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="jeunesse-titre">
+<title id="jeunesse-titre">Sport et jeunesse : match de quartier sur un terrain de sable, un garçon s'apprête à tirer face à une gardienne pendant que l'entraîneur encourage l'équipe</title>
+<defs>
+<pattern id="jeunesse-wax1" width="20" height="20" patternUnits="userSpaceOnUse">
+<rect width="20" height="20" fill="#b4561f"/>
+<circle cx="10" cy="10" r="4.5" fill="#f2c14e"/>
+<circle cx="10" cy="10" r="1.8" fill="#032d45"/>
+<path d="M0 -3 L3 0 L0 3 L-3 0Z M20 -3 L23 0 L20 3 L17 0Z M0 17 L3 20 L0 23 L-3 20Z M20 17 L23 20 L20 23 L17 20Z" fill="#fbfaf6"/>
+</pattern>
+<pattern id="jeunesse-mural" width="64" height="96" patternUnits="userSpaceOnUse">
+<rect width="64" height="96" fill="#fbfaf6"/>
+<path d="M0 30 L16 6 L32 30Z" fill="#f2c14e"/>
+<path d="M32 30 L48 6 L64 30Z" fill="#0770aa"/>
+<path d="M16 34 L32 58 L48 34Z" fill="#b4561f"/>
+<path d="M-16 34 L0 58 L16 34Z M48 34 L64 58 L80 34Z" fill="#2a9fd6"/>
+<circle cx="16" cy="76" r="7" fill="#e07a5f"/>
+<circle cx="48" cy="76" r="7" fill="#f2c14e"/>
+</pattern>
+<pattern id="jeunesse-net" width="18" height="18" patternUnits="userSpaceOnUse">
+<path d="M0 0 L18 18 M18 0 L0 18" stroke="#ffffff" stroke-width="1.6"/>
+</pattern>
+<clipPath id="jeunesse-blob">
+<path d="M150 250 C175 135 340 100 530 112 C720 124 850 88 995 128 C1120 162 1150 290 1132 430 C1112 570 1145 690 1070 775 C990 860 810 842 630 846 C440 850 245 858 150 775 C72 705 112 555 104 430 C98 355 135 320 150 250Z"/>
+</clipPath>
+</defs>
+
+<!-- fond -->
+<path d="M150 250 C175 135 340 100 530 112 C720 124 850 88 995 128 C1120 162 1150 290 1132 430 C1112 570 1145 690 1070 775 C990 860 810 842 630 846 C440 850 245 858 150 775 C72 705 112 555 104 430 C98 355 135 320 150 250Z" fill="#f1e4c8"/>
+<circle cx="1000" cy="214" r="46" fill="#f2c14e"/>
+<g fill="#f2c14e"><circle cx="190" cy="132" r="6"/><circle cx="214" cy="118" r="4"/><circle cx="170" cy="110" r="3.5"/><circle cx="1150" cy="520" r="5"/><circle cx="1162" cy="546" r="3.5"/></g>
+
+<g clip-path="url(#jeunesse-blob)">
+<!-- spectateurs -->
+<g fill="#0a4f7a" opacity=".3">
+<circle cx="300" cy="262" r="14"/><path d="M280 312 Q280 280 300 278 Q320 280 320 312Z"/>
+<circle cx="346" cy="266" r="13"/><path d="M328 312 Q328 284 346 282 Q364 284 364 312Z"/>
+<circle cx="452" cy="258" r="14"/><path d="M432 312 Q432 278 452 276 Q472 278 472 312Z"/><path d="M466 286 L486 238" stroke="#0a4f7a" stroke-width="9" stroke-linecap="round"/>
+<circle cx="560" cy="264" r="13"/><path d="M542 312 Q542 282 560 280 Q578 282 578 312Z"/>
+<circle cx="606" cy="260" r="14"/><path d="M586 312 Q586 278 606 276 Q626 278 626 312Z"/><path d="M592 286 L574 242" stroke="#0a4f7a" stroke-width="9" stroke-linecap="round"/>
+<circle cx="740" cy="262" r="14"/><path d="M720 312 Q720 280 740 278 Q760 280 760 312Z"/>
+<circle cx="900" cy="266" r="13"/><path d="M882 312 Q882 284 900 282 Q918 284 918 312Z"/>
+</g>
+<!-- mur peint -->
+<rect x="0" y="304" width="1200" height="172" fill="url(#jeunesse-mural)"/>
+<rect x="0" y="296" width="1200" height="14" fill="#b4561f"/>
+<rect x="0" y="406" width="1200" height="70" fill="#fbfaf6"/>
+<rect x="0" y="466" width="1200" height="10" fill="#c99a2e" opacity=".35"/>
+<!-- terrain -->
+<rect x="0" y="476" width="1200" height="424" fill="#c99a2e" opacity=".14"/>
+<path d="M90 548 Q600 520 1180 552" fill="none" stroke="#ffffff" stroke-width="5" opacity=".7"/>
+<path d="M760 548 Q700 640 790 800" fill="none" stroke="#ffffff" stroke-width="5" opacity=".7"/>
+</g>
+
+<!-- BUT -->
+<path d="M855 352 L1090 352 L1090 700 L855 700Z" fill="url(#jeunesse-net)" opacity=".85"/>
+<path d="M820 380 L855 352 L1090 352 L1060 380Z" fill="url(#jeunesse-net)" opacity=".85"/>
+<path d="M820 740 L855 700 M1060 740 L1090 700 M855 352 L855 700 M1090 352 L1090 700 M855 352 L1090 352" stroke="#ffffff" stroke-width="5" fill="none"/>
+<ellipse cx="940" cy="742" rx="150" ry="10" fill="#032d45" opacity=".1"/>
+
+<!-- GARDIENNE -->
+<ellipse cx="960" cy="738" rx="80" ry="9" fill="#032d45" opacity=".14"/>
+<path d="M942 590 L922 660 L914 724" stroke="#7a4a2e" stroke-width="23" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M978 590 L998 660 L1006 724" stroke="#7a4a2e" stroke-width="23" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M918 686 L914 724 M1002 686 L1006 724" stroke="#0770aa" stroke-width="24" stroke-linecap="round"/>
+<path d="M898 722 Q914 716 926 724 L926 738 L890 738 Q888 726 898 722Z M994 724 Q1006 716 1022 722 Q1032 726 1030 738 L994 738Z" fill="#032d45"/>
+<path d="M928 568 L992 568 L1002 618 L966 622 L960 604 L954 622 L918 618Z" fill="#032d45"/>
+<g transform="rotate(-6 960 590)">
+<!-- bras -->
+<path d="M934 490 L896 532 L878 494" stroke="#f2c14e" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M986 490 L1024 532 L1042 494" stroke="#f2c14e" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<rect x="864" y="468" width="28" height="32" rx="12" fill="#ffffff"/>
+<rect x="1028" y="468" width="28" height="32" rx="12" fill="#ffffff"/>
+<rect x="866" y="492" width="24" height="8" rx="3" fill="#0770aa"/>
+<rect x="1030" y="492" width="24" height="8" rx="3" fill="#0770aa"/>
+<path d="M930 480 Q960 470 990 480 Q1000 486 998 504 L994 576 Q960 584 926 576 L922 504 Q920 486 930 480Z" fill="#f2c14e"/>
+<path d="M922 504 Q920 486 930 480 L942 482 L938 578 L926 576Z" fill="#c99a2e" opacity=".6"/>
+<path d="M946 478 L960 498 L974 478Z" fill="#0770aa"/>
+<path d="M926 540 L996 540" stroke="#0770aa" stroke-width="8"/>
+<rect x="951" y="456" width="18" height="26" fill="#7a4a2e"/>
+<ellipse cx="960" cy="438" rx="24" ry="28" fill="#7a4a2e"/>
+<path d="M956 440 L960 452 L964 440Z" fill="#5a3825"/>
+<path d="M936 432 Q934 408 960 406 Q986 408 984 432 Q976 418 960 418 Q944 418 936 432Z" fill="#1b1410"/>
+<circle cx="936" cy="408" r="13" fill="#1b1410"/><circle cx="984" cy="408" r="13" fill="#1b1410"/>
+<path d="M937 424 Q960 410 983 424" stroke="#0770aa" stroke-width="5" fill="none"/>
+</g>
+<!-- poteaux avant -->
+<path d="M820 742 L820 380 L1060 380 L1060 742" stroke="#ffffff" stroke-width="12" stroke-linejoin="round" fill="none"/>
+<path d="M826 742 L826 386 M1066 742 L1066 386" stroke="#cde9f7" stroke-width="3"/>
+
+<!-- COUREUR -->
+<ellipse cx="400" cy="706" rx="54" ry="7" fill="#032d45" opacity=".12"/>
+<path d="M406 458 L440 486 L462 464" stroke="#3e2518" stroke-width="17" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M396 562 L370 616 L328 640" stroke="#3e2518" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M406 458 L440 486 L462 464" stroke="#032d45" stroke-width="17" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".3"/>
+<path d="M396 562 L370 616 L328 640" stroke="#032d45" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".3"/>
+<path d="M350 628 L328 640" stroke="#c99a2e" stroke-width="21" stroke-linecap="round"/>
+<ellipse cx="320" cy="644" rx="15" ry="9" transform="rotate(-28 320 644)" fill="#032d45"/>
+<path d="M412 562 L452 612 L442 676" stroke="#3e2518" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M446 646 L442 676" stroke="#f2c14e" stroke-width="21" stroke-linecap="round"/>
+<path d="M432 680 Q446 674 462 684 Q466 692 458 694 L432 694Z" fill="#032d45"/>
+<path d="M376 548 L434 548 L440 592 L410 596 L404 580 L398 598 L370 592Z" fill="#032d45"/>
+<path d="M392 446 Q414 436 438 444 Q448 450 444 468 L434 560 Q404 568 378 560 L382 470 Q384 452 392 446Z" fill="#0770aa"/>
+<path d="M408 442 L418 458 L428 442Z" fill="#f2c14e"/>
+<path d="M386 470 L380 556" stroke="#f2c14e" stroke-width="6"/>
+<path d="M404 466 L374 504 L350 486" stroke="#3e2518" stroke-width="19" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<circle cx="346" cy="482" r="10.5" fill="#3e2518"/>
+<g transform="rotate(38 404 466)"><rect x="390" y="446" width="30" height="40" rx="14" fill="#0770aa"/><rect x="390" y="446" width="30" height="40" rx="14" fill="#032d45" opacity=".18"/><rect x="390" y="478" width="30" height="6" rx="3" fill="#f2c14e"/></g>
+<rect x="410" y="424" width="16" height="22" fill="#3e2518"/>
+<ellipse cx="424" cy="410" rx="22" ry="25" fill="#3e2518"/>
+<path d="M444 406 Q452 414 444 418Z" fill="#3e2518"/>
+<path d="M404 412 Q400 386 424 384 Q444 384 446 398 Q430 394 416 402 Q410 410 404 412Z" fill="#1b1410"/>
+<ellipse cx="414" cy="414" rx="4" ry="6" fill="#032d45" opacity=".35"/>
+<path d="M300 590 Q318 584 334 590 M296 612 Q312 606 324 612" stroke="#ffffff" stroke-width="4" stroke-linecap="round" fill="none" opacity=".8"/>
+
+<!-- ENTRAÎNEUR -->
+<ellipse cx="218" cy="768" rx="70" ry="10" fill="#032d45" opacity=".14"/>
+<path d="M200 650 L196 752 M236 650 L240 752" stroke="#0a4f7a" stroke-width="26" stroke-linecap="round"/>
+<path d="M182 748 Q198 742 212 750 L214 768 L176 768 Q174 754 182 748Z M228 750 Q244 742 262 750 Q270 758 268 768 L228 768Z" fill="#1b1410"/>
+<!-- bras pointé -->
+<path d="M246 446 L290 472" stroke="url(#jeunesse-wax1)" stroke-width="30" stroke-linecap="round"/>
+<path d="M246 446 L290 472" stroke="#032d45" stroke-width="30" stroke-linecap="round" opacity=".18"/>
+<path d="M290 472 L330 452" stroke="#6b4128" stroke-width="18" stroke-linecap="round"/>
+<path d="M334 444 L350 437" stroke="#6b4128" stroke-width="8" stroke-linecap="round"/>
+<ellipse cx="335" cy="450" rx="12" ry="10" transform="rotate(-25 335 450)" fill="#6b4128"/>
+<!-- kaftan -->
+<path d="M178 430 Q215 416 252 430 Q266 436 266 456 L282 682 Q215 696 150 682 L166 456 Q166 436 178 430Z" fill="url(#jeunesse-wax1)"/>
+<path d="M200 424 L215 452 L230 424Z" fill="#f2c14e"/>
+<path d="M215 452 L215 560" stroke="#f2c14e" stroke-width="4"/>
+<!-- sifflet -->
+<path d="M206 430 Q212 470 232 476 M226 430 Q228 460 232 476" stroke="#032d45" stroke-width="2.5" fill="none"/>
+<rect x="228" y="474" width="14" height="9" rx="3" fill="#c99a2e"/>
+<!-- bras + filet de ballons -->
+<path d="M190 446 L182 530" stroke="url(#jeunesse-wax1)" stroke-width="34" stroke-linecap="round"/>
+<path d="M190 446 L182 530" stroke="#032d45" stroke-width="34" stroke-linecap="round" opacity=".22"/>
+<path d="M174 448 Q170 500 168 540" stroke="#032d45" stroke-width="3" fill="none" opacity=".35"/>
+<path d="M182 530 L190 598" stroke="#6b4128" stroke-width="18" stroke-linecap="round"/>
+<circle cx="191" cy="604" r="10" fill="#6b4128"/>
+<circle cx="174" cy="668" r="22" fill="#ffffff"/><circle cx="214" cy="666" r="22" fill="#f2c14e"/><circle cx="194" cy="704" r="22" fill="#ffffff"/>
+<path d="M168 660 l6 -5 l6 5 l-2 7 h-8Z M188 698 l6 -5 l6 5 l-2 7 h-8Z" fill="#032d45"/>
+<path d="M190 610 L156 650 M190 610 L232 648 M190 610 L176 646 M190 610 L208 644 M152 666 Q194 650 236 664 M152 690 Q194 676 236 690 M162 716 Q194 730 226 714 M168 646 L150 690 L170 724 M194 642 L194 728 M220 644 L238 690 L218 724" stroke="#032d45" stroke-width="2" fill="none" opacity=".7"/>
+<!-- tête -->
+<rect x="210" y="402" width="20" height="30" fill="#6b4128"/>
+<ellipse cx="222" cy="386" rx="26" ry="30" fill="#6b4128"/>
+<path d="M246 380 Q256 394 246 398Z" fill="#6b4128"/>
+<ellipse cx="208" cy="392" rx="5" ry="8" fill="#5a3825"/>
+<path d="M196 378 Q194 350 222 348 Q248 348 250 372 Z" fill="#0770aa"/>
+<path d="M240 370 Q262 366 276 374 Q262 380 244 378Z" fill="#f2c14e"/>
+
+<!-- BUTEUR -->
+<ellipse cx="640" cy="764" rx="82" ry="10" fill="#032d45" opacity=".14"/>
+<!-- bras arrière -->
+<g transform="rotate(7 615 570)">
+<path d="M592 448 L556 470 L528 446" stroke="#5a3825" stroke-width="19" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M592 448 L556 470 L528 446" stroke="#032d45" stroke-width="19" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".3"/>
+<circle cx="525" cy="442" r="10.5" fill="#3e2518"/>
+</g>
+<!-- jambe d'élan -->
+<path d="M590 596 L556 668 L500 618" stroke="#5a3825" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M590 596 L556 668 L500 618" stroke="#032d45" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".3"/>
+<path d="M526 641 L500 618" stroke="#c99a2e" stroke-width="25" stroke-linecap="round"/>
+<ellipse cx="488" cy="608" rx="21" ry="11" transform="rotate(42 488 608)" fill="#032d45"/>
+<!-- jambe d'appui -->
+<path d="M630 596 L648 680 L640 748" stroke="#5a3825" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M645 712 L640 748" stroke="#f2c14e" stroke-width="25" stroke-linecap="round"/>
+<path d="M626 748 Q646 740 666 750 Q674 758 672 766 L624 766Z" fill="#032d45"/>
+<path d="M578 548 L654 548 L662 606 L626 612 L618 590 L608 614 L570 606Z" fill="#032d45"/>
+<g transform="rotate(7 615 570)">
+<!-- maillot -->
+<path d="M586 432 Q615 420 648 430 Q660 436 658 456 L652 560 Q616 572 578 562 L576 460 Q576 440 586 432Z" fill="#0770aa"/>
+<path d="M576 460 Q576 440 586 432 L596 430 L592 564 L578 562Z" fill="#0a4f7a" opacity=".7"/>
+<path d="M606 426 L618 448 L630 426Z" fill="#f2c14e"/>
+<path d="M650 470 L646 556" stroke="#f2c14e" stroke-width="7"/>
+<!-- bras avant -->
+<path d="M642 446 L680 484 L716 494" stroke="#5a3825" stroke-width="19" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M644 446 L662 464" stroke="#0770aa" stroke-width="22" stroke-linecap="round"/>
+<circle cx="721" cy="495" r="11" fill="#5a3825"/>
+<!-- tête -->
+<rect x="618" y="404" width="18" height="30" fill="#5a3825"/>
+<ellipse cx="630" cy="390" rx="26" ry="30" fill="#5a3825"/>
+<path d="M654 386 Q664 398 654 402Z" fill="#5a3825"/>
+<ellipse cx="618" cy="394" rx="5" ry="8" fill="#3e2518"/>
+<path d="M604 392 Q598 360 628 358 Q654 358 656 378 Q640 372 624 378 Q610 384 604 392Z" fill="#1b1410"/>
+</g>
+<!-- ballon -->
+<g fill="#fbfaf6" opacity=".9"><circle cx="676" cy="760" r="6"/><circle cx="686" cy="752" r="4"/><circle cx="614" cy="762" r="5"/><circle cx="602" cy="756" r="3"/><circle cx="470" cy="700" r="4"/><circle cx="460" cy="694" r="2.5"/></g>
+<ellipse cx="706" cy="762" rx="24" ry="5" fill="#032d45" opacity=".16"/>
+<circle cx="706" cy="740" r="21" fill="#ffffff"/>
+<path d="M700 732 l7 -6 l7 6 l-3 8 h-9Z M688 748 l5 -2 l3 7 l-6 2Z M720 748 l-4 -3 l-3 8 l6 1Z" fill="#032d45"/>
+<path d="M474 562 Q490 552 510 556 M486 666 Q506 680 530 680 M502 690 Q516 696 530 694" stroke="#ffffff" stroke-width="4" stroke-linecap="round" fill="none" opacity=".85"/>
+</svg>

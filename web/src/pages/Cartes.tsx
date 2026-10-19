@@ -94,7 +94,7 @@ export function Cartes() {
   const planches = Array.from({ length: Math.ceil(fiches.length / 10) }, (_, i) => fiches.slice(i * 10, i * 10 + 10))
 
   return (
-    <div className="cartes-racine min-h-dvh bg-[#e9ebe6] pb-10 print:min-h-0 print:bg-white print:pb-0">
+    <div className="cartes-racine clair min-h-dvh bg-[#e9ebe6] pb-10 print:min-h-0 print:bg-white print:pb-0">
       <div className="no-print sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur">
         <div className="mx-auto flex max-w-[210mm] flex-wrap items-center gap-2 px-4 py-3">
           <Button asChild variant="ghost" size="sm"><Link to={data!.retour}><ArrowLeft /> Retour</Link></Button>

@@ -23,6 +23,7 @@ export interface Membre {
   /** Le rôle (et ses droits), quand il est chargé avec la fiche. */
   role_info?: import('./droits').RoleResume | null
   theme?: import('./theme').Theme
+  mode?: import('./theme').Mode
   fonction: string | null
   numero_adherent: string
   date_adhesion: string

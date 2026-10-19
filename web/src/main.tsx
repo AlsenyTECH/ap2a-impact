@@ -7,7 +7,7 @@ import { initialiserHorsLigne } from '@/lib/horsligne'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/lib/auth'
 import { App } from './App'
-import { appliquerTheme, themeEnregistre } from '@/lib/theme'
+import { appliquerMode, appliquerTheme, modeEnregistre, themeEnregistre } from '@/lib/theme'
 import './index.css'
 import { registerSW } from 'virtual:pwa-register'
 
@@ -27,6 +27,7 @@ registerSW({
 initialiserHorsLigne(() => client.invalidateQueries())
 
 appliquerTheme(themeEnregistre())
+appliquerMode(modeEnregistre())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

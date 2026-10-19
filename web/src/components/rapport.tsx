@@ -24,7 +24,7 @@ export function PageRapport({ retour, titre, sousTitre, outils, auteur, pied, ch
 }) {
   const aujourdhui = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
   return (
-    <div className="min-h-dvh bg-[#e9ebe6] pb-10 print:bg-white print:pb-0">
+    <div className="clair min-h-dvh bg-[#e9ebe6] pb-10 print:bg-white print:pb-0">
       <div className="no-print sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur">
         <div className="mx-auto flex max-w-[210mm] flex-wrap items-center gap-2 px-4 py-3">
           <Button asChild variant="ghost" size="sm"><Link to={retour}><ArrowLeft /> Retour</Link></Button>

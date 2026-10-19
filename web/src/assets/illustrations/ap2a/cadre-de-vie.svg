@@ -1,0 +1,253 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="cadre-de-vie-titre">
+<title id="cadre-de-vie-titre">Lutte contre les inondations : des bénévoles pompent l'eau d'une rue inondée avec une motopompe pendant qu'une habitante dégage le caniveau</title>
+<defs>
+<pattern id="cadre-de-vie-wax1" width="18" height="18" patternUnits="userSpaceOnUse">
+<rect width="18" height="18" fill="#b4561f"/>
+<circle cx="9" cy="9" r="4.2" fill="#f2c14e"/>
+<circle cx="9" cy="9" r="1.6" fill="#032d45"/>
+<circle cx="0" cy="0" r="2.2" fill="#fbfaf6"/><circle cx="18" cy="0" r="2.2" fill="#fbfaf6"/><circle cx="0" cy="18" r="2.2" fill="#fbfaf6"/><circle cx="18" cy="18" r="2.2" fill="#fbfaf6"/>
+</pattern>
+<pattern id="cadre-de-vie-wax2" width="22" height="22" patternUnits="userSpaceOnUse">
+<rect width="22" height="22" fill="#0770aa"/>
+<path d="M11 2 L20 11 L11 20 L2 11Z" fill="#f2c14e"/>
+<path d="M11 7 L15 11 L11 15 L7 11Z" fill="#0a4f7a"/>
+<circle cx="0" cy="0" r="2.4" fill="#e3f2fb"/><circle cx="22" cy="0" r="2.4" fill="#e3f2fb"/><circle cx="0" cy="22" r="2.4" fill="#e3f2fb"/><circle cx="22" cy="22" r="2.4" fill="#e3f2fb"/>
+</pattern>
+<linearGradient id="cadre-de-vie-eau" gradientUnits="userSpaceOnUse" x1="0" y1="515" x2="0" y2="745">
+<stop offset="0" stop-color="#a9cde6"/>
+<stop offset="1" stop-color="#4f8fc0"/>
+</linearGradient>
+<clipPath id="cadre-de-vie-blob">
+<path d="M150 240 C180 130 350 96 540 108 C730 120 860 86 1000 124 C1125 160 1150 290 1130 430 C1110 570 1150 690 1072 778 C992 862 810 846 630 850 C440 854 240 860 148 778 C70 708 110 556 102 430 C96 352 134 316 150 240Z"/>
+</clipPath>
+</defs>
+
+<!-- fond -->
+<path d="M150 240 C180 130 350 96 540 108 C730 120 860 86 1000 124 C1125 160 1150 290 1130 430 C1110 570 1150 690 1072 778 C992 862 810 846 630 850 C440 854 240 860 148 778 C70 708 110 556 102 430 C96 352 134 316 150 240Z" fill="#f1e4c8"/>
+<g fill="#f2c14e"><circle cx="1080" cy="96" r="6"/><circle cx="1104" cy="112" r="4"/><circle cx="1058" cy="80" r="3.5"/><circle cx="74" cy="560" r="5"/><circle cx="62" cy="586" r="3.5"/></g>
+
+<g clip-path="url(#cadre-de-vie-blob)">
+<!-- ciel qui se dégage -->
+<g fill="#f2c14e"><rect x="926" y="104" width="8" height="26" rx="4"/><rect x="986" y="128" width="8" height="24" rx="4" transform="rotate(45 990 140)"/><rect x="866" y="128" width="8" height="24" rx="4" transform="rotate(-45 870 140)"/></g>
+<circle cx="930" cy="200" r="52" fill="#f2c14e"/>
+<circle cx="930" cy="200" r="36" fill="#f2c14e" opacity=".6"/>
+<path d="M842 262 Q840 232 868 230 Q878 204 906 212 Q926 194 952 214 Q984 206 990 236 Q1016 238 1014 262Z" fill="#ffffff"/>
+<path d="M242 196 Q240 172 262 170 Q272 150 296 158 Q314 142 336 160 Q362 154 366 178 Q388 180 386 196Z" fill="#cde9f7"/>
+<path d="M640 168 Q640 152 656 151 Q664 138 680 144 Q694 136 706 150 Q722 150 722 168Z" fill="#ffffff" opacity=".8"/>
+
+<g fill="none" stroke="#0a4f7a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M470 196 Q478 188 486 196 Q494 188 502 196"/><path d="M520 176 Q526 170 532 176 Q538 170 544 176"/></g>
+<g transform="translate(616 560) scale(1.15) translate(-616 -560)">
+<!-- maisons -->
+<!-- maison 1 -->
+<rect x="96" y="330" width="232" height="230" fill="#e07a5f"/>
+<rect x="96" y="318" width="240" height="18" fill="#b4561f"/>
+<rect x="96" y="336" width="232" height="10" fill="#b4561f" opacity=".35"/>
+<rect x="150" y="380" width="46" height="56" rx="4" fill="#0a4f7a"/><rect x="150" y="380" width="46" height="10" fill="#032d45" opacity=".4"/>
+<path d="M150 400 H196 M173 380 V436" stroke="#e07a5f" stroke-width="3"/>
+<rect x="236" y="400" width="56" height="140" rx="26" fill="#b4561f"/>
+<rect x="244" y="408" width="40" height="132" rx="20" fill="#0770aa"/>
+<!-- maison 2 -->
+<rect x="328" y="256" width="252" height="304" fill="#fbfaf6"/>
+<rect x="320" y="244" width="268" height="18" fill="#c99a2e"/>
+<rect x="328" y="262" width="252" height="10" fill="#c99a2e" opacity=".3"/>
+<rect x="548" y="262" width="32" height="298" fill="#f1e4c8" opacity=".7"/>
+<rect x="364" y="294" width="50" height="60" rx="4" fill="#0a4f7a"/>
+<rect x="460" y="294" width="50" height="60" rx="4" fill="#0a4f7a"/>
+<path d="M364 314 H414 M389 294 V354 M460 314 H510 M485 294 V354" stroke="#fbfaf6" stroke-width="3"/>
+<rect x="346" y="376" width="216" height="10" fill="#c99a2e"/>
+<g fill="#c99a2e"><rect x="352" y="386" width="5" height="26"/><rect x="372" y="386" width="5" height="26"/><rect x="392" y="386" width="5" height="26"/><rect x="412" y="386" width="5" height="26"/><rect x="432" y="386" width="5" height="26"/><rect x="452" y="386" width="5" height="26"/><rect x="472" y="386" width="5" height="26"/><rect x="492" y="386" width="5" height="26"/><rect x="512" y="386" width="5" height="26"/><rect x="532" y="386" width="5" height="26"/><rect x="552" y="386" width="5" height="26"/></g>
+<rect x="346" y="410" width="216" height="6" fill="#c99a2e"/>
+<rect x="378" y="440" width="58" height="72" rx="4" fill="#0770aa"/>
+<rect x="470" y="440" width="58" height="110" rx="4" fill="#b4561f"/>
+<!-- maison 3 -->
+<rect x="580" y="340" width="226" height="220" fill="#cde9f7"/>
+<rect x="574" y="328" width="238" height="18" fill="#2a9fd6"/>
+<rect x="580" y="346" width="226" height="10" fill="#2a9fd6" opacity=".3"/>
+<path d="M610 452 V398 Q610 376 632 376 Q654 376 654 398 V452Z" fill="#0a4f7a"/>
+<rect x="606" y="452" width="52" height="8" rx="3" fill="#2a9fd6"/>
+<rect x="694" y="410" width="72" height="140" rx="6" fill="#0770aa"/>
+<rect x="700" y="416" width="28" height="134" fill="#0a4f7a" opacity=".5"/>
+<rect x="688" y="398" width="84" height="12" rx="3" fill="#2a9fd6"/>
+<!-- maison 4 -->
+<rect x="806" y="290" width="330" height="270" fill="#e3f2fb"/>
+<rect x="800" y="278" width="340" height="18" fill="#b4561f"/>
+<rect x="806" y="296" width="330" height="10" fill="#b4561f" opacity=".25"/>
+<rect x="846" y="330" width="52" height="64" rx="4" fill="#0770aa"/>
+<rect x="938" y="330" width="52" height="64" rx="4" fill="#0770aa"/>
+<rect x="1030" y="330" width="52" height="64" rx="4" fill="#0770aa"/>
+<rect x="958" y="420" width="70" height="130" rx="6" fill="#e07a5f"/>
+<rect x="846" y="430" width="52" height="54" rx="4" fill="#0a4f7a"/>
+<!-- trace de la crue sur les murs -->
+<rect x="96" y="488" width="1040" height="32" fill="#032d45" opacity=".06"/>
+</g>
+
+<!-- eau de la rue -->
+<path d="M90 520 Q140 512 190 520 T290 520 T390 520 T490 520 T590 520 T690 520 T790 520 T890 520 T990 520 T1090 520 T1190 520 V745 H90Z" fill="url(#cadre-de-vie-eau)"/>
+<!-- reflets -->
+<g opacity=".16" transform="translate(616 560) scale(1.15) translate(-616 -560)"><path d="M96 526 H328 V580 Q314.0 584 300 580 Q286.0 576 272 580 Q258.0 584 244 580 Q230.0 576 216 580 Q202.0 584 188 580 Q174.0 576 160 580 Q146.0 584 132 580 Q118.0 576 104 580 L96 580Z" fill="#e07a5f"/><path d="M328 526 H580 V600 Q566.0 604 552 600 Q538.0 596 524 600 Q510.0 604 496 600 Q482.0 596 468 600 Q454.0 604 440 600 Q426.0 596 412 600 Q398.0 604 384 600 Q370.0 596 356 600 L328 600Z" fill="#ffffff"/><path d="M806 526 H1136 V590 Q1122.0 594 1108 590 Q1094.0 586 1080 590 Q1066.0 594 1052 590 Q1038.0 586 1024 590 Q1010.0 594 996 590 Q982.0 586 968 590 Q954.0 594 940 590 Q926.0 586 912 590 Q898.0 594 884 590 Q870.0 586 856 590 Q842.0 594 828 590 L806 590Z" fill="#ffffff"/></g>
+<g fill="none" stroke-linecap="round">
+<g stroke="#fbfaf6" stroke-width="4" opacity=".75"><path d="M150 560 H230"/><path d="M380 580 H470"/><path d="M640 556 H700"/><path d="M960 570 H1060"/><path d="M250 640 H300"/><path d="M760 610 H820"/></g>
+<g stroke="#a9cde6" stroke-width="4"><path d="M120 690 H200"/><path d="M330 668 H420"/><path d="M640 690 H700"/><path d="M1000 660 H1090"/><path d="M880 700 H950"/></g>
+</g>
+<!-- bouteille flottante -->
+<g transform="rotate(-12 420 620)"><rect x="400" y="612" width="40" height="14" rx="6" fill="#e3f2fb"/><rect x="440" y="615" width="9" height="8" rx="2" fill="#0770aa"/></g>
+<path d="M392 628 Q420 634 452 628" stroke="#fbfaf6" stroke-width="3" fill="none" stroke-linecap="round" opacity=".8"/>
+
+<!-- trottoir -->
+<rect x="0" y="740" width="1200" height="70" fill="#f1e4c8"/>
+<rect x="0" y="740" width="1200" height="70" fill="#c99a2e" opacity=".14"/>
+<rect x="0" y="734" width="1200" height="10" fill="#c99a2e"/>
+<rect x="0" y="744" width="1200" height="5" fill="#b4561f" opacity=".25"/>
+<g stroke="#c99a2e" stroke-width="3" opacity=".45"><path d="M160 750 V806 M380 750 V806 M600 750 V806 M820 750 V806 M1040 750 V806"/></g>
+<!-- caniveau -->
+<rect x="0" y="806" width="1200" height="24" fill="#c99a2e" opacity=".5"/>
+<rect x="0" y="812" width="1200" height="12" fill="#0a4f7a" opacity=".45"/>
+<rect x="0" y="830" width="1200" height="40" fill="#c99a2e" opacity=".18"/>
+</g>
+
+<!-- grille d'évacuation -->
+<rect x="924" y="806" width="84" height="24" rx="3" fill="#032d45"/>
+<g fill="#0a4f7a"><rect x="932" y="810" width="6" height="16"/><rect x="946" y="810" width="6" height="16"/><rect x="960" y="810" width="6" height="16"/><rect x="974" y="810" width="6" height="16"/><rect x="988" y="810" width="6" height="16"/><rect x="1000" y="810" width="4" height="16"/></g>
+
+<!-- déchets retirés du caniveau -->
+<ellipse cx="434" cy="797" rx="62" ry="7" fill="#032d45" opacity=".1"/>
+<path d="M378 796 Q398 756 432 754 Q462 756 486 796Z" fill="#c99a2e"/>
+<path d="M432 754 Q462 756 486 796 L440 796 Q446 772 432 754Z" fill="#b4561f" opacity=".3"/>
+<g transform="rotate(18 412 774)"><rect x="396" y="768" width="30" height="11" rx="5" fill="#e3f2fb"/><rect x="426" y="770" width="7" height="7" rx="2" fill="#e07a5f"/></g>
+<circle cx="456" cy="784" r="6" fill="#0a4f7a"/>
+<!-- débris dans le caniveau -->
+<path d="M300 818 Q320 806 344 818Z" fill="#b4561f"/>
+<rect x="352" y="811" width="22" height="9" rx="4" fill="#e3f2fb" transform="rotate(-10 363 815)"/>
+
+<!-- HABITANTE À LA PELLE -->
+<ellipse cx="240" cy="796" rx="58" ry="8" fill="#032d45" opacity=".12"/>
+<g transform="translate(250 792)">
+<!-- bottes -->
+<path d="M-24 -50 L-4 -50 L-3 0 L-30 0 Q-30 -6 -24 -9Z" fill="#032d45"/>
+<path d="M4 -50 L24 -50 L25 -9 Q32 -6 32 0 L4 0Z" fill="#032d45"/>
+<!-- pagne wax -->
+<path d="M-31 -124 L31 -124 L36 -44 Q0 -38 -36 -44Z" fill="url(#cadre-de-vie-wax2)"/>
+<!-- cou + buste -->
+<rect x="-6" y="-216" width="12" height="16" rx="4" fill="#8d5a3b"/>
+<path d="M-28 -196 Q-28 -206 -18 -206 L18 -206 Q28 -206 28 -196 L31 -122 L-31 -122Z" fill="#e07a5f"/>
+<path d="M-8 -206 Q0 -196 8 -206Z" fill="#8d5a3b"/>
+<!-- tête -->
+<ellipse cx="2" cy="-229" rx="15" ry="18" fill="#8d5a3b"/>
+<path d="M16 -232 q4 3 0 7Z" fill="#8d5a3b"/>
+<ellipse cx="-10" cy="-228" rx="3.5" ry="5" fill="#6b4128"/>
+<!-- musoor -->
+<path d="M-19 -226 Q-26 -262 0 -266 Q26 -266 20 -236 Q12 -246 -2 -244 Q-12 -242 -15 -226Z" fill="url(#cadre-de-vie-wax1)"/>
+<path d="M-14 -254 Q-10 -284 10 -282 Q30 -280 22 -260 Q16 -252 -2 -252Z" fill="url(#cadre-de-vie-wax1)"/>
+<path d="M-16 -250 Q2 -258 21 -254" stroke="#b4561f" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M-19 -232 Q-26 -226 -22 -216 Q-16 -222 -15 -228Z" fill="#b4561f"/>
+<!-- pelle -->
+<path d="M-38 -176 L74 4" stroke="#c99a2e" stroke-width="7" stroke-linecap="round"/>
+<path d="M-44 -186 L-32 -168" stroke="#032d45" stroke-width="7" stroke-linecap="round"/>
+<path d="M66 -2 L86 -8 L100 22 Q90 34 76 30Z" fill="#0a4f7a"/>
+<!-- bras -->
+<path d="M-20 -194 L-40 -164 L-26 -158" stroke="#8d5a3b" stroke-width="19" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M-20 -196 L-31 -178" stroke="#e07a5f" stroke-width="24" stroke-linecap="round"/>
+<ellipse cx="-24" cy="-158" rx="10" ry="9" fill="#8d5a3b"/>
+<path d="M20 -194 L28 -148 L12 -102" stroke="#8d5a3b" stroke-width="19" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M20 -196 L24 -176" stroke="#e07a5f" stroke-width="24" stroke-linecap="round"/>
+<ellipse cx="11" cy="-100" rx="10" ry="9" fill="#8d5a3b"/>
+</g>
+
+<!-- MOTOPOMPE -->
+<ellipse cx="760" cy="792" rx="92" ry="9" fill="#032d45" opacity=".14"/>
+<path d="M700 786 V694 Q700 686 708 686 H812 Q820 686 820 694 V786" stroke="#b4561f" stroke-width="8" fill="none" stroke-linecap="round"/>
+<rect x="742" y="700" width="64" height="66" rx="8" fill="#e07a5f"/>
+<rect x="790" y="700" width="16" height="66" rx="6" fill="#b4561f" opacity=".55"/>
+<g stroke="#b4561f" stroke-width="3" stroke-linecap="round"><path d="M752 716 H782 M752 726 H782 M752 736 H782"/></g>
+<circle cx="806" cy="740" r="15" fill="#032d45"/>
+<circle cx="806" cy="740" r="6" fill="#c99a2e"/>
+<rect x="730" y="662" width="90" height="30" rx="13" fill="#b4561f"/>
+<rect x="740" y="667" width="52" height="6" rx="3" fill="#e07a5f"/>
+<circle cx="806" cy="660" r="6" fill="#f2c14e"/>
+<circle cx="718" cy="746" r="28" fill="#0a4f7a"/>
+<circle cx="718" cy="746" r="12" fill="#032d45"/>
+<circle cx="718" cy="746" r="4.5" fill="#f2c14e"/>
+<rect x="682" y="737" width="20" height="18" rx="3" fill="#032d45"/>
+<rect x="690" y="780" width="140" height="9" rx="4" fill="#b4561f"/>
+
+<g fill="#fbfaf6" opacity=".9"><circle cx="744" cy="644" r="6"/><circle cx="754" cy="628" r="9"/><circle cx="770" cy="614" r="6.5"/></g>
+<!-- BÉNÉVOLE DANS L'EAU (corps) -->
+<g transform="translate(560 712) scale(.92)">
+<path d="M-27 -58 L-3 -58 L-3 -20 L-27 -20Z" fill="#032d45"/>
+<path d="M3 -58 L27 -58 L27 -20 L3 -20Z" fill="#032d45"/>
+<path d="M-31 -124 L-1 -124 L-5 -54 L-27 -54Z" fill="#0a4f7a"/>
+<path d="M1 -124 L31 -124 L27 -54 L5 -54Z" fill="#0a4f7a"/>
+<rect x="-6" y="-218" width="12" height="16" rx="4" fill="#5a3825"/>
+<path d="M-30 -196 Q-31 -205 -20 -206 L20 -206 Q31 -205 30 -196 L33 -120 L-33 -120Z" fill="#0770aa"/>
+<path d="M-30 -196 Q-30 -204 -20 -205 L-9 -205 L0 -172 L9 -205 L20 -205 Q30 -204 30 -196 L32 -124 L-32 -124Z" fill="#f2c14e"/>
+<path d="M18 -205 Q30 -204 30 -196 L32 -124 L22 -124Z" fill="#c99a2e"/>
+<rect x="-32" y="-158" width="64" height="6" fill="#fbfaf6"/>
+<rect x="-32.5" y="-142" width="65" height="6" fill="#fbfaf6"/>
+<rect x="-33" y="-126" width="66" height="7" fill="#032d45"/>
+<ellipse cx="-2" cy="-230" rx="15" ry="18" fill="#5a3825"/>
+<path d="M-16 -233 q-4 3 0 7Z" fill="#5a3825"/>
+<ellipse cx="10" cy="-229" rx="3.5" ry="5" fill="#3e2518"/>
+<path d="M-17 -236 Q-16 -252 -1 -251 Q15 -250 14 -232 Q12 -240 6 -240 Q-6 -244 -17 -236Z" fill="#1b1410"/>
+</g>
+
+<!-- tuyau d'aspiration -->
+<path d="M684 746 C640 748 600 612 549 602 C530 599 516 600 508 614 C496 640 482 680 474 714" stroke="#0a4f7a" stroke-width="15" fill="none" stroke-linecap="round"/>
+<path d="M684 746 C640 748 600 612 549 602 C530 599 516 600 508 614 C496 640 482 680 474 714" stroke="#032d45" stroke-width="15" fill="none" stroke-dasharray="3 8" opacity=".6"/>
+
+<!-- BÉNÉVOLE DANS L'EAU (bras) -->
+<g transform="translate(560 712) scale(.92)">
+<path d="M-22 -194 L-34 -152 L-50 -122" stroke="#5a3825" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M-22 -196 L-28 -174" stroke="#0770aa" stroke-width="25" stroke-linecap="round"/>
+<ellipse cx="-52" cy="-118" rx="11" ry="10" fill="#5a3825"/>
+<path d="M22 -194 L26 -150 L-10 -122" stroke="#5a3825" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M22 -196 L25 -174" stroke="#0770aa" stroke-width="25" stroke-linecap="round"/>
+<ellipse cx="-12" cy="-120" rx="11" ry="10" fill="#5a3825"/>
+</g>
+
+<!-- eau devant les jambes et la crépine -->
+<path d="M514 648 Q533 643 552 648 T592 648 V716 H514Z" fill="url(#cadre-de-vie-eau)" opacity=".86"/>
+<path d="M446 700 Q458 694 470 700 T494 700 V733 H446Z" fill="url(#cadre-de-vie-eau)"/>
+<path d="M524 646 Q532 641 544 641 M570 641 Q584 641 590 646" fill="none" stroke="#fbfaf6" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+<path d="M520 649 Q528 657 556 657 Q584 657 592 649" fill="none" stroke="#fbfaf6" stroke-width="3.5" stroke-linecap="round" opacity=".9"/>
+<path d="M506 664 Q516 668 528 666 M586 666 Q598 668 608 664" fill="none" stroke="#fbfaf6" stroke-width="3" stroke-linecap="round" opacity=".55"/>
+<g fill="none" stroke="#fbfaf6" stroke-linecap="round"><path d="M452 702 Q472 708 492 702" stroke-width="3.5" opacity=".85"/></g>
+
+<!-- BÉNÉVOLE À LA MOTOPOMPE -->
+<ellipse cx="884" cy="793" rx="54" ry="8" fill="#032d45" opacity=".12"/>
+<g transform="translate(880 790)">
+<path d="M-26 -58 L-4 -58 L-3 0 L-34 0 Q-35 -7 -27 -10Z" fill="#c99a2e"/>
+<path d="M4 -58 L26 -58 L27 -10 Q30 -4 26 0 L4 0Z" fill="#c99a2e"/>
+<path d="M-26 -58 H-4 V-50 H-26Z M4 -58 H26 V-50 H4Z" fill="#f2c14e"/>
+<path d="M-31 -124 L-1 -124 L-5 -56 L-26 -56Z" fill="#032d45"/>
+<path d="M1 -124 L31 -124 L26 -56 L5 -56Z" fill="#032d45"/>
+<rect x="-6" y="-218" width="12" height="16" rx="4" fill="#7a4a2e"/>
+<path d="M-30 -196 Q-31 -205 -20 -206 L20 -206 Q31 -205 30 -196 L33 -120 L-33 -120Z" fill="#ffffff"/>
+<path d="M-30 -196 Q-30 -204 -20 -205 L-9 -205 L0 -172 L9 -205 L20 -205 Q30 -204 30 -196 L32 -124 L-32 -124Z" fill="#f2c14e"/>
+<path d="M18 -205 Q30 -204 30 -196 L32 -124 L22 -124Z" fill="#c99a2e"/>
+<rect x="-32" y="-158" width="64" height="6" fill="#fbfaf6"/>
+<rect x="-32.5" y="-142" width="65" height="6" fill="#fbfaf6"/>
+<ellipse cx="-2" cy="-230" rx="15" ry="18" fill="#7a4a2e"/>
+<path d="M-16 -233 q-4 3 0 7Z" fill="#7a4a2e"/>
+<ellipse cx="10" cy="-229" rx="3.5" ry="5" fill="#5a3825"/>
+<path d="M-17 -236 Q-17 -254 0 -253 Q16 -252 15 -236Z" fill="#0770aa"/>
+<path d="M-15 -238 L-36 -236 Q-36 -232 -30 -231 L-14 -232Z" fill="#0a4f7a"/>
+<path d="M-22 -194 L-34 -146 L-78 -120" stroke="#7a4a2e" stroke-width="19" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M-22 -196 L-27 -174" stroke="#ffffff" stroke-width="24" stroke-linecap="round"/>
+<ellipse cx="-80" cy="-118" rx="11" ry="10" fill="#7a4a2e"/>
+<path d="M22 -194 L50 -228 L54 -272" stroke="#7a4a2e" stroke-width="19" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M22 -196 L34 -211" stroke="#ffffff" stroke-width="24" stroke-linecap="round"/>
+<ellipse cx="54" cy="-280" rx="11" ry="13" fill="#7a4a2e"/>
+</g>
+
+<!-- tuyau de refoulement vers la grille -->
+<path d="M738 768 C746 800 770 806 820 806 L910 808" stroke="#2a9fd6" stroke-width="12" fill="none" stroke-linecap="round"/>
+<path d="M738 768 C746 800 770 806 820 806 L910 808" stroke="#0770aa" stroke-width="3" fill="none" opacity=".6"/>
+<rect x="904" y="800" width="16" height="16" rx="3" fill="#032d45"/>
+<path d="M918 801 Q952 794 974 816 L952 821 Q938 812 918 815Z" fill="#4f8fc0"/>
+<path d="M920 804 Q944 800 960 812" stroke="#a9cde6" stroke-width="3" fill="none" stroke-linecap="round"/>
+<g fill="#a9cde6"><circle cx="980" cy="806" r="3"/><circle cx="988" cy="814" r="2.5"/><circle cx="970" cy="797" r="2"/></g>
+
+<!-- feuille décorative -->
+<path d="M1100 800 Q1094 728 1154 694 Q1160 760 1100 800Z" fill="#2a9fd6"/>
+<path d="M1102 796 Q1120 746 1150 704" fill="none" stroke="#0770aa" stroke-width="3"/>
+</svg>

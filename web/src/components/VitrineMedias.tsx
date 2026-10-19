@@ -15,8 +15,8 @@ export function FondAccueil({ media }: { media: MediaVitrine }) {
       ) : affiche ? (
         <img className="size-full object-cover" src={affiche} alt="" />
       ) : null}
-      <div className="absolute inset-0 bg-gradient-to-r from-[#0c2a20] via-[#0c2a20]/85 to-[#0c2a20]/45" />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0c2a20] via-transparent to-[#0c2a20]/60" />
+      <div className="absolute inset-0 bg-gradient-to-r from-v-nuit via-v-nuit/85 to-v-nuit/45" />
+      <div className="absolute inset-0 bg-gradient-to-t from-v-nuit via-transparent to-v-nuit/60" />
     </div>
   )
 }
@@ -46,8 +46,8 @@ function YoutubeLeger({ id, titre }: { id: string; titre: string }) {
 function BoutonLecture() {
   return (
     <span className="absolute inset-0 flex items-center justify-center bg-black/25 transition group-hover:bg-black/10">
-      <span className="relative flex size-20 items-center justify-center rounded-full bg-[#f2c14e] text-[#0c2a20] shadow-2xl transition group-hover:scale-110">
-        <span className="absolute inset-0 animate-ping rounded-full bg-[#f2c14e]/50" />
+      <span className="relative flex size-20 items-center justify-center rounded-full bg-v-or text-v-nuit shadow-2xl transition group-hover:scale-110">
+        <span className="absolute inset-0 animate-ping rounded-full bg-v-or/50" />
         <Play className="relative ml-1 size-8 fill-current" />
       </span>
     </span>
@@ -59,7 +59,7 @@ function VideoFichier({ src, affiche, titre, vertical }: { src: string; affiche?
   const [lance, setLance] = useState(false)
   if (lance) return <video className="size-full bg-black object-contain" src={src} poster={affiche ?? undefined} controls autoPlay playsInline />
   return (
-    <button className="group relative size-full bg-[#0c2a20]" onClick={() => setLance(true)} aria-label={`Lire la vidéo ${titre}`}>
+    <button className="group relative size-full bg-v-nuit" onClick={() => setLance(true)} aria-label={`Lire la vidéo ${titre}`}>
       {affiche ? <img src={affiche} alt="" className={cn('size-full', vertical ? 'object-cover' : 'object-cover')} /> : null}
       <BoutonLecture />
     </button>
@@ -77,8 +77,8 @@ export function LecteurFilm({ media, defaut }: { media?: MediaVitrine; defaut: {
   // Film vertical dans un cadre de téléphone.
   return (
     <div className="relative mx-auto w-[min(78vw,300px)]">
-      <div className="vitrine-halo absolute -inset-10 -z-10 rounded-full bg-[#f2c14e]/25 blur-3xl" />
-      <div className="rounded-[2.6rem] bg-[#0a1a14] p-2.5 shadow-2xl ring-1 ring-white/10">
+      <div className="vitrine-halo absolute -inset-10 -z-10 rounded-full bg-v-or/25 blur-3xl" />
+      <div className="rounded-[2.6rem] bg-v-nuit-2 p-2.5 shadow-2xl ring-1 ring-white/10">
         <div className="relative aspect-[9/16] overflow-hidden rounded-[2.1rem] bg-black">
           <VideoFichier src={defaut.src} affiche={defaut.affiche} titre={defaut.titre} vertical />
           <span className="pointer-events-none absolute left-1/2 top-2 h-5 w-24 -translate-x-1/2 rounded-full bg-black" />
@@ -98,7 +98,7 @@ export function Galerie({ medias }: { medias: MediaVitrine[] }) {
           <button
             key={m.id}
             onClick={() => setOuvert(i)}
-            className="group relative block w-full break-inside-avoid overflow-hidden rounded-2xl bg-[#e8f4ee] text-left shadow-sm ring-1 ring-black/5"
+            className="group relative block w-full break-inside-avoid overflow-hidden rounded-2xl bg-v-papier-3 text-left shadow-sm ring-1 ring-black/5"
           >
             <img src={apercuMedia(m) ?? ''} alt={m.titre || m.legende || 'Action de l\'AP2A'} loading="lazy" className="w-full transition duration-700 group-hover:scale-105" />
             {m.type !== 'photo' ? <span className="absolute right-3 top-3 flex size-10 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur"><Play className="ml-0.5 size-4 fill-current" /></span> : null}

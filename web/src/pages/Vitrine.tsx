@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
+  Moon, Palette, Sun,
   ArrowRight, ArrowUpRight, Award, BadgeCheck, Droplets, Eye, GraduationCap, HandHeart, HeartPulse, Instagram,
   Landmark, Menu, Quote, ShieldCheck, Sparkles, Trophy, UsersRound, X,
 } from 'lucide-react'
@@ -15,7 +16,15 @@ import illusSante from '@/assets/illustrations/sante.svg'
 import illusJeunesse from '@/assets/illustrations/jeunesse.svg'
 import illusCadre from '@/assets/illustrations/cadre-de-vie.svg'
 import illusCitoyennete from '@/assets/illustrations/citoyennete.svg'
+import bleuHero from '@/assets/illustrations/ap2a/hero-communaute.svg'
+import bleuFormation from '@/assets/illustrations/ap2a/formation.svg'
+import bleuFemmes from '@/assets/illustrations/ap2a/femmes.svg'
+import bleuSante from '@/assets/illustrations/ap2a/sante.svg'
+import bleuJeunesse from '@/assets/illustrations/ap2a/jeunesse.svg'
+import bleuCadre from '@/assets/illustrations/ap2a/cadre-de-vie.svg'
+import bleuCitoyennete from '@/assets/illustrations/ap2a/citoyennete.svg'
 import { FondAccueil, Galerie, LecteurFilm } from '@/components/VitrineMedias'
+import { choisirMode, choisirTheme, useMode, useTheme } from '@/lib/theme'
 import { MEDIAS_PAR_DEFAUT, urlVitrine, useMediasVitrine, type EmplacementMedia } from '@/lib/vitrine'
 
 /** Coordonnées publiques de l'association (à compléter par le bureau). */
@@ -69,24 +78,24 @@ function MotsAlternes({ mots }: { mots: string[] }) {
   const [i, setI] = useState(0)
   useEffect(() => { const t = setInterval(() => setI((x) => (x + 1) % mots.length), 2600); return () => clearInterval(t) }, [mots.length])
   return (
-    <span className="relative inline-block min-w-[6.5ch] text-[#f2c14e]">
+    <span className="relative inline-block min-w-[6.5ch] text-v-or">
       <span key={i} className="inline-block" style={{ animation: 'vitrine-mot 2.6s ease-in-out both' }}>{mots[i]}</span>
     </span>
   )
 }
 
 /** Motif géométrique discret, inspiré des tissus wax. */
-function Motif({ className, couleur = '#ffffff' }: { className?: string; couleur?: string }) {
+function Motif({ className, couleur = '#ffffff', cle = 'blanc' }: { className?: string; couleur?: string; cle?: string }) {
   return (
     <svg aria-hidden className={className} width="100%" height="100%">
       <defs>
-        <pattern id={`motif-${couleur.slice(1)}`} width="56" height="56" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <circle cx="14" cy="14" r="3" fill={couleur} />
-          <path d="M28 0 L56 28 L28 56 L0 28 Z" fill="none" stroke={couleur} strokeWidth="1" />
-          <circle cx="42" cy="42" r="8" fill="none" stroke={couleur} strokeWidth="1" />
+        <pattern id={`motif-${cle}`} width="56" height="56" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <circle cx="14" cy="14" r="3" style={{ fill: couleur }} />
+          <path d="M28 0 L56 28 L28 56 L0 28 Z" fill="none" style={{ stroke: couleur }} strokeWidth="1" />
+          <circle cx="42" cy="42" r="8" fill="none" style={{ stroke: couleur }} strokeWidth="1" />
         </pattern>
       </defs>
-      <rect width="100%" height="100%" fill={`url(#motif-${couleur.slice(1)})`} />
+      <rect width="100%" height="100%" fill={`url(#motif-${cle})`} />
     </svg>
   )
 }
@@ -104,7 +113,7 @@ const REPERES = [
 
 const DOMAINES = [
   {
-    icone: GraduationCap, titre: 'Formation professionnelle', illus: illusFormation, couleur: '#0b7a57',
+    icone: GraduationCap, titre: 'Formation professionnelle', illus: illusFormation, couleur: 'var(--v-vert)',
     texte: 'Des formations qualifiantes qui ouvrent un métier : électricité bâtiment, maintenance mécanique, plomberie… avec un titre de qualification et un kit pour démarrer.',
     chiffre: '50 jeunes', legende: 'formés et équipés de kits d\'insertion',
   },
@@ -156,14 +165,16 @@ interface Chiffres { actions: number; personnes: number; femmes: number; jeunes:
 /* Page                                                               */
 /* ------------------------------------------------------------------ */
 
+const BLEUS = new Map([
+  [illusHero, bleuHero], [illusFormation, bleuFormation], [illusFemmes, bleuFemmes], [illusSante, bleuSante],
+  [illusJeunesse, bleuJeunesse], [illusCadre, bleuCadre], [illusCitoyennete, bleuCitoyennete],
+])
+
 export function Vitrine({ connecte = false }: { connecte?: boolean }) {
-  // La page publique garde ses couleurs, quel que soit le thème choisi dans l'application.
-  useEffect(() => {
-    const racine = document.documentElement
-    const theme = racine.getAttribute('data-theme')
-    racine.removeAttribute('data-theme')
-    return () => { if (theme) racine.setAttribute('data-theme', theme) }
-  }, [])
+  // Couleurs (bleu AP2A ou vert) et affichage (clair ou sombre), au choix du visiteur.
+  const theme = useTheme()
+  const { sombre } = useMode()
+  const illus = (u: string) => (theme === 'ap2a' ? BLEUS.get(u) ?? u : u)
   const [menu, setMenu] = useState(false)
   const [defile, setDefile] = useState(false)
   useEffect(() => {
@@ -211,9 +222,9 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
   const espace = connecte ? '/' : '/connexion'
 
   return (
-    <div className="min-h-dvh scroll-smooth bg-[#fbfaf6] text-[#13211b] [font-feature-settings:'ss01']">
+    <div className="min-h-dvh scroll-smooth bg-v-papier text-foreground [font-feature-settings:'ss01']">
       {/* ---------------- Navigation ---------------- */}
-      <header className={cn('fixed inset-x-0 top-0 z-50 transition-all duration-300', defile ? 'bg-[#0c2a20]/95 shadow-lg backdrop-blur' : 'bg-transparent')}>
+      <header className={cn('fixed inset-x-0 top-0 z-50 transition-all duration-300', defile ? 'bg-v-nuit/95 shadow-lg backdrop-blur' : 'bg-transparent')}>
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-5 py-3.5 md:px-8">
           <a href="#haut" className="flex items-center gap-2.5">
             <img src={logo} alt="" className="h-10 w-14 rounded-lg bg-white object-contain p-1" />
@@ -225,37 +236,41 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
           <nav className="ml-auto hidden items-center gap-1 lg:flex">
             {liens.map(([h, l]) => <a key={h} href={h} className="rounded-full px-3.5 py-2 text-sm font-medium text-white/85 transition hover:bg-white/10 hover:text-white">{l}</a>)}
           </nav>
-          <Link to={espace} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-[#f2c14e] px-4 py-2 text-sm font-semibold text-[#0c2a20] shadow transition hover:bg-[#ffd36b] lg:ml-3">
+          <Link to={espace} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-v-or px-4 py-2 text-sm font-semibold text-v-nuit shadow transition hover:bg-v-or-clair lg:ml-3">
             {connecte ? 'Retour à l\'application' : 'Espace membres'} <ArrowRight className="size-4" />
           </Link>
+          <button onClick={() => choisirTheme(theme === 'ap2a' ? 'parcelles' : 'ap2a')} className="rounded-full p-2 text-white/85 hover:bg-white/10 hover:text-white"
+            title={theme === 'ap2a' ? 'Couleurs : vert des Parcelles' : 'Couleurs : bleu AP2A'} aria-label="Changer les couleurs"><Palette className="size-5" /></button>
+          <button onClick={() => choisirMode(sombre ? 'clair' : 'sombre')} className="-ml-2 rounded-full p-2 text-white/85 hover:bg-white/10 hover:text-white"
+            title={sombre ? 'Affichage clair' : 'Affichage sombre'} aria-label={sombre ? 'Affichage clair' : 'Affichage sombre'}>{sombre ? <Sun className="size-5" /> : <Moon className="size-5" />}</button>
           <button className="rounded-lg p-2 text-white lg:hidden" onClick={() => setMenu(!menu)} aria-label="Menu">{menu ? <X /> : <Menu />}</button>
         </div>
         {menu ? (
-          <nav className="mx-4 mb-3 grid rounded-2xl bg-[#0c2a20] p-2 shadow-xl lg:hidden">
+          <nav className="mx-4 mb-3 grid rounded-2xl bg-v-nuit p-2 shadow-xl lg:hidden">
             {liens.map(([h, l]) => <a key={h} href={h} onClick={() => setMenu(false)} className="rounded-xl px-4 py-3 text-white/90 hover:bg-white/10">{l}</a>)}
           </nav>
         ) : null}
       </header>
 
       {/* ---------------- Accroche ---------------- */}
-      <section id="haut" className="relative isolate overflow-hidden bg-[#0c2a20] text-white">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,#0f7a56_0%,transparent_55%),radial-gradient(ellipse_at_bottom_left,#14523c_0%,transparent_60%)]" />
+      <section id="haut" className="relative isolate overflow-hidden bg-v-nuit text-white">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,var(--v-vert-clair)_0%,transparent_55%),radial-gradient(ellipse_at_bottom_left,var(--v-vert-fonce)_0%,transparent_60%)]" />
         {fond ? <FondAccueil media={fond} /> : null}
         <Motif className="absolute inset-0 -z-10 opacity-[0.06]" />
-        <div className="vitrine-halo absolute -right-32 top-24 -z-10 size-[30rem] rounded-full bg-[#f2c14e]/20 blur-3xl" />
-        <div className="vitrine-flotte absolute right-[8%] top-[22%] -z-10 hidden size-28 rounded-full border-[10px] border-[#f2c14e]/40 md:block" />
-        <div className="vitrine-flotte absolute bottom-[18%] right-[30%] -z-10 hidden size-12 rotate-45 rounded-lg bg-[#f2c14e]/30 md:block" style={{ animationDelay: '-3s' }} />
+        <div className="vitrine-halo absolute -right-32 top-24 -z-10 size-[30rem] rounded-full bg-v-or/20 blur-3xl" />
+        <div className="vitrine-flotte absolute right-[8%] top-[22%] -z-10 hidden size-28 rounded-full border-[10px] border-v-or/40 md:block" />
+        <div className="vitrine-flotte absolute bottom-[18%] right-[30%] -z-10 hidden size-12 rotate-45 rounded-lg bg-v-or/30 md:block" style={{ animationDelay: '-3s' }} />
 
         <div className="mx-auto grid max-w-7xl gap-12 px-5 pb-14 pt-32 md:px-8 md:pb-16 md:pt-40 lg:grid-cols-[1.15fr_1fr] lg:items-center">
           <div>
             <Apparait>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white/85 backdrop-blur">
-                <Sparkles className="size-3.5 text-[#f2c14e]" /> Association de développement communautaire · Dakar, Sénégal
+                <Sparkles className="size-3.5 text-v-or" /> Association de développement communautaire · Dakar, Sénégal
               </span>
             </Apparait>
             <Apparait delai={120}>
               <h1 className="mt-6 font-heading text-white text-[2.6rem] font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
-                Ensemble, faire des Parcelles une cité où il fait <span className="text-[#f2c14e]">bon vivre</span>.
+                Ensemble, faire des Parcelles une cité où il fait <span className="text-v-or">bon vivre</span>.
               </h1>
             </Apparait>
             <Apparait delai={240}>
@@ -270,7 +285,7 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
               </p>
             </Apparait>
             <Apparait delai={480} className="mt-9 flex flex-wrap gap-3">
-              <a href="#rejoindre" className="inline-flex items-center gap-2 rounded-full bg-[#f2c14e] px-6 py-3.5 font-semibold text-[#0c2a20] shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:bg-[#ffd36b]">
+              <a href="#rejoindre" className="inline-flex items-center gap-2 rounded-full bg-v-or px-6 py-3.5 font-semibold text-v-nuit shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:bg-v-or-clair">
                 Nous soutenir <HandHeart className="size-5" />
               </a>
               <a href="#actions" className="inline-flex items-center gap-2 rounded-full border border-white/25 px-6 py-3.5 font-semibold text-white transition hover:bg-white/10">
@@ -282,14 +297,14 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
           {/* Illustration et compteurs flottants */}
           <Apparait delai={300} className="relative mx-auto w-full max-w-xl">
             <div className="relative">
-              <div className="absolute inset-[6%] rounded-full border-[14px] border-[#f2c14e]/15" />
-              <img src={illusHero} alt="Des habitants des Parcelles Assainies, jeunes, femmes et aînés, avancent ensemble" className="relative w-full drop-shadow-2xl" />
-              <div className="vitrine-flotte absolute -left-2 top-[8%] rounded-2xl border border-white/15 bg-[#0c2a20]/80 px-4 py-3 shadow-2xl backdrop-blur-md sm:-left-6">
+              <div className="absolute inset-[6%] rounded-full border-[14px] border-v-or/15" />
+              <img src={illus(illusHero)} alt="Des habitants des Parcelles Assainies, jeunes, femmes et aînés, avancent ensemble" className="relative w-full drop-shadow-2xl" />
+              <div className="vitrine-flotte absolute -left-2 top-[8%] rounded-2xl border border-white/15 bg-v-nuit/80 px-4 py-3 shadow-2xl backdrop-blur-md sm:-left-6">
                 <div className="font-heading text-3xl font-bold text-white"><Compteur valeur={50} /></div>
-                <div className="text-xs font-semibold text-[#f2c14e]">jeunes formés et équipés</div>
+                <div className="text-xs font-semibold text-v-or">jeunes formés et équipés</div>
               </div>
-              <div className="vitrine-flotte absolute -right-1 bottom-[14%] rounded-2xl border border-white/15 bg-[#0c2a20]/80 px-4 py-3 shadow-2xl backdrop-blur-md sm:-right-4" style={{ animationDelay: '-4.5s' }}>
-                <div className="font-heading text-3xl font-bold text-[#f2c14e]"><Compteur valeur={85} /></div>
+              <div className="vitrine-flotte absolute -right-1 bottom-[14%] rounded-2xl border border-white/15 bg-v-nuit/80 px-4 py-3 shadow-2xl backdrop-blur-md sm:-right-4" style={{ animationDelay: '-4.5s' }}>
+                <div className="font-heading text-3xl font-bold text-v-or"><Compteur valeur={85} /></div>
                 <div className="text-xs font-semibold text-white">opérés de la cataracte</div>
               </div>
             </div>
@@ -301,9 +316,9 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
           <Apparait>
             <div className="grid grid-cols-2 gap-px overflow-hidden rounded-3xl border border-white/10 bg-white/10 md:grid-cols-4">
               {REPERES.map((r) => (
-                <div key={r.libelle} className="bg-[#0c2a20]/90 p-5 backdrop-blur md:p-6">
+                <div key={r.libelle} className="bg-v-nuit/90 p-5 backdrop-blur md:p-6">
                   <div className="font-heading text-4xl font-bold text-white md:text-5xl"><Compteur valeur={r.valeur} suffixe={r.suffixe} /></div>
-                  <div className="mt-1 text-sm font-semibold text-[#f2c14e]">{r.libelle}</div>
+                  <div className="mt-1 text-sm font-semibold text-v-or">{r.libelle}</div>
                   <div className="mt-0.5 text-xs leading-snug text-white/60">{r.detail}</div>
                 </div>
               ))}
@@ -313,11 +328,11 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
         </div>
 
         {/* Bandeau défilant */}
-        <div className="border-y border-white/10 bg-[#0a231b] py-4">
+        <div className="border-y border-white/10 bg-v-nuit-2 py-4">
           <div className="flex overflow-hidden">
             <div className="vitrine-defile flex shrink-0 gap-10 whitespace-nowrap pr-10 font-heading text-lg font-semibold text-white/70">
               {[...Array(2)].flatMap((_, k) => ['Formation professionnelle', 'Autonomie des femmes', 'Santé de proximité', 'Jeunesse et sport', 'Lutte contre les inondations', 'Citoyenneté', 'Suivi des bénéficiaires'].map((t) => (
-                <span key={`${k}-${t}`} className="inline-flex items-center gap-10">{t}<span className="size-2 rounded-full bg-[#f2c14e]" /></span>
+                <span key={`${k}-${t}`} className="inline-flex items-center gap-10">{t}<span className="size-2 rounded-full bg-v-or" /></span>
               )))}
             </div>
           </div>
@@ -328,9 +343,9 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
       <section id="mission" className="mx-auto max-w-7xl scroll-mt-20 px-5 py-20 md:px-8 md:py-28">
         <div className="grid gap-12 lg:grid-cols-[1fr_1.2fr] lg:items-center">
           <Apparait>
-            <span className="text-sm font-bold uppercase tracking-[0.18em] text-[#0b7a57]">Notre mission</span>
+            <span className="text-sm font-bold uppercase tracking-[0.18em] text-v-vert">Notre mission</span>
             <h2 className="mt-3 font-heading text-4xl font-bold leading-tight tracking-tight md:text-5xl">Donner à chacun les moyens de se prendre en main.</h2>
-            <p className="mt-5 text-lg leading-relaxed text-[#3d4b44]">
+            <p className="mt-5 text-lg leading-relaxed text-v-texte">
               Aux Parcelles Assainies, l'AP2A mise sur la <b>formation professionnelle</b> et l'<b>autonomisation des jeunes, des femmes et des personnes
               vivant avec un handicap</b>, tout en améliorant le <b>cadre de vie</b> des familles. Son plan d'action couvre quatre piliers et s'étend
               désormais à d'autres communes.
@@ -346,10 +361,10 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
               const I = Icone as typeof HeartPulse
               return (
                 <Apparait key={t as string} delai={i * 100}>
-                  <div className="group h-full rounded-3xl border border-[#e2e6df] bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-[#0b7a57]/30 hover:shadow-xl">
-                    <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-[#e8f4ee] text-[#0b7a57] transition group-hover:bg-[#0b7a57] group-hover:text-white"><I className="size-6" /></span>
+                  <div className="group h-full rounded-3xl border border-border bg-card p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-v-vert/30 hover:shadow-xl">
+                    <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-v-papier-3 text-v-vert transition group-hover:bg-v-vert group-hover:text-white"><I className="size-6" /></span>
                     <h3 className="mt-4 font-heading text-xl font-bold">{t as string}</h3>
-                    <p className="mt-1.5 text-[15px] leading-relaxed text-[#5c6b64]">{d as string}</p>
+                    <p className="mt-1.5 text-[15px] leading-relaxed text-muted-foreground">{d as string}</p>
                   </div>
                 </Apparait>
               )
@@ -359,27 +374,27 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
       </section>
 
       {/* ---------------- Actions ---------------- */}
-      <section id="actions" className="scroll-mt-20 bg-[#f1f5f0] py-20 md:py-28">
+      <section id="actions" className="scroll-mt-20 bg-v-papier-2 py-20 md:py-28">
         <div className="mx-auto max-w-7xl px-5 md:px-8">
           <Apparait className="max-w-2xl">
-            <span className="text-sm font-bold uppercase tracking-[0.18em] text-[#0b7a57]">Nos actions</span>
+            <span className="text-sm font-bold uppercase tracking-[0.18em] text-v-vert">Nos actions</span>
             <h2 className="mt-3 font-heading text-4xl font-bold leading-tight tracking-tight md:text-5xl">Sur le terrain, des résultats concrets.</h2>
-            <p className="mt-4 text-lg text-[#3d4b44]">Six domaines d'intervention, une même exigence : que chaque action change durablement une vie.</p>
+            <p className="mt-4 text-lg text-v-texte">Six domaines d'intervention, une même exigence : que chaque action change durablement une vie.</p>
           </Apparait>
           <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {DOMAINES.map((d, i) => (
               <Apparait key={d.titre} delai={(i % 3) * 110}>
-                <article className="group relative flex h-full flex-col overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-black/5 transition duration-300 hover:-translate-y-1.5 hover:shadow-2xl">
-                  <div className="relative overflow-hidden bg-[#fbfaf6] px-6 pt-6">
-                    <img src={d.illus} alt="" loading="lazy" className="mx-auto aspect-[4/3] w-full object-contain transition duration-700 group-hover:scale-[1.04]" />
+                <article className="group relative flex h-full flex-col overflow-hidden rounded-3xl bg-card shadow-sm ring-1 ring-black/5 transition duration-300 hover:-translate-y-1.5 hover:shadow-2xl">
+                  <div className="relative overflow-hidden bg-v-papier px-6 pt-6">
+                    <img src={illus(d.illus)} alt="" loading="lazy" className="mx-auto aspect-[4/3] w-full object-contain transition duration-700 group-hover:scale-[1.04]" />
                     <span className="absolute left-5 top-5 inline-flex size-11 items-center justify-center rounded-2xl text-white shadow-md" style={{ background: d.couleur }}><d.icone className="size-5" /></span>
                   </div>
                   <div className="flex flex-1 flex-col p-7 pt-5">
                   <h3 className="font-heading text-2xl font-bold">{d.titre}</h3>
-                  <p className="mt-2 flex-1 leading-relaxed text-[#5c6b64]">{d.texte}</p>
-                  <div className="mt-6 border-t border-[#eef1ec] pt-4">
+                  <p className="mt-2 flex-1 leading-relaxed text-muted-foreground">{d.texte}</p>
+                  <div className="mt-6 border-t border-border pt-4">
                     <div className="font-heading text-3xl font-bold" style={{ color: d.couleur }}>{d.chiffre}</div>
-                    <div className="text-sm text-[#5c6b64]">{d.legende}</div>
+                    <div className="text-sm text-muted-foreground">{d.legende}</div>
                   </div>
                   </div>
                 </article>
@@ -393,12 +408,12 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
       <section id="film" className="relative isolate scroll-mt-20 overflow-hidden py-20 md:py-28">
         <div className="mx-auto grid max-w-7xl items-center gap-12 px-5 md:px-8 lg:grid-cols-[1fr_1.1fr]">
           <Apparait>
-            <span className="text-sm font-bold uppercase tracking-[0.18em] text-[#0b7a57]">En vidéo</span>
+            <span className="text-sm font-bold uppercase tracking-[0.18em] text-v-vert">En vidéo</span>
             <h2 className="mt-3 font-heading text-4xl font-bold leading-tight tracking-tight md:text-5xl">{film?.titre || 'L\'AP2A en action'}</h2>
-            <p className="mt-4 text-lg leading-relaxed text-[#3d4b44]">
+            <p className="mt-4 text-lg leading-relaxed text-v-texte">
               {film?.legende || 'Formations certifiantes, groupements de femmes, campagnes de santé, lutte contre les inondations : découvrez en images ce que l\'association accomplit avec les habitants des Parcelles Assainies.'}
             </p>
-            <a href={INSTAGRAM} target="_blank" rel="noreferrer" className="mt-6 inline-flex items-center gap-2 font-semibold text-[#0b7a57] hover:gap-3">
+            <a href={INSTAGRAM} target="_blank" rel="noreferrer" className="mt-6 inline-flex items-center gap-2 font-semibold text-v-vert hover:gap-3">
               <Instagram className="size-5" /> Plus de vidéos sur @ap2a_sn <ArrowUpRight className="size-4" />
             </a>
           </Apparait>
@@ -410,14 +425,14 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
 
       {/* ---------------- Galerie ---------------- */}
       {galerie.length ? (
-        <section id="images" className="scroll-mt-20 bg-[#f1f5f0] py-20 md:py-28">
+        <section id="images" className="scroll-mt-20 bg-v-papier-2 py-20 md:py-28">
           <div className="mx-auto max-w-7xl px-5 md:px-8">
             <Apparait className="mb-10 flex flex-wrap items-end justify-between gap-4">
               <div className="max-w-2xl">
-                <span className="text-sm font-bold uppercase tracking-[0.18em] text-[#0b7a57]">En images</span>
+                <span className="text-sm font-bold uppercase tracking-[0.18em] text-v-vert">En images</span>
                 <h2 className="mt-3 font-heading text-4xl font-bold leading-tight tracking-tight md:text-5xl">Sur le terrain, avec les habitants.</h2>
               </div>
-              <a href={INSTAGRAM} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-[#0b7a57]/30 px-4 py-2 text-sm font-semibold text-[#0b7a57] hover:bg-white">
+              <a href={INSTAGRAM} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-v-vert/30 px-4 py-2 text-sm font-semibold text-v-vert hover:bg-card">
                 <Instagram className="size-4" /> Toutes nos photos
               </a>
             </Apparait>
@@ -427,27 +442,27 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
       ) : null}
 
       {/* ---------------- Fondatrice ---------------- */}
-      <section id="fondatrice" className="relative isolate scroll-mt-20 overflow-hidden bg-[#0c2a20] py-20 text-white md:py-28">
-        <Motif className="absolute inset-0 -z-10 opacity-[0.05]" couleur="#f2c14e" />
+      <section id="fondatrice" className="relative isolate scroll-mt-20 overflow-hidden bg-v-nuit py-20 text-white md:py-28">
+        <Motif className="absolute inset-0 -z-10 opacity-[0.05]" couleur="var(--v-or)" cle="or" />
         <div className="mx-auto grid max-w-7xl gap-14 px-5 md:px-8 lg:grid-cols-[0.9fr_1.1fr]">
           <Apparait className="lg:sticky lg:top-24 lg:self-start">
-            <span className="text-sm font-bold uppercase tracking-[0.18em] text-[#f2c14e]">La fondatrice</span>
+            <span className="text-sm font-bold uppercase tracking-[0.18em] text-v-or">La fondatrice</span>
             <h2 className="mt-3 font-heading text-4xl font-bold leading-tight tracking-tight text-white md:text-5xl">Fatou Kiné Diakhaté</h2>
             <p className="mt-2 text-lg text-white/75">Première femme Directrice de Cabinet adjointe du Président de la République du Sénégal</p>
 
             {/* Portrait typographique */}
-            <div className="relative mt-10 aspect-[4/5] max-w-sm overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#0f7a56] via-[#0b5c42] to-[#0a231b] shadow-2xl ring-1 ring-white/10">
+            <div className="relative mt-10 aspect-[4/5] max-w-sm overflow-hidden rounded-[2rem] bg-gradient-to-br from-v-vert-clair via-v-vert-profond to-v-nuit-2 shadow-2xl ring-1 ring-white/10">
               {portrait ? (
                 <>
                   <img src={urlVitrine(portrait.chemin)!} alt="Fatou Kiné Diakhaté, fondatrice de l'AP2A" className="absolute inset-0 size-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0c2a20] via-transparent to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-v-nuit via-transparent to-transparent" />
                 </>
               ) : (
               <>
-              <Motif className="absolute inset-0 opacity-10" couleur="#f2c14e" />
-              <div className="vitrine-halo absolute left-1/2 top-1/3 size-56 -translate-x-1/2 rounded-full bg-[#f2c14e]/25 blur-2xl" />
+              <Motif className="absolute inset-0 opacity-10" couleur="var(--v-or)" cle="or" />
+              <div className="vitrine-halo absolute left-1/2 top-1/3 size-56 -translate-x-1/2 rounded-full bg-v-or/25 blur-2xl" />
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <div className="flex size-40 items-center justify-center rounded-full border-4 border-[#f2c14e] bg-[#0c2a20]/60 font-heading text-6xl font-bold tracking-tight text-[#f2c14e] shadow-xl">FKD</div>
+                <div className="flex size-40 items-center justify-center rounded-full border-4 border-v-or bg-v-nuit/60 font-heading text-6xl font-bold tracking-tight text-v-or shadow-xl">FKD</div>
                 <div className="mt-6 text-center">
                   <div className="font-heading text-xl font-semibold">Fatou Kiné Diakhaté</div>
                   <div className="text-sm text-white/70">Fondatrice de l'AP2A</div>
@@ -456,7 +471,7 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
               </>
               )}
               <div className="absolute bottom-5 left-5 right-5 flex items-center gap-2 rounded-2xl bg-black/30 px-4 py-3 text-xs backdrop-blur">
-                <Landmark className="size-4 shrink-0 text-[#f2c14e]" /> Nommée le 12 mai 2024 — une première dans l'histoire du Sénégal
+                <Landmark className="size-4 shrink-0 text-v-or" /> Nommée le 12 mai 2024 — une première dans l'histoire du Sénégal
               </div>
             </div>
           </Apparait>
@@ -464,7 +479,7 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
           <div>
             <Apparait>
               <figure className="relative rounded-[2rem] bg-white/[0.06] p-8 ring-1 ring-white/10 md:p-10">
-                <Quote className="absolute -top-5 left-8 size-10 rounded-xl bg-[#f2c14e] p-2 text-[#0c2a20]" />
+                <Quote className="absolute -top-5 left-8 size-10 rounded-xl bg-v-or p-2 text-v-nuit" />
                 <blockquote className="font-heading text-2xl font-semibold leading-snug md:text-3xl">
                   « Refaire des Parcelles cette cité assainie où il fait bon vivre. »
                 </blockquote>
@@ -482,8 +497,8 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
               {PARCOURS.map((p, i) => (
                 <Apparait key={p.titre} delai={i * 90}>
                   <li className="relative">
-                    <span className="absolute -left-[41px] top-1 flex size-5 items-center justify-center rounded-full bg-[#f2c14e] ring-4 ring-[#0c2a20]"><span className="size-1.5 rounded-full bg-[#0c2a20]" /></span>
-                    <div className="text-xs font-bold uppercase tracking-wider text-[#f2c14e]">{p.quand}</div>
+                    <span className="absolute -left-[41px] top-1 flex size-5 items-center justify-center rounded-full bg-v-or ring-4 ring-v-nuit"><span className="size-1.5 rounded-full bg-v-nuit" /></span>
+                    <div className="text-xs font-bold uppercase tracking-wider text-v-or">{p.quand}</div>
                     <div className="mt-0.5 font-heading text-xl font-semibold">{p.titre}</div>
                     <p className="mt-1 leading-relaxed text-white/70">{p.texte}</p>
                   </li>
@@ -497,9 +512,9 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
       {/* ---------------- Méthode ---------------- */}
       <section id="methode" className="mx-auto max-w-7xl scroll-mt-20 px-5 py-20 md:px-8 md:py-28">
         <Apparait className="mx-auto max-w-2xl text-center">
-          <span className="text-sm font-bold uppercase tracking-[0.18em] text-[#0b7a57]">Notre méthode</span>
+          <span className="text-sm font-bold uppercase tracking-[0.18em] text-v-vert">Notre méthode</span>
           <h2 className="mt-3 font-heading text-4xl font-bold leading-tight tracking-tight md:text-5xl">Transparence et suivi, à chaque étape.</h2>
-          <p className="mt-4 text-lg text-[#3d4b44]">
+          <p className="mt-4 text-lg text-v-texte">
             Chaque action, chaque bénéficiaire et chaque franc remis sont enregistrés dans notre application de suivi.
             Nos partenaires savent précisément ce que devient leur soutien.
           </p>
@@ -507,11 +522,11 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
         <div className="mt-14 grid gap-5 md:grid-cols-4">
           {METHODE.map((m, i) => (
             <Apparait key={m.n} delai={i * 120}>
-              <div className="relative h-full rounded-3xl border border-[#e2e6df] bg-white p-7">
-                <div className="font-heading text-5xl font-bold text-[#e8f4ee]">{m.n}</div>
+              <div className="relative h-full rounded-3xl border border-border bg-card p-7">
+                <div className="font-heading text-5xl font-bold text-v-papier-3">{m.n}</div>
                 <h3 className="mt-2 font-heading text-xl font-bold">{m.titre}</h3>
-                <p className="mt-2 leading-relaxed text-[#5c6b64]">{m.texte}</p>
-                {i < METHODE.length - 1 ? <ArrowRight className="absolute -right-4 top-1/2 hidden size-7 -translate-y-1/2 rounded-full bg-[#0b7a57] p-1.5 text-white md:block" /> : null}
+                <p className="mt-2 leading-relaxed text-muted-foreground">{m.texte}</p>
+                {i < METHODE.length - 1 ? <ArrowRight className="absolute -right-4 top-1/2 hidden size-7 -translate-y-1/2 rounded-full bg-v-vert p-1.5 text-white md:block" /> : null}
               </div>
             </Apparait>
           ))}
@@ -519,10 +534,10 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
 
         {enDirect.length ? (
           <Apparait className="mt-14">
-            <div className="rounded-[2rem] bg-gradient-to-br from-[#0b7a57] to-[#0c2a20] p-8 text-white md:p-10">
+            <div className="rounded-[2rem] bg-gradient-to-br from-v-vert to-v-nuit p-8 text-white md:p-10">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="inline-flex items-center gap-2 text-sm font-semibold text-[#f2c14e]"><span className="relative flex size-2.5"><span className="absolute inline-flex size-full animate-ping rounded-full bg-[#f2c14e] opacity-75" /><span className="relative inline-flex size-2.5 rounded-full bg-[#f2c14e]" /></span> En direct de notre application</div>
+                  <div className="inline-flex items-center gap-2 text-sm font-semibold text-v-or"><span className="relative flex size-2.5"><span className="absolute inline-flex size-full animate-ping rounded-full bg-v-or opacity-75" /><span className="relative inline-flex size-2.5 rounded-full bg-v-or" /></span> En direct de notre application</div>
                   <h3 className="mt-1 font-heading text-2xl font-bold text-white md:text-3xl">L'impact suivi au jour le jour</h3>
                 </div>
                 <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs"><Eye className="size-3.5" /> Totaux anonymes, mis à jour en temps réel</div>
@@ -541,10 +556,10 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
       </section>
 
       {/* ---------------- Nous rejoindre ---------------- */}
-      <section id="rejoindre" className="scroll-mt-20 bg-[#f1f5f0] py-20 md:py-28">
+      <section id="rejoindre" className="scroll-mt-20 bg-v-papier-2 py-20 md:py-28">
         <div className="mx-auto max-w-7xl px-5 md:px-8">
           <Apparait className="max-w-2xl">
-            <span className="text-sm font-bold uppercase tracking-[0.18em] text-[#0b7a57]">Agir avec nous</span>
+            <span className="text-sm font-bold uppercase tracking-[0.18em] text-v-vert">Agir avec nous</span>
             <h2 className="mt-3 font-heading text-4xl font-bold leading-tight tracking-tight md:text-5xl">Chacun peut faire avancer les Parcelles.</h2>
           </Apparait>
           <div className="mt-12 grid gap-5 md:grid-cols-3">
@@ -556,11 +571,11 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
               const I = Icone as typeof UsersRound
               return (
                 <Apparait key={t as string} delai={i * 110}>
-                  <div className="flex h-full flex-col rounded-3xl bg-white p-7 shadow-sm ring-1 ring-black/5">
-                    <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-[#0c2a20] text-[#f2c14e]"><I className="size-6" /></span>
+                  <div className="flex h-full flex-col rounded-3xl bg-card p-7 shadow-sm ring-1 ring-black/5">
+                    <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-v-nuit text-v-or"><I className="size-6" /></span>
                     <h3 className="mt-5 font-heading text-2xl font-bold">{t as string}</h3>
-                    <p className="mt-2 flex-1 leading-relaxed text-[#5c6b64]">{d as string}</p>
-                    <a href={INSTAGRAM} target="_blank" rel="noreferrer" className="mt-6 inline-flex items-center gap-1.5 font-semibold text-[#0b7a57] hover:gap-2.5">{cta as string} <ArrowUpRight className="size-4" /></a>
+                    <p className="mt-2 flex-1 leading-relaxed text-muted-foreground">{d as string}</p>
+                    <a href={INSTAGRAM} target="_blank" rel="noreferrer" className="mt-6 inline-flex items-center gap-1.5 font-semibold text-v-vert hover:gap-2.5">{cta as string} <ArrowUpRight className="size-4" /></a>
                   </div>
                 </Apparait>
               )
@@ -584,7 +599,7 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
       </section>
 
       {/* ---------------- Pied de page ---------------- */}
-      <footer className="bg-[#0a231b] text-white/70">
+      <footer className="bg-v-nuit-2 text-white/70">
         <div className="mx-auto grid max-w-7xl gap-8 px-5 py-12 md:grid-cols-[1.5fr_1fr_1fr] md:px-8">
           <div>
             <div className="flex items-center gap-3">

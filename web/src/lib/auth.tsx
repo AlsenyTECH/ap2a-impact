@@ -4,7 +4,7 @@ import { supabase } from './supabase'
 import { client, persister } from './cache'
 import { nbEnAttente, viderHorsLigne } from './horsligne'
 import { CHAMPS_ROLE, roleA, roleDuMembre, type Permission } from './droits'
-import { appliquerTheme } from './theme'
+import { appliquerMode, appliquerTheme } from './theme'
 import type { Membre } from './types'
 
 interface Auth {
@@ -55,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           try { localStorage.setItem(cle, JSON.stringify(fiche)) } catch { /* stockage indisponible */ }
         }
         if (fiche?.theme) appliquerTheme(fiche.theme, true)
+        if (fiche?.mode) appliquerMode(fiche.mode, true)
         setMembre(fiche)
         setChargement(false)
       })

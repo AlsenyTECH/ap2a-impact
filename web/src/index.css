@@ -59,6 +59,20 @@
   --degrade-3: #0c2a20;
   --voile: rgb(12 42 32 / 0.4);
 
+  /* Page publique (vitrine) */
+  --v-nuit: #0c2a20;
+  --v-nuit-2: #0a231b;
+  --v-vert: #0b7a57;
+  --v-vert-clair: #0f7a56;
+  --v-vert-fonce: #14523c;
+  --v-vert-profond: #0b5c42;
+  --v-or: #f2c14e;
+  --v-or-clair: #ffd36b;
+  --v-papier: #fbfaf6;
+  --v-papier-2: #f1f5f0;
+  --v-papier-3: #e8f4ee;
+  --v-texte: #3d4b44;
+
   --ombre-carte: 0 1px 2px rgb(19 33 27 / 0.04), 0 1px 3px rgb(19 33 27 / 0.06);
   --ombre-haute: 0 10px 30px -12px rgb(19 33 27 / 0.25);
 }
@@ -102,8 +116,111 @@
   --degrade-3: #003f60;
   --voile: rgb(3 45 69 / 0.4);
 
+  --v-nuit: #032d45;
+  --v-nuit-2: #02253a;
+  --v-vert: #0770aa;
+  --v-vert-clair: #0a88c6;
+  --v-vert-fonce: #0a4f7a;
+  --v-vert-profond: #065d8e;
+  --v-or: #5fd3f3;
+  --v-or-clair: #a5e8f9;
+  --v-papier: #f6f9fb;
+  --v-papier-2: #eef4f8;
+  --v-papier-3: #e3f2fb;
+  --v-texte: #34495a;
+
   --ombre-carte: 0 1px 2px rgb(15 31 43 / 0.04), 0 1px 3px rgb(15 31 43 / 0.06);
   --ombre-haute: 0 10px 30px -12px rgb(15 31 43 / 0.25);
+}
+
+/* =====================================================================
+   Mode sombre (au choix, ou selon le réglage du téléphone), pour les deux
+   couleurs. Les documents imprimés (classe « clair ») restent clairs.
+   ===================================================================== */
+:root[data-mode="sombre"] {
+  color-scheme: dark;
+  --background: #0e1512;
+  --foreground: #e6efe9;
+  --card: #151f1a;
+  --card-foreground: #e6efe9;
+  --popover: #18231d;
+  --popover-foreground: #e6efe9;
+  --primary: #3cc28f;
+  --primary-hover: #5bd2a3;
+  --primary-foreground: #04130d;
+  --primary-soft: #17352a;
+  --secondary: #1d2a24;
+  --secondary-foreground: #dce8e1;
+  --muted: #1d2a24;
+  --muted-foreground: #9fb2a8;
+  --accent: #17352a;
+  --accent-foreground: #8fe0bd;
+  --or-soft: #3a2f12;
+  --border: #26342d;
+  --input: #2f3f37;
+  --ring: #3cc28f;
+  --sidebar: #08100c;
+  --sidebar-active: #16271f;
+  --sidebar-border: #16231c;
+  --voile: rgb(0 0 0 / 0.6);
+  --v-papier: #111a16;
+  --v-papier-2: #0c1411;
+  --v-papier-3: #17352a;
+  --v-texte: #b8c8bf;
+  --ombre-carte: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.35);
+  --ombre-haute: 0 10px 30px -12px rgb(0 0 0 / 0.7);
+}
+:root[data-theme="ap2a"][data-mode="sombre"] {
+  --background: #0b131a;
+  --foreground: #e4eef5;
+  --card: #111c25;
+  --card-foreground: #e4eef5;
+  --popover: #142230;
+  --popover-foreground: #e4eef5;
+  --primary: #4fb3e8;
+  --primary-hover: #73c4ee;
+  --primary-foreground: #03121c;
+  --primary-soft: #12304a;
+  --secondary: #18252f;
+  --secondary-foreground: #dbe7f0;
+  --muted: #18252f;
+  --muted-foreground: #9db0be;
+  --accent: #12304a;
+  --accent-foreground: #9fd8f5;
+  --border: #22323f;
+  --input: #2a3b49;
+  --ring: #4fb3e8;
+  --sidebar: #06111a;
+  --sidebar-active: #0f2c42;
+  --sidebar-border: #102434;
+  --v-papier: #0f1a23;
+  --v-papier-2: #0b141c;
+  --v-papier-3: #12304a;
+  --v-texte: #b3c4d1;
+}
+/* Documents à imprimer : toujours clairs. */
+:root[data-mode="sombre"] .clair {
+  color-scheme: light;
+  --background: #f4f5f1; --foreground: #13211b; --card: #ffffff; --card-foreground: #13211b;
+  --popover: #ffffff; --popover-foreground: #13211b; --muted: #eef1ec; --muted-foreground: #5c6b64;
+  --secondary: #eef1ec; --secondary-foreground: #1d2d26; --border: #e2e6df; --input: #dde2da;
+}
+/* Pastilles et alertes aux couleurs fixes : versions sombres. */
+:root[data-mode="sombre"] :where(:not(.clair, .clair *)) {
+  &.bg-\[\#fbe6e6\], &.bg-\[\#fbe6e6\]\/60 { background-color: rgb(208 59 59 / 0.18); }
+  &.text-\[\#a32b2b\], &.text-\[\#7a1f1f\], &.text-\[\#7a1f1f\]\/80 { color: #f3a5a5; }
+  &.bg-\[\#e2f4e2\] { background-color: rgb(12 163 12 / 0.18); }
+  &.text-\[\#0b6b0b\] { color: #8fe38f; }
+  &.bg-\[\#fdf3d8\], &.bg-or-soft { background-color: rgb(233 168 18 / 0.16); }
+  &.text-\[\#5c4100\], &.text-\[\#7a5600\], &.text-\[\#8a6a10\] { color: #f2c14e; }
+  &.bg-\[\#f4f1fd\], &.bg-\[\#ece8fb\] { background-color: rgb(79 58 163 / 0.22); }
+  &.text-\[\#4f3aa3\], &.text-\[\#4f3aa3\]\/80, &.text-\[\#3b2a85\] { color: #c3b5f7; }
+  &.bg-\[\#e6eefb\] { background-color: rgb(31 78 153 / 0.25); }
+  &.text-\[\#1f4e99\] { color: #a9c5f2; }
+  &.bg-\[\#fbe8ef\] { background-color: rgb(155 44 85 / 0.25); }
+  &.text-\[\#9b2c55\] { color: #f2a9c4; }
+  &.bg-\[\#e3f3ec\] { background-color: rgb(11 122 87 / 0.25); }
+  &.text-\[\#06573e\] { color: #8fe0bd; }
 }
 
 @theme inline {
@@ -145,6 +262,18 @@
   --color-degrade-2: var(--degrade-2);
   --color-degrade-3: var(--degrade-3);
   --color-voile: var(--voile);
+  --color-v-nuit: var(--v-nuit);
+  --color-v-nuit-2: var(--v-nuit-2);
+  --color-v-vert: var(--v-vert);
+  --color-v-vert-clair: var(--v-vert-clair);
+  --color-v-vert-fonce: var(--v-vert-fonce);
+  --color-v-vert-profond: var(--v-vert-profond);
+  --color-v-or: var(--v-or);
+  --color-v-or-clair: var(--v-or-clair);
+  --color-v-papier: var(--v-papier);
+  --color-v-papier-2: var(--v-papier-2);
+  --color-v-papier-3: var(--v-papier-3);
+  --color-v-texte: var(--v-texte);
 
   --radius-sm: calc(var(--radius) - 6px);
   --radius-md: calc(var(--radius) - 4px);

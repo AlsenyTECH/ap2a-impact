@@ -9,7 +9,8 @@ import { Switch } from '@/components/ui/switch'
 import { PhotoFiche } from '@/components/PhotoFiche'
 import { useAuth } from '@/lib/auth'
 import { nomRole } from '@/lib/droits'
-import { choisirTheme, THEMES, useTheme, type Theme } from '@/lib/theme'
+import { choisirMode, choisirTheme, MODES, THEMES, useMode, useTheme, type Theme } from '@/lib/theme'
+import { Pastilles } from '@/components/champs'
 import { heureCourte, JOURS, useReglagesRappels } from '@/lib/rappels'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 
@@ -154,6 +155,7 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
 /** Couleurs de l'application : le vert d'origine ou le bleu du logo AP2A. */
 function ChoixTheme() {
   const theme = useTheme()
+  const { mode } = useMode()
   async function choisir(t: Theme) {
     // Gardé aussi sur la fiche : le thème suit le membre sur ses autres appareils.
     const error = await choisirTheme(t)
@@ -175,6 +177,10 @@ function ChoixTheme() {
             </span>
           </button>
         ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-3 pt-1">
+        <span className="text-sm text-muted-foreground">Affichage</span>
+        <Pastilles value={mode} onChange={(m) => choisirMode(m)} options={MODES} />
       </div>
     </section>
   )
