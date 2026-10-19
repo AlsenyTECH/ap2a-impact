@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { BellRing, CalendarClock, IdCard, Mail, Send } from 'lucide-react'
+import { BellRing, CalendarClock, Eye, IdCard, KeyRound, ListChecks, Mail, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import { PhotoFiche } from '@/components/PhotoFiche'
+import { ApercuRappels } from '@/components/ApercuRappels'
+import { Input } from '@/components/ui/input'
 import { useAuth } from '@/lib/auth'
 import { nomRole } from '@/lib/droits'
 import { choisirMode, choisirTheme, MODES, THEMES, useMode, useTheme, type Theme } from '@/lib/theme'
@@ -36,6 +38,7 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
   const { membre, peut } = useAuth()
   const qc = useQueryClient()
   const [envoi, setEnvoi] = useState<string | null>(null)
+  const [apercu, setApercu] = useState<'seances' | 'hebdo' | null>(null)
   const admin = peut('rappels.regler')
   const { data: reglages } = useReglagesRappels()
   const hebdo = reglages?.hebdo_actif ? `Chaque ${JOURS[reglages.hebdo_jour - 1]} à ${heureCourte(reglages.hebdo_heure)}` : null
@@ -108,17 +111,25 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
             </span>
             <Switch checked={actif ?? true} onCheckedChange={regler} disabled={actif === undefined || !membre.email} />
           </label>
+          <div className="flex flex-wrap gap-2 pl-8">
+            <Button size="sm" onClick={() => setApercu('seances')}><Eye /> Voir mes séances</Button>
+            <Button size="sm" variant="secondary" onClick={() => setApercu('hebdo')}><ListChecks /> Voir mes suivis</Button>
+          </div>
           {membre.email ? (
             <div className="flex flex-wrap gap-2 pl-8">
-              <Button size="sm" variant="secondary" disabled={!!envoi} onClick={() => lancer('hebdo', true)}><Mail /> M'envoyer un aperçu</Button>
-              <Button size="sm" variant="ghost" disabled={!!envoi} onClick={() => lancer('seances', true)}><CalendarClock /> Aperçu « séance du jour »</Button>
+              <Button size="sm" variant="ghost" disabled={!!envoi} onClick={() => lancer('hebdo', true)}><Mail /> Recevoir l'aperçu des suivis par email</Button>
+              <Button size="sm" variant="ghost" disabled={!!envoi} onClick={() => lancer('seances', true)}><CalendarClock /> … des séances par email</Button>
             </div>
           ) : (
-            <p className="pl-8 text-xs text-muted-foreground">Demandez au bureau d'ajouter votre adresse email à votre fiche pour recevoir les rappels.</p>
+            <p className="pl-8 text-xs text-muted-foreground">Demandez au bureau d'ajouter votre adresse email à votre fiche pour recevoir les rappels par email.</p>
           )}
         </section>
 
         <ChoixTheme />
+
+        <MotDePasse email={membre.email} />
+
+        <ApercuRappels key={apercu ?? 'x'} ouvert={!!apercu} type={apercu ?? 'seances'} fermer={() => setApercu(null)} />
 
         {admin ? (
           <section className="space-y-2 border-t border-border pt-4">
@@ -182,6 +193,60 @@ function ChoixTheme() {
         <span className="text-sm text-muted-foreground">Affichage</span>
         <Pastilles value={mode} onChange={(m) => choisirMode(m)} options={MODES} />
       </div>
+    </section>
+  )
+}
+
+/** Changer son mot de passe : l'ancien est vérifié avant d'enregistrer le nouveau. */
+function MotDePasse({ email }: { email: string | null }) {
+  const [ouvert, setOuvert] = useState(false)
+  const [actuel, setActuel] = useState('')
+  const [nouveau, setNouveau] = useState('')
+  const [confirmation, setConfirmation] = useState('')
+  const [envoi, setEnvoi] = useState(false)
+  const probleme = nouveau.length > 0 && nouveau.length < 8 ? 'Au moins 8 caractères.'
+    : confirmation && nouveau !== confirmation ? 'Les deux mots de passe ne sont pas identiques.'
+    : nouveau && nouveau === actuel ? "Le nouveau mot de passe doit être différent de l'ancien." : null
+
+  async function enregistrer(e: React.FormEvent) {
+    e.preventDefault()
+    if (probleme || !email) return
+    setEnvoi(true)
+    try {
+      // Vérifie l'ancien mot de passe (la session reste la même).
+      const { error: e1 } = await supabase.auth.signInWithPassword({ email, password: actuel })
+      if (e1) throw new Error('Mot de passe actuel incorrect.')
+      const { error: e2 } = await supabase.auth.updateUser({ password: nouveau })
+      if (e2) throw new Error(/weak|short|characters/i.test(e2.message) ? 'Mot de passe trop faible : mélangez lettres, chiffres et symboles.' : e2.message)
+      toast.success('Mot de passe changé')
+      setOuvert(false); setActuel(''); setNouveau(''); setConfirmation('')
+    } catch (err) {
+      toast.error(messageErreur(err))
+    } finally {
+      setEnvoi(false)
+    }
+  }
+
+  return (
+    <section className="space-y-2 border-t border-border pt-4">
+      <h3 className="flex items-center gap-2 text-sm font-semibold"><KeyRound className="size-4 text-primary" /> Mot de passe</h3>
+      {!email ? (
+        <p className="text-xs text-muted-foreground">Votre fiche n'a pas d'adresse de connexion.</p>
+      ) : !ouvert ? (
+        <Button size="sm" variant="secondary" onClick={() => setOuvert(true)}>Changer mon mot de passe</Button>
+      ) : (
+        <form onSubmit={enregistrer} className="grid gap-2">
+          <Input type="password" autoComplete="current-password" placeholder="Mot de passe actuel" required value={actuel} onChange={(e) => setActuel(e.target.value)} />
+          <Input type="password" autoComplete="new-password" placeholder="Nouveau mot de passe (8 caractères minimum)" required minLength={8} value={nouveau} onChange={(e) => setNouveau(e.target.value)} />
+          <Input type="password" autoComplete="new-password" placeholder="Confirmer le nouveau mot de passe" required value={confirmation} onChange={(e) => setConfirmation(e.target.value)} />
+          {probleme ? <p className="text-xs text-destructive">{probleme}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button type="button" size="sm" variant="ghost" onClick={() => setOuvert(false)}>Annuler</Button>
+            <Button type="submit" size="sm" disabled={envoi || !!probleme || !actuel || !nouveau || !confirmation}>{envoi ? 'Enregistrement…' : 'Enregistrer'}</Button>
+          </div>
+          <p className="text-xs text-muted-foreground">Mot de passe oublié ? Déconnectez-vous et utilisez « Mot de passe oublié » sur l'écran de connexion.</p>
+        </form>
+      )}
     </section>
   )
 }

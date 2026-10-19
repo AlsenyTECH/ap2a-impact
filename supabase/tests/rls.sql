@@ -575,4 +575,12 @@ update membres set actif = false where email = 'puissante@ap2a.sn';
 select t.ok(not exists (select 1 from roles where nom = 'Magasinier'), 'rôle personnalisé inutilisé supprimé');
 select t.ok(membre_a_permission((select id from membres where email = 'coord@ap2a.sn'), 'impact.voir') and not membre_a_permission((select id from membres where email = 'coord@ap2a.sn'), 'kits.gerer'), 'droits d''un autre membre');
 reset role;
+set role authenticated;
+select t.qui('coord@ap2a.sn');
+select t.ok((mon_apercu_rappels('hebdo') ->> 'prenom') is not null, 'aperçu des rappels dans l''application');
+select t.ok(jsonb_typeof(mon_apercu_rappels('seances', current_date)) = 'object', 'aperçu des séances (vide ou non)');
+reset role;
+set role anon;
+select t.refuse($$select mon_apercu_rappels('hebdo')$$, 'aperçu : pas pour les visiteurs');
+reset role;
 \echo 'Tous les tests sont passés.'
