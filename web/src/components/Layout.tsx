@@ -134,7 +134,7 @@ export function Layout() {
         {menu ? (
           <>
             <div className="fixed inset-0 top-[57px] bg-black/20" onClick={() => setMenu(false)} />
-            <div className="absolute right-3 top-full mt-2 w-64 animate-apparition rounded-2xl border border-border bg-popover p-2 shadow-haute">
+            <div className="absolute right-3 top-full z-40 mt-2 max-h-[calc(100dvh-57px-5.5rem-env(safe-area-inset-bottom))] w-64 animate-apparition overflow-y-auto overscroll-contain rounded-2xl border border-border bg-popover p-2 shadow-haute">
               <div className="flex items-center gap-3 border-b border-border px-2 pb-3 pt-1">
                 {membre ? <Avatar prenom={membre.prenom} nom={membre.nom} taille="sm" /> : null}
                 <div className="leading-tight">

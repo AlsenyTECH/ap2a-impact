@@ -225,8 +225,8 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
     <div className="min-h-dvh scroll-smooth bg-v-papier text-foreground [font-feature-settings:'ss01']">
       {/* ---------------- Navigation ---------------- */}
       <header className={cn('fixed inset-x-0 top-0 z-50 transition-all duration-300', defile ? 'bg-v-nuit/95 shadow-lg backdrop-blur' : 'bg-transparent')}>
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-5 py-3.5 md:px-8">
-          <a href="#haut" className="flex items-center gap-2.5">
+        <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-3.5 sm:gap-3 sm:px-5 md:px-8">
+          <a href="#haut" className="flex shrink-0 items-center gap-2.5">
             <img src={logo} alt="" className="h-10 w-14 rounded-lg bg-white object-contain p-1" />
             <span className="leading-tight text-white">
               <span className="block font-heading text-lg font-bold tracking-tight">AP2A</span>
@@ -236,18 +236,28 @@ export function Vitrine({ connecte = false }: { connecte?: boolean }) {
           <nav className="ml-auto hidden items-center gap-1 lg:flex">
             {liens.map(([h, l]) => <a key={h} href={h} className="rounded-full px-3.5 py-2 text-sm font-medium text-white/85 transition hover:bg-white/10 hover:text-white">{l}</a>)}
           </nav>
-          <Link to={espace} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-v-or px-4 py-2 text-sm font-semibold text-v-nuit shadow transition hover:bg-v-or-clair lg:ml-3">
-            {connecte ? 'Retour à l\'application' : 'Espace membres'} <ArrowRight className="size-4" />
+          <Link to={espace} className="ml-auto inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-v-or px-3.5 py-2 text-sm font-semibold text-v-nuit shadow transition hover:bg-v-or-clair sm:px-4 lg:ml-3">
+            <span className="min-[400px]:hidden">{connecte ? 'Appli' : 'Membres'}</span>
+            <span className="hidden min-[400px]:inline sm:hidden">{connecte ? 'Application' : 'Espace membres'}</span>
+            <span className="hidden sm:inline">{connecte ? 'Retour à l\'application' : 'Espace membres'}</span> <ArrowRight className="size-4" />
           </Link>
-          <button onClick={() => choisirTheme(theme === 'ap2a' ? 'parcelles' : 'ap2a')} className="rounded-full p-2 text-white/85 hover:bg-white/10 hover:text-white"
+          <button onClick={() => choisirTheme(theme === 'ap2a' ? 'parcelles' : 'ap2a')} className="hidden rounded-full p-2 text-white/85 sm:inline-flex hover:bg-white/10 hover:text-white"
             title={theme === 'ap2a' ? 'Couleurs : vert des Parcelles' : 'Couleurs : bleu AP2A'} aria-label="Changer les couleurs"><Palette className="size-5" /></button>
-          <button onClick={() => choisirMode(sombre ? 'clair' : 'sombre')} className="-ml-2 rounded-full p-2 text-white/85 hover:bg-white/10 hover:text-white"
+          <button onClick={() => choisirMode(sombre ? 'clair' : 'sombre')} className="-ml-2 hidden rounded-full p-2 text-white/85 sm:inline-flex hover:bg-white/10 hover:text-white"
             title={sombre ? 'Affichage clair' : 'Affichage sombre'} aria-label={sombre ? 'Affichage clair' : 'Affichage sombre'}>{sombre ? <Sun className="size-5" /> : <Moon className="size-5" />}</button>
           <button className="rounded-lg p-2 text-white lg:hidden" onClick={() => setMenu(!menu)} aria-label="Menu">{menu ? <X /> : <Menu />}</button>
         </div>
         {menu ? (
           <nav className="mx-4 mb-3 grid rounded-2xl bg-v-nuit p-2 shadow-xl lg:hidden">
             {liens.map(([h, l]) => <a key={h} href={h} onClick={() => setMenu(false)} className="rounded-xl px-4 py-3 text-white/90 hover:bg-white/10">{l}</a>)}
+            <div className="mt-1 flex gap-2 border-t border-white/10 px-2 pt-3 sm:hidden">
+              <button onClick={() => choisirTheme(theme === 'ap2a' ? 'parcelles' : 'ap2a')} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/5 px-3 py-2.5 text-sm text-white/90 hover:bg-white/10">
+                <Palette className="size-4" /> {theme === 'ap2a' ? 'Vert' : 'Bleu AP2A'}
+              </button>
+              <button onClick={() => choisirMode(sombre ? 'clair' : 'sombre')} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/5 px-3 py-2.5 text-sm text-white/90 hover:bg-white/10">
+                {sombre ? <Sun className="size-4" /> : <Moon className="size-4" />} {sombre ? 'Clair' : 'Sombre'}
+              </button>
+            </div>
           </nav>
         ) : null}
       </header>
