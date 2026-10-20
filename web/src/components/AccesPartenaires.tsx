@@ -104,7 +104,7 @@ export function AccesPartenaires({ partenaire, fermer }: { partenaire: Partenair
               <Champ label="Prénom"><Input value={v.prenom} onChange={(e) => setV({ ...v, prenom: e.target.value })} /></Champ>
               <Champ label="Nom"><Input required value={v.nom} onChange={(e) => setV({ ...v, nom: e.target.value })} /></Champ>
             </div>
-            <Champ label="Email" aide="Il s'en servira pour créer son mot de passe (« Première connexion »).">
+            <Champ label="Email" aide="Il y recevra son lien d'invitation personnel pour choisir son mot de passe.">
               <Input type="email" required value={v.email} onChange={(e) => setV({ ...v, email: e.target.value })} />
             </Champ>
             <Champ label="Téléphone (pour l'invitation WhatsApp)"><Input type="tel" value={v.telephone} onChange={(e) => setV({ ...v, telephone: e.target.value })} /></Champ>

@@ -5,6 +5,15 @@ const cle = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
 export const configurationManquante = !url || !cle
 
+// Lien d'invitation ou de mot de passe oublié : on note son type avant que la
+// session soit ouverte (et l'adresse nettoyée), pour imposer le choix du mot de passe.
+try {
+  const type = new URLSearchParams(window.location.hash.slice(1)).get('type')
+  if (type === 'invite' || type === 'recovery') sessionStorage.setItem('ap2a-lien', type)
+} catch { /* stockage indisponible */ }
+export const lienAChoisirMotDePasse = () => { try { return sessionStorage.getItem('ap2a-lien') } catch { return null } }
+export const oublierLien = () => { try { sessionStorage.removeItem('ap2a-lien') } catch { /* rien */ } }
+
 // La clé publique ne donne aucun droit à elle seule : les règles d'accès
 // (RLS) de la base décident de tout selon le membre connecté.
 export const supabase = createClient(url ?? 'http://localhost', cle ?? 'absente', {

@@ -16,12 +16,20 @@ export const STATUTS_CONSULTATION: Record<StatutConsultation, { libelle: string;
 
 /** Message d'invitation à envoyer au partenaire (WhatsApp ou email). */
 export const messageInvitation = (prenom: string | null, email: string, organisation: string) =>
-  `Bonjour${prenom ? ` ${prenom}` : ''}, l'association AP2A vous donne accès à son application pour ${organisation}.\n\n` +
-  `1. Ouvrez https://ap2a-impact.vercel.app\n2. Choisissez « Première connexion »\n3. Saisissez cette adresse : ${email}\n` +
-  `4. Choisissez un mot de passe, puis confirmez avec le lien reçu par email.\n\nMerci pour votre engagement à nos côtés.`
+  `Bonjour${prenom ? ` ${prenom}` : ''}, l'association AP2A vous donne accès à son application pour ${organisation}.
+
+` +
+  `Vous allez recevoir à l'adresse ${email} un email « AP2A — Votre accès partenaire » (regardez aussi dans les indésirables).
+` +
+  `Ouvrez le lien qu'il contient pour choisir votre mot de passe : il est personnel, ne sert qu'une fois et expire au bout de 24 heures.
+
+Merci pour votre engagement à nos côtés.`
 
 /** Message d'invitation d'un membre à créer son accès. */
 export const messageInvitationMembre = (prenom: string | null, email: string) =>
-  `Bonjour${prenom ? ` ${prenom}` : ''}, vous pouvez maintenant utiliser l'application de l'AP2A (actions, suivis, événements, votre carte de membre).\n\n` +
-  `1. Ouvrez https://ap2a-impact.vercel.app\n2. Choisissez « Première connexion »\n3. Saisissez cette adresse : ${email}\n` +
-  `4. Choisissez un mot de passe, puis confirmez avec le lien reçu par email.`
+  `Bonjour${prenom ? ` ${prenom}` : ''}, vous pouvez maintenant utiliser l'application de l'AP2A (actions, suivis, événements, votre carte de membre).
+
+` +
+  `Vous allez recevoir à l'adresse ${email} un email « AP2A — Votre accès à l'application » (regardez aussi dans les indésirables).
+` +
+  `Ouvrez le lien qu'il contient pour choisir votre mot de passe : il est personnel, ne sert qu'une fois et expire au bout de 24 heures.`

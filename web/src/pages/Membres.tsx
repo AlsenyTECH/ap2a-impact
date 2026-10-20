@@ -219,7 +219,7 @@ function InviterMembre({ membre, fermer }: { membre: Membre; fermer: () => void 
         <DialogHeader>
           <DialogTitle>Inviter {membre.prenom} {membre.nom}</DialogTitle>
           <DialogDescription>
-            Pour utiliser l'application, il ou elle crée son mot de passe avec « Première connexion » et l'adresse de sa fiche.
+            L'accès est sur invitation : un email lui apporte un lien personnel (usage unique, 24 h) pour choisir son mot de passe.
             Son accès dépendra de son rôle : <b>{nomRole(membre)}</b>.
           </DialogDescription>
         </DialogHeader>

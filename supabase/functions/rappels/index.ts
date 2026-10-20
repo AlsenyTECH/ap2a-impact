@@ -5,7 +5,8 @@
 //    les membres concernés, ou SMS automatiques aux bénéficiaires (heures réglées dans l'application) ;
 //  * un membre connecté (jeton de session) : { type, apercu: true } → l'email lui est envoyé à lui seul,
 //    même vide, pour voir à quoi il ressemble ; droit « rappels.regler » : envoi à tous ;
-//  * droit « membres.gerer » / « partenaires.gerer » : { type: 'invitation', membre_id | acces_id } → invitation ;
+//  * droit « membres.gerer » / « partenaires.gerer » : { type: 'invitation', membre_id | acces_id } → lien personnel
+//    à usage unique pour choisir son mot de passe (l'inscription libre est fermée) ;
 //  * droit « membres.comptes » : { type: 'changer_email', membre_id, email } → change l'adresse de connexion ;
 //  * droit « rappels.regler » : { type: 'sms_test', telephone } → SMS d'essai (vérifie les crédits Brevo).
 //
@@ -197,20 +198,15 @@ async function envoyerSms(numero: string, texte: string, expediteur: string) {
 }
 
 /** Invitation à créer son compte (membre ou partenaire). */
-function emailInvitation(prenom: string | null, email: string, partenaire: string | null) {
+function emailInvitation(prenom: string | null, lien: string, partenaire: string | null) {
   const corps = `<p style="margin:0 0 16px">Bonjour${prenom ? ` ${echapper(prenom)}` : ''},</p>
     <p style="margin:0 0 12px">${partenaire
       ? `L'association AP2A vous donne accès à son application, en tant que partenaire (${echapper(partenaire)}), pour suivre les actions que nous menons ensemble.`
       : `Vous êtes inscrit(e) comme membre de l'AP2A. Vous pouvez maintenant utiliser l'application de l'association : actions, suivis des bénéficiaires, événements, votre carte de membre…`}</p>
-    <p style="margin:0 0 6px"><b>Pour créer votre accès :</b></p>
-    <ol style="margin:0 0 12px;padding-left:20px;line-height:1.7">
-      <li>Ouvrez l'application avec le bouton ci-dessous ;</li>
-      <li>choisissez <b>« Première connexion »</b> ;</li>
-      <li>saisissez cette adresse : <b>${echapper(email)}</b> ;</li>
-      <li>choisissez un mot de passe, puis confirmez avec le lien reçu par email.</li>
-    </ol>
-    ${bouton(APP, "Ouvrir l'application")}
-    <p style="margin:16px 0 0;font-size:12px;color:#5c6b64">Sur téléphone, vous pouvez ensuite l'ajouter à l'écran d'accueil comme une application.</p>`
+    <p style="margin:0 0 12px">Ouvrez ce lien pour <b>choisir votre mot de passe</b> : votre accès sera activé aussitôt.</p>
+    ${bouton(lien, 'Créer mon mot de passe')}
+    <p style="margin:16px 0 0;font-size:12px;color:#5c6b64">Ce lien est personnel : il ne sert qu'une fois et expire au bout de 24 heures. Ne le transférez à personne.
+      S'il a expiré, demandez au bureau une nouvelle invitation.</p>`
   return { sujet: partenaire ? 'AP2A — Votre accès partenaire' : 'AP2A — Votre accès à l\'application', html: gabarit('Bienvenue dans l\'application AP2A', corps, "Cet email vous a été envoyé par le bureau de l'AP2A. Si vous n'êtes pas concerné(e), vous pouvez l'ignorer.") }
 }
 
@@ -296,8 +292,20 @@ Deno.serve(async (req) => {
         if (data && !data.revoque_le) destinataire = { prenom: data.prenom, email: data.email, user_id: data.user_id, partenaire: p?.sigle || p?.nom || 'partenaire', membre: null }
       }
       if (!destinataire?.email) return repondre({ erreur: 'Personne introuvable ou sans adresse email' }, 400)
-      if (destinataire.user_id) return repondre({ erreur: 'Son accès est déjà activé' }, 400)
-      const { sujet, html } = emailInvitation(destinataire.prenom, destinataire.email, destinataire.partenaire)
+      // Accès sur invitation seulement : lien personnel à usage unique (24 h) pour choisir son mot de passe.
+      // Compte déjà créé mais jamais utilisé (invitation précédente) : nouveau lien.
+      if (destinataire.user_id) {
+        const { data: u2 } = await service.auth.admin.getUserById(destinataire.user_id)
+        if (u2?.user?.last_sign_in_at) return repondre({ erreur: 'Son accès est déjà activé' }, 400)
+      }
+      const redirectTo = `${APP}/nouveau-mot-de-passe?bienvenue=1`
+      let lien = await service.auth.admin.generateLink({ type: 'invite', email: destinataire.email, options: { redirectTo } })
+      if (lien.error && /already|registered|exists/i.test(lien.error.message)) {
+        lien = await service.auth.admin.generateLink({ type: 'recovery', email: destinataire.email, options: { redirectTo } })
+      }
+      const action = lien.data?.properties?.action_link
+      if (lien.error || !action) return repondre({ erreur: `Lien d'invitation impossible : ${lien.error?.message ?? 'inconnu'}` }, 500)
+      const { sujet, html } = emailInvitation(destinataire.prenom, action, destinataire.partenaire)
       try {
         await envoyer(destinataire.email, sujet, html)
         await service.from('rappels_envoyes').insert({ type: 'invitation', membre_id: destinataire.membre, email: destinataire.email, nb: 1, statut: 'envoye' })

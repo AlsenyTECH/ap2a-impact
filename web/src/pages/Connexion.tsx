@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Champ } from '@/components/champs'
-import { messageErreur, supabase } from '@/lib/supabase'
+import { lienAChoisirMotDePasse, messageErreur, oublierLien, supabase } from '@/lib/supabase'
 import logo from '@/assets/logo_AP2A.jpeg'
 
-type Mode = 'connexion' | 'activation' | 'oubli'
+type Mode = 'connexion' | 'oubli'
 
 export function Connexion() {
   const [mode, setMode] = useState<Mode>('connexion')
@@ -23,14 +23,6 @@ export function Connexion() {
       if (mode === 'connexion') {
         const { error } = await supabase.auth.signInWithPassword({ email: adresse, password: motDePasse })
         if (error) throw error
-      } else if (mode === 'activation') {
-        const { data, error } = await supabase.auth.signUp({
-          email: adresse,
-          password: motDePasse,
-          options: { emailRedirectTo: window.location.origin },
-        })
-        if (error) throw error
-        if (!data.session) toast.success('Compte créé : ouvrez le lien reçu par email pour confirmer votre adresse.')
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(adresse, {
           redirectTo: `${window.location.origin}/nouveau-mot-de-passe`,
@@ -82,42 +74,27 @@ export function Connexion() {
           <div className="mb-8 flex flex-col items-center text-center lg:hidden">
             <img src={logo} alt="AP2A" className="h-20 rounded-xl bg-white object-contain p-2 shadow-carte" />
           </div>
-          <h2 className="text-2xl font-semibold">{mode === 'oubli' ? 'Mot de passe oublié' : mode === 'activation' ? 'Activer mon accès' : 'Bon retour parmi nous'}</h2>
+          <h2 className="text-2xl font-semibold">{mode === 'oubli' ? 'Mot de passe oublié' : 'Bon retour parmi nous'}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {mode === 'oubli' ? 'Recevez un lien pour choisir un nouveau mot de passe.' : mode === 'activation' ? "Votre fiche de membre doit déjà exister, avec cette adresse email." : 'Connectez-vous pour accéder aux actions et aux suivis.'}
+            {mode === 'oubli' ? 'Recevez un lien pour choisir un nouveau mot de passe.' : 'Connectez-vous pour accéder aux actions et aux suivis.'}
           </p>
-          {mode !== 'oubli' ? (
-            <div className="mt-6 grid grid-cols-2 rounded-xl bg-muted p-1">
-              {([['connexion', 'Se connecter'], ['activation', 'Première connexion']] as [Mode, string][]).map(([m, libelle]) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setMode(m)}
-                  className={`h-9 rounded-lg text-sm font-semibold transition-all ${mode === m ? 'bg-card text-foreground shadow-carte' : 'text-muted-foreground'}`}
-                >
-                  {libelle}
-                </button>
-              ))}
-            </div>
-          ) : null}
           <form onSubmit={valider} className="mt-6 space-y-4">
             <Champ label="Email">
               <Input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="prenom@exemple.sn" />
             </Champ>
             {mode !== 'oubli' ? (
-              <Champ label={mode === 'activation' ? 'Choisissez un mot de passe' : 'Mot de passe'} aide={mode === 'activation' ? '8 caractères au moins' : undefined}>
+              <Champ label="Mot de passe">
                 <Input
                   type="password"
                   required
-                  minLength={mode === 'activation' ? 8 : undefined}
-                  autoComplete={mode === 'activation' ? 'new-password' : 'current-password'}
+                  autoComplete="current-password"
                   value={motDePasse}
                   onChange={(e) => setMotDePasse(e.target.value)}
                 />
               </Champ>
             ) : null}
             <Button type="submit" size="lg" className="w-full" disabled={envoi}>
-              {envoi ? 'Patientez…' : mode === 'connexion' ? 'Se connecter' : mode === 'activation' ? 'Activer mon accès' : 'Recevoir un lien'}
+              {envoi ? 'Patientez…' : mode === 'connexion' ? 'Se connecter' : 'Recevoir un lien'}
             </Button>
           </form>
           <button
@@ -127,6 +104,10 @@ export function Connexion() {
           >
             {mode === 'oubli' ? '← Retour à la connexion' : 'Mot de passe oublié ?'}
           </button>
+          <p className="mt-6 rounded-xl bg-muted/60 p-3 text-center text-xs text-muted-foreground">
+            Pas encore d'accès ? L'application est réservée aux membres et partenaires de l'AP2A, <b>sur invitation</b> :
+            demandez au bureau de vous envoyer votre lien personnel.
+          </p>
         </div>
       </div>
     </div>
@@ -134,25 +115,48 @@ export function Connexion() {
 }
 
 export function NouveauMotDePasse() {
+  const bienvenue = new URLSearchParams(window.location.search).has('bienvenue') || lienAChoisirMotDePasse() === 'invite'
   const [motDePasse, setMotDePasse] = useState('')
+  const [confirmation, setConfirmation] = useState('')
+  const [envoi, setEnvoi] = useState(false)
+  const different = confirmation.length > 0 && confirmation !== motDePasse
   async function valider(e: FormEvent) {
     e.preventDefault()
+    if (different) return
+    setEnvoi(true)
+    // Le lien reçu par email ouvre la session ; sans elle (lien expiré ou déjà utilisé), on le dit clairement.
+    const { data } = await supabase.auth.getSession()
+    if (!data.session) {
+      setEnvoi(false)
+      return toast.error("Ce lien a expiré ou a déjà servi. Demandez une nouvelle invitation au bureau, ou utilisez « Mot de passe oublié ».")
+    }
     const { error } = await supabase.auth.updateUser({ password: motDePasse })
+    setEnvoi(false)
     if (error) toast.error(messageErreur(error))
     else {
-      toast.success('Mot de passe modifié')
+      oublierLien()
+      toast.success(bienvenue ? 'Votre accès est activé. Bienvenue !' : 'Mot de passe modifié')
       window.location.replace('/')
     }
   }
   return (
-    <div className="flex min-h-dvh items-center justify-center p-4">
+    <div className="flex min-h-dvh items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardContent className="p-6">
+          <img src={logo} alt="AP2A" className="mx-auto mb-4 h-14 rounded-lg bg-white object-contain p-1" />
+          <h1 className="text-center text-xl font-semibold">{bienvenue ? 'Bienvenue à l\'AP2A' : 'Nouveau mot de passe'}</h1>
+          <p className="mb-5 mt-1 text-center text-sm text-muted-foreground">
+            {bienvenue ? 'Choisissez votre mot de passe pour activer votre accès.' : 'Choisissez votre nouveau mot de passe.'}
+          </p>
           <form onSubmit={valider} className="space-y-4">
-            <Champ label="Nouveau mot de passe (8 caractères au moins)">
+            <Champ label="Mot de passe (8 caractères au moins)">
               <Input type="password" required minLength={8} autoComplete="new-password" value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} />
             </Champ>
-            <Button type="submit" className="w-full">Enregistrer</Button>
+            <Champ label="Confirmez le mot de passe">
+              <Input type="password" required minLength={8} autoComplete="new-password" value={confirmation} onChange={(e) => setConfirmation(e.target.value)} />
+            </Champ>
+            {different ? <p className="text-xs text-destructive">Les deux mots de passe ne sont pas identiques.</p> : null}
+            <Button type="submit" className="w-full" disabled={envoi || different}>{envoi ? 'Patientez…' : bienvenue ? 'Activer mon accès' : 'Enregistrer'}</Button>
           </form>
         </CardContent>
       </Card>
