@@ -5,6 +5,7 @@ import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useCategories, useZones } from '@/lib/requetes'
+import { telechargerModele } from '@/lib/export'
 import { messageErreur, supabase } from '@/lib/supabase'
 
 interface Ligne { prenom: string; nom: string; telephone: string; sexe: 'F' | 'M' | null; date_naissance: string | null; zone: string; role: string }
@@ -33,41 +34,15 @@ function lireDate(v: unknown): string | null {
   return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : null
 }
 
-/**
- * Modèle à remplir : en-têtes déjà posés (ceux que l'import reconnaît) et
- * une feuille « Aide ». Pas de ligne d'exemple, qui risquerait d'être importée.
- */
-async function telechargerModele(avecRole: boolean) {
-  const { default: writeExcelFile } = await import('write-excel-file/browser')
-  const colonnes: [string, string, number][] = [
-    ['Prénom', 'Obligatoire.', 18],
-    ['Nom', 'Obligatoire.', 18],
-    ['Téléphone', 'Conseillé : une personne déjà connue (même numéro) n\'est pas recréée. Ex. 77 123 45 67.', 16],
-    ['Sexe', 'F ou M.', 8],
-    ['Date de naissance', 'Format jj/mm/aaaa, ex. 15/03/1998.', 18],
-    ['Unité', 'Ex. « U17 » ou « Unité 17 », ou le nom du quartier.', 14],
-    ...(avecRole ? [['Rôle', 'Rôle dans le groupe : présidente, trésorier, membre…', 18] as [string, string, number]] : []),
-  ]
-  const entete = { fontWeight: 'bold' as const, backgroundColor: '#E3F3EC' }
-  await writeExcelFile([
-    {
-      sheet: 'Liste',
-      data: [colonnes.map(([titre]) => ({ value: titre, ...entete }))],
-      columns: colonnes.map(([, , largeur]) => ({ width: largeur })),
-      stickyRowsCount: 1,
-    },
-    {
-      sheet: 'Aide',
-      data: [
-        [{ value: 'Colonne', ...entete }, { value: 'Que mettre', ...entete }],
-        ...colonnes.map(([titre, aide]) => [{ value: titre, fontWeight: 'bold' as const }, { value: aide }]),
-        [null],
-        [{ value: 'Une ligne par personne, à partir de la ligne 2 de la feuille « Liste ». Ne modifiez pas les en-têtes. Enregistrez en .xlsx.', columnSpan: 2 }],
-      ],
-      columns: [{ width: 20 }, { width: 80 }],
-    },
-  ]).toFile(avecRole ? 'modele-import-groupe.xlsx' : 'modele-import-personnes.xlsx')
-}
+/** Colonnes du modèle à télécharger : titre, aide, largeur. */
+const MODELE: [string, string, number][] = [
+  ['Prénom', 'Obligatoire.', 18],
+  ['Nom', 'Obligatoire.', 18],
+  ['Téléphone', "Conseillé : une personne déjà connue (même numéro) n'est pas recréée. Ex. 77 123 45 67.", 16],
+  ['Sexe', 'F ou M.', 8],
+  ['Date de naissance', 'Format jj/mm/aaaa, ex. 15/03/1998.', 18],
+  ['Unité', 'Ex. « U17 » ou « Unité 17 », ou le nom du quartier.', 14],
+]
 
 /**
  * Import d'une liste de personnes depuis Excel (liste de participants
@@ -203,7 +178,7 @@ export function ImportExcel({ ouvert, fermer, actionId, collectifId, onTermine }
         </DialogHeader>
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border p-3 text-sm">
           <span className="text-muted-foreground">Pas encore de fichier ? Partez du modèle, les colonnes sont déjà prêtes :</span>
-          <Button size="sm" variant="outline" onClick={() => telechargerModele(!!collectifId).catch(() => toast.error('Téléchargement impossible'))}>
+          <Button size="sm" variant="outline" onClick={() => telechargerModele(collectifId ? 'modele-import-groupe' : 'modele-import-personnes', collectifId ? [...MODELE, ['Rôle', 'Rôle dans le groupe : présidente, trésorier, membre…', 18]] : MODELE).catch(() => toast.error('Téléchargement impossible'))}>
             <Download className="size-4" /> Télécharger le modèle
           </Button>
         </div>

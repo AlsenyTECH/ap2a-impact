@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { IdCard, Plus, Printer, Send } from 'lucide-react'
+import { FileSpreadsheet, IdCard, Plus, Printer, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import { OutilsListe } from '@/components/OutilsListe'
 import { correspond, trier } from '@/lib/recherche'
 import { Avatar, Liste as Encadre } from '@/components/design'
 import { CarteDialog } from '@/components/CarteDialog'
+import { ImportMembres } from '@/components/ImportMembres'
 import { BoutonsInvitation } from '@/components/Invitation'
 import { DialogDescription } from '@/components/ui/dialog'
 import { PhotoFiche } from '@/components/PhotoFiche'
@@ -32,6 +33,7 @@ export function Membres() {
   const [acces, setAcces] = useState<'' | 'actives' | 'attente'>('')
   const { data: photos = {} } = usePhotos((membres ?? []).map((m) => m.photo_chemin))
   const [edition, setEdition] = useState<Membre | 'nouveau' | null>(null)
+  const [importer, setImporter] = useState(false)
   const [recherche, setRecherche] = useState('')
   const gestion = peut('membres.gerer')
   const [tri, setTri] = useState<'nom' | 'numero' | 'role' | 'recents'>('nom')
@@ -54,6 +56,7 @@ export function Membres() {
         actions={gestion ? (
           <>
             <Button asChild variant="secondary"><Link to="/cartes?membres=tous"><Printer className="size-4" /> Cartes de tous</Link></Button>
+            <Button variant="secondary" onClick={() => setImporter(true)}><FileSpreadsheet className="size-4" /> Importer Excel</Button>
             <Button onClick={() => setEdition('nouveau')}><Plus className="size-4" /> Nouveau</Button>
           </>
         ) : null}
@@ -107,6 +110,7 @@ export function Membres() {
           ))}
         </Encadre>
       )}
+      {gestion ? <ImportMembres ouvert={importer} fermer={() => setImporter(false)} existants={membres ?? []} /> : null}
       <MembreForm membre={edition} fermer={() => setEdition(null)} onCree={setInviter} />
       {inviter ? <InviterMembre membre={inviter} fermer={() => setInviter(null)} /> : null}
       {carteDe ? (

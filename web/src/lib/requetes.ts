@@ -14,11 +14,12 @@ export const useZones = () =>
     queryFn: async () => verifier(await supabase.from('zones').select('*').order('chemin')) as Zone[],
   })
 
+// Tous les types, y compris désactivés (anciennes actions) ; le formulaire ne propose que l'actif.
 export const useTypesAction = () =>
   useQuery({
     queryKey: ['types_action'],
     staleTime: LONG,
-    queryFn: async () => verifier(await supabase.from('types_action').select('*').eq('actif', true).order('id')) as TypeAction[],
+    queryFn: async () => verifier(await supabase.from('types_action').select('*').order('libelle')) as TypeAction[],
   })
 
 export const usePartenaires = () =>

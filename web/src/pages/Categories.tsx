@@ -13,11 +13,12 @@ import { OutilsListe } from '@/components/OutilsListe'
 import { correspond } from '@/lib/recherche'
 import { useAuth } from '@/lib/auth'
 import { AIDE_TYPE_CIBLE, LIBELLES_TYPE_CIBLE } from '@/lib/format'
-import { useCategories, useFamilles, useProfils } from '@/lib/requetes'
+import { nomDeFichier } from '@/lib/export'
+import { useCategories, useFamilles, useProfils, useTypesAction } from '@/lib/requetes'
 import { supabase } from '@/lib/supabase'
 import type { TypeCible } from '@/lib/types'
 
-type Table = 'familles_cible' | 'categories_cible' | 'profils_personne'
+type Table = 'familles_cible' | 'categories_cible' | 'profils_personne' | 'types_action'
 
 /** Enregistre une modification et rafraîchit le référentiel. */
 function useReferentiel() {
@@ -91,15 +92,17 @@ export function Categories() {
         titre="Catégories"
         sousTitre={gere
           ? 'Ajoutez, renommez, désactivez ou supprimez. Un élément déjà utilisé ne peut qu\'être désactivé.'
-          : 'Familles et catégories de cibles utilisées par l\'association.'}
+          : 'Familles et catégories de cibles, profils et types d\'action utilisés par l\'association.'}
       />
       <Tabs defaultValue="familles">
         <TabsList className="mb-4">
           <TabsTrigger value="familles">Familles et catégories</TabsTrigger>
           <TabsTrigger value="profils">Profils des personnes</TabsTrigger>
+          <TabsTrigger value="types">Types d'action</TabsTrigger>
         </TabsList>
         <TabsContent value="familles"><FamillesEtCategories gere={gere} /></TabsContent>
         <TabsContent value="profils"><Profils gere={gere} /></TabsContent>
+        <TabsContent value="types"><TypesAction gere={gere} /></TabsContent>
       </Tabs>
     </>
   )
@@ -257,5 +260,78 @@ function Profils({ gere }: { gere: boolean }) {
         )
       })}
     </div>
+  )
+}
+
+/** « 3, 6, 12 » -> [3, 6, 12] (mois entre 1 et 60, sans doublon, triés). */
+const lireMois = (t: string) => [...new Set(t.split(/[^\d]+/).filter(Boolean).map(Number).filter((n) => n >= 1 && n <= 60))].sort((a, b) => a - b)
+
+function TypesAction({ gere }: { gere: boolean }) {
+  const { data: types, isLoading } = useTypesAction()
+  const enregistrer = useReferentiel()
+  const [nouveau, setNouveau] = useState({ libelle: '', mois: '3, 6, 12' })
+
+  if (isLoading || !types) return <Chargement />
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/40 px-3 py-2 text-sm font-semibold">
+          <span>Type d'action</span>
+          <span className="text-xs font-normal text-muted-foreground">Suivis après la fin (mois)</span>
+        </div>
+        <div className="divide-y divide-border">
+          {types.map((t) => (
+            <Ligne
+              key={t.id}
+              libelle={t.libelle}
+              actif={t.actif}
+              gere={gere}
+              renommer={(libelle) => enregistrer('types_action', 'modif', { libelle }, t.id)}
+              basculer={(actif) => enregistrer('types_action', 'modif', { actif }, t.id)}
+              supprimer={() => enregistrer('types_action', 'suppr', {}, t.id)}
+            >
+              {gere ? (
+                <Input
+                  key={t.suivis_mois.join(',')}
+                  defaultValue={t.suivis_mois.join(', ')}
+                  aria-label={`Suivis de « ${t.libelle} », en mois`}
+                  placeholder="aucun"
+                  className="h-8 w-24 shrink-0 text-center text-sm"
+                  onBlur={(e) => {
+                    const mois = lireMois(e.target.value)
+                    if (mois.join(',') !== t.suivis_mois.join(',')) enregistrer('types_action', 'modif', { suivis_mois: mois }, t.id)
+                    e.target.value = mois.join(', ')
+                  }}
+                />
+              ) : (
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground">{t.suivis_mois.length ? `${t.suivis_mois.join(', ')} mois` : 'pas de suivi'}</span>
+              )}
+            </Ligne>
+          ))}
+        </div>
+        {gere ? (
+          <>
+            <form
+              className="grid grid-cols-[1fr_6rem_auto] gap-2 border-t border-border p-3"
+              onSubmit={async (e) => {
+                e.preventDefault()
+                const libelle = nouveau.libelle.trim()
+                // Code technique unique, tiré du libellé.
+                const code = `${nomDeFichier(libelle).slice(0, 40) || 'type'}-${Math.random().toString(36).slice(2, 6)}`
+                if (await enregistrer('types_action', 'ajout', { code, libelle, suivis_mois: lireMois(nouveau.mois) })) setNouveau({ libelle: '', mois: '3, 6, 12' })
+              }}
+            >
+              <Input required className="h-9" placeholder="Nouveau type (ex. Sensibilisation)" value={nouveau.libelle} onChange={(e) => setNouveau({ ...nouveau, libelle: e.target.value })} />
+              <Input className="h-9 text-center" aria-label="Suivis, en mois" placeholder="aucun" value={nouveau.mois} onChange={(e) => setNouveau({ ...nouveau, mois: e.target.value })} />
+              <Button type="submit" size="sm" variant="secondary" className="h-9"><Plus className="size-4" /> Ajouter</Button>
+            </form>
+            <p className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
+              Suivis : combien de mois après la fin de l'action on rappelle les bénéficiaires pour savoir ce qu'ils sont devenus (ex. « 3, 6, 12 »). Vide : pas de suivi.
+              Les suivis sont planifiés quand l'action passe à « terminée » : un changement vaut pour les actions terminées ensuite.
+            </p>
+          </>
+        ) : null}
+      </CardContent>
+    </Card>
   )
 }
