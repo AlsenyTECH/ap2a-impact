@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Champ } from '@/components/champs'
 import { lienAChoisirMotDePasse, messageErreur, oublierLien, supabase } from '@/lib/supabase'
+import { lireMotif, oublierMotif } from '@/lib/session'
 import logo from '@/assets/logo_AP2A.jpeg'
 
 type Mode = 'connexion' | 'oubli'
@@ -14,6 +15,7 @@ export function Connexion() {
   const [email, setEmail] = useState('')
   const [motDePasse, setMotDePasse] = useState('')
   const [envoi, setEnvoi] = useState(false)
+  const [motif] = useState(lireMotif)
 
   async function valider(e: FormEvent) {
     e.preventDefault()
@@ -23,6 +25,7 @@ export function Connexion() {
       if (mode === 'connexion') {
         const { error } = await supabase.auth.signInWithPassword({ email: adresse, password: motDePasse })
         if (error) throw error
+        oublierMotif()
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(adresse, {
           redirectTo: `${window.location.origin}/nouveau-mot-de-passe`,
@@ -78,6 +81,9 @@ export function Connexion() {
           <p className="mt-1 text-sm text-muted-foreground">
             {mode === 'oubli' ? 'Recevez un lien pour choisir un nouveau mot de passe.' : 'Connectez-vous pour accéder aux actions et aux suivis.'}
           </p>
+          {motif && mode === 'connexion' ? (
+            <p role="status" className="mt-4 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm">{motif}</p>
+          ) : null}
           <form onSubmit={valider} className="mt-6 space-y-4">
             <Champ label="Email">
               <Input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="prenom@exemple.sn" />
