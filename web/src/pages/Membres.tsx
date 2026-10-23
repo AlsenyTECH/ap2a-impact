@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { FileSpreadsheet, IdCard, Plus, Printer, Send } from 'lucide-react'
+import { FileSpreadsheet, IdCard, Plus, Printer, Send, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -163,6 +163,19 @@ function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | n
     if (!existant && r.data && (r.data as Membre).email) onCree?.(r.data as Membre)
   }
 
+  // Suppression définitive, avec son compte de connexion (droit « Supprimer un membre »).
+  async function supprimer() {
+    if (!existant) return
+    if (!confirm(`Supprimer définitivement ${existant.prenom} ${existant.nom} ?\n\nSa fiche, sa carte et son accès à l'application seront effacés. Ce qu'il ou elle a fait (actions, suivis…) reste, sans son nom.\n\nPour lui retirer seulement l'accès en gardant sa fiche, décochez plutôt « Membre actif ».`)) return
+    setEnvoi(true)
+    const { error } = await supabase.rpc('supprimer_membre', { p_membre: existant.id })
+    setEnvoi(false)
+    if (error) return toast.error(error.code === 'PGRST202' ? "La suppression des membres n'est pas encore installée : collez le script supabase/manuel/suppressions_a_coller.sql dans le SQL Editor de Supabase." : messageErreur(error))
+    toast.success('Membre supprimé')
+    qc.invalidateQueries({ queryKey: ['membres'] })
+    fermer()
+  }
+
   const moiMeme = existant?.id === moi?.id
   return (
     <Dialog open={!!membre} onOpenChange={(o) => !o && fermer()}>
@@ -205,7 +218,10 @@ function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | n
               <Switch checked={v.actif} onCheckedChange={(actif) => setV({ ...v, actif })} />
             </label>
           ) : null}
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {existant && !moiMeme && peut('membres.supprimer') ? (
+              <Button type="button" variant="ghost" className="mr-auto text-destructive" disabled={envoi} onClick={supprimer}><Trash2 className="size-4" /> Supprimer</Button>
+            ) : null}
             <Button type="button" variant="ghost" onClick={fermer}>Annuler</Button>
             <Button type="submit" disabled={envoi}>Enregistrer</Button>
           </div>

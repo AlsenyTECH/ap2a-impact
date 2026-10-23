@@ -47,6 +47,8 @@ export interface Partenaire {
 export interface Cible {
   id: string
   type: TypeCible
+  /** Retirée de la liste (gardée dans l'historique des actions). */
+  retiree_le?: string | null
   photo_chemin?: string | null
   numero_beneficiaire?: string | null
   nom: string

@@ -598,4 +598,47 @@ select t.ok(not exists (
 select t.ok((select count(*) filter (where numero_valide(left(c, p - 1) || substr(c, p + 1, 1) || substr(c, p, 1) || substr(c, p + 2)))::float / count(*) < 0.01
   from (select replace(nouveau_numero('B'), '-', '') c from generate_series(1, 300)) x, generate_series(4, 9) p
   where substr(c, p, 1) <> substr(c, p + 1, 1)), 'numéros : inversion de deux caractères voisins détectée (> 99 %)');
+
+-- ===== Suppressions et retrait des cibles =====
+set role authenticated;
+select t.qui('admin@ap2a.sn');
+insert into cibles (categorie_id, nom, prenom) values (t.cat('Personne'), 'Asupprimer', 'Jamais'), (t.cat('Personne'), 'Aretirer', 'Ancienne');
+insert into actions (type_id, titre, date_debut) values
+  ((select id from types_action where code = 'formation'), 'Projet abandonné', current_date),
+  ((select id from types_action where code = 'formation'), 'Remise faite', current_date),
+  ((select id from types_action where code = 'formation'), 'Formation en cours', current_date);
+insert into beneficiaires (action_id, cible_id) values
+  ((select id from actions where titre = 'Projet abandonné'), (select id from cibles where nom = 'Asupprimer')),
+  ((select id from actions where titre = 'Remise faite'), (select id from cibles where nom = 'Aretirer'));
+insert into seances (action_id, date) values ((select id from actions where titre = 'Projet abandonné'), current_date);
+insert into apports (beneficiaire_id, nature, description) select b.id, 'don', 'Sac de riz' from beneficiaires b join actions a on a.id = b.action_id where a.titre = 'Remise faite';
+update actions set statut = 'en_cours' where titre = 'Formation en cours';
+update actions set statut = 'annulee' where titre = 'Projet abandonné';
+select supprimer_action((select id from actions where titre = 'Projet abandonné'));
+select t.ok(not exists (select 1 from actions where titre = 'Projet abandonné'), 'action annulée jamais réalisée : supprimée avec ses listes');
+select t.ok(not exists (select 1 from beneficiaires b join cibles c on c.id = b.cible_id where c.nom = 'Asupprimer'), 'ses bénéficiaires et séances partent avec elle');
+select t.refuse($$select supprimer_action((select id from actions where titre = 'Remise faite'))$$, 'action avec un apport remis : pas supprimable');
+select t.refuse($$select supprimer_action((select id from actions where titre = 'Formation en cours'))$$, 'action en cours : pas supprimable');
+delete from actions where titre = 'Remise faite';
+select t.ok(exists (select 1 from actions where titre = 'Remise faite'), 'suppression directe d''une action réalisée : sans effet');
+delete from cibles where nom = 'Asupprimer';
+select t.ok(not exists (select 1 from cibles where nom = 'Asupprimer'), 'cible sans aucune action : supprimée');
+select t.refuse($$delete from cibles where nom = 'Aretirer'$$, 'cible qui a bénéficié d''une action : pas supprimable');
+update cibles set retiree_le = now() where nom = 'Aretirer';
+select t.ok((select retiree_le is not null and retiree_par = mon_membre_id() from cibles where nom = 'Aretirer'), 'cible retirée (date et auteur notés)');
+update cibles set retiree_le = null where nom = 'Aretirer';
+select t.ok((select retiree_le is null and retiree_par is null from cibles where nom = 'Aretirer'), 'cible réintégrée');
+select t.qui('coord@ap2a.sn');
+select t.refuse($$update cibles set retiree_le = now() where nom = 'Diop'$$, 'coordinateur : ne retire pas une cible');
+select t.refuse($$select supprimer_membre((select id from membres where email = 'membre@ap2a.sn'))$$, 'coordinateur : ne supprime pas un membre');
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+insert into membres (prenom, nom, email) values ('Partant', 'Test', 'partant@ap2a.sn');
+insert into auth.users (email) values ('partant@ap2a.sn');
+set role authenticated;
+select t.qui('admin@ap2a.sn');
+select t.refuse($$select supprimer_membre(mon_membre_id())$$, 'admin : ne supprime pas sa propre fiche');
+select supprimer_membre((select id from membres where email = 'partant@ap2a.sn'));
+reset role;
+select t.ok(not exists (select 1 from membres where email = 'partant@ap2a.sn') and not exists (select 1 from auth.users where email = 'partant@ap2a.sn'), 'membre supprimé avec son compte de connexion');
 \echo 'Tous les tests sont passés.'

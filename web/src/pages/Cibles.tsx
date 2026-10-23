@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { FileSpreadsheet, Plus, Target, Upload } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { EmptyState } from '@/components/ui/empty-state'
 import { CibleForm } from '@/components/CibleForm'
 import { ImportExcel } from '@/components/ImportExcel'
@@ -27,9 +28,10 @@ export function Cibles() {
   const [importer, setImporter] = useState(false)
   // Après un import Excel, on n'affiche que les personnes importées.
   const [importes, setImportes] = useState<string[] | null>(null)
+  const [retirees, setRetirees] = useState(false)
   const dansFamille = categories.filter((k) => k.famille_id === famille)
   const filtre = categorie ? [categorie] : famille ? dansFamille.map((k) => k.id) : null
-  const { data: cibles, isLoading, error } = useCibles(recherche, '', filtre, tri, importes)
+  const { data: cibles, isLoading, error } = useCibles(recherche, '', filtre, tri, importes, retirees)
   const situation = (id: number | null) => profils.find((p) => p.id === id)?.libelle
 
   // Exporte la liste affichée (recherche et filtres compris).
@@ -74,7 +76,11 @@ export function Cibles() {
         tri={tri}
         setTri={setTri}
         total={cibles?.length}
-      />
+      >
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Switch checked={retirees} onCheckedChange={setRetirees} /> Voir seulement les cibles retirées
+        </label>
+      </OutilsListe>
       {importes ? (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
           <span><b>{importes.length}</b> personne(s) importée(s) à l'instant — seules elles sont affichées.</span>
@@ -96,7 +102,7 @@ export function Cibles() {
         ) : null}
       </div>
       {error ? <Erreur erreur={error} /> : isLoading ? <Chargement /> : !cibles?.length ? (
-        <EmptyState icon={Target} title="Aucune cible" description={recherche ? 'Essayez une autre recherche.' : 'Ajoutez la première cible, ou importez une liste Excel.'} />
+        <EmptyState icon={Target} title={retirees ? 'Aucune cible retirée' : 'Aucune cible'} description={retirees ? 'Les cibles retirées de la liste apparaissent ici.' : recherche ? 'Essayez une autre recherche.' : 'Ajoutez la première cible, ou importez une liste Excel.'} />
       ) : (
         <Encadre>
           {cibles.map((c) => (

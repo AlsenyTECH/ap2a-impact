@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, IdCard, ListChecks, MessageCircle, Paperclip, Pencil, Phone } from 'lucide-react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { Archive, ArchiveRestore, ArrowLeft, IdCard, ListChecks, MessageCircle, Paperclip, Pencil, Phone, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -17,11 +19,12 @@ import { correspond, membreAvecNumero, trier } from '@/lib/recherche'
 import { OutilsListe } from '@/components/OutilsListe'
 import { PhotoFiche } from '@/components/PhotoFiche'
 import { CarteDialog } from '@/components/CarteDialog'
-import type { Suivi } from '@/lib/types'
+import { messageErreur, supabase } from '@/lib/supabase'
+import type { Cible, Suivi } from '@/lib/types'
 
 export function CibleDetail() {
   const { id = '' } = useParams()
-  const { peutUn } = useAuth()
+  const { peut, peutUn } = useAuth()
   const { data: cible, isLoading, error } = useCible(id)
   const { data: parcours = [] } = useParcours(id)
   const [filtre, setFiltre] = useState('')
@@ -47,6 +50,11 @@ export function CibleDetail() {
   return (
     <>
       <Link to="/cibles" className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Cibles</Link>
+      {cible.retiree_le ? (
+        <p className="mb-4 rounded-lg border border-border bg-muted/50 px-4 py-2.5 text-sm">
+          <b>Cible retirée de la liste</b> le {date(cible.retiree_le.slice(0, 10))} : elle n'apparaît plus dans les listes ni les recherches, mais reste dans l'historique de ses actions et les chiffres d'impact.
+        </p>
+      ) : null}
       <Card className="mb-6 overflow-hidden">
         <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center md:p-6">
           {cible.type === 'personne'
@@ -75,6 +83,7 @@ export function CibleDetail() {
             ) : null}
             {suit ? <Button size="sm" variant="secondary" onClick={() => setEdition(true)}><Pencil /> Modifier la fiche</Button> : null}
             {suit && cible.type === 'personne' ? <Button size="sm" variant="secondary" onClick={() => setCarte(true)}><IdCard /> Carte</Button> : null}
+            {peut('cibles.gerer') ? <RetirerOuSupprimer cible={cible} nbActions={parcours.length} /> : null}
           </div>
         </div>
         <dl className="grid grid-cols-2 gap-px border-t border-border/70 bg-border/70 md:grid-cols-4">
@@ -230,5 +239,51 @@ function Suivis({ suivis, ouvrir }: { suivis: Suivi[]; ouvrir?: (s: Suivi) => vo
         </button>
       ))}
     </div>
+  )
+}
+
+/**
+ * Une cible qui n'a jamais bénéficié d'une action peut être supprimée.
+ * Sinon on la retire de la liste : son historique reste.
+ */
+function RetirerOuSupprimer({ cible, nbActions }: { cible: Cible; nbActions: number }) {
+  const qc = useQueryClient()
+  const navigate = useNavigate()
+  const [envoi, setEnvoi] = useState(false)
+
+  async function retirer(retirer: boolean) {
+    if (retirer && !confirm(`Retirer « ${nomCible(cible)} » de la liste ?\n\nElle n'apparaîtra plus dans les listes ni les recherches, mais son historique (actions, apports, suivis) est gardé. Vous pourrez la réintégrer.`)) return
+    setEnvoi(true)
+    const { error } = await supabase.from('cibles').update({ retiree_le: retirer ? new Date().toISOString() : null }).eq('id', cible.id)
+    setEnvoi(false)
+    if (error) return toast.error(messageErreur(error))
+    toast.success(retirer ? 'Cible retirée de la liste' : 'Cible réintégrée dans la liste')
+    qc.invalidateQueries({ queryKey: ['cible', cible.id] })
+    qc.invalidateQueries({ queryKey: ['cibles'] })
+  }
+
+  async function supprimer() {
+    if (!confirm(`Supprimer définitivement « ${nomCible(cible)} » ?\n\nSa fiche, sa photo, sa carte et ses appartenances à des groupes seront effacées. Cette opération ne peut pas être annulée.`)) return
+    setEnvoi(true)
+    const { error } = await supabase.from('cibles').delete().eq('id', cible.id)
+    setEnvoi(false)
+    if (error) return toast.error(messageErreur(error))
+    if (cible.photo_chemin) await supabase.storage.from('photos').remove([cible.photo_chemin])
+    toast.success('Cible supprimée')
+    qc.invalidateQueries({ queryKey: ['cibles'] })
+    navigate('/cibles', { replace: true })
+  }
+
+  if (cible.retiree_le) {
+    return <Button size="sm" variant="secondary" disabled={envoi} onClick={() => retirer(false)}><ArchiveRestore /> Réintégrer</Button>
+  }
+  return nbActions ? (
+    <Button size="sm" variant="secondary" disabled={envoi} onClick={() => retirer(true)} title="A bénéficié d'actions : on la retire de la liste, son historique est gardé">
+      <Archive /> Retirer de la liste
+    </Button>
+  ) : (
+    <Button size="sm" variant="secondary" disabled={envoi} onClick={supprimer} className="text-destructive" title="N'a jamais bénéficié d'une action">
+      <Trash2 /> Supprimer
+    </Button>
   )
 }

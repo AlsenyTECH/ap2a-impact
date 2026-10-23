@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CalendarDays, IdCard, FileSpreadsheet, FileText, Lock, LockOpen, Gift, MapPin, Paperclip, Pencil, PenLine, Plus, Printer, ScanLine, Trash2, UserPlus, UserRound, Wallet, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -38,6 +38,7 @@ const SUITE: Partial<Record<StatutAction, [StatutAction, string][]>> = {
 export function ActionDetail() {
   const { id = '' } = useParams()
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const { membre, peut } = useAuth()
   const { data: action, isLoading, error } = useAction(id)
   const { data: types = [] } = useTypesAction()
@@ -78,6 +79,21 @@ export function ActionDetail() {
     }
   }
 
+  // Une action jamais réalisée (en préparation ou annulée, sans apport ni présence) se supprime.
+  async function supprimer() {
+    if (!confirm(`Supprimer définitivement « ${action!.titre} » ?\n\nSa liste de bénéficiaires, ses séances, son équipe et ses partenaires seront effacés (les cibles elles-mêmes restent). Cette opération ne peut pas être annulée.`)) return
+    let { error } = await supabase.rpc('supprimer_action', { p_action: id })
+    // Fonction pas encore installée : suppression directe (même règle côté base).
+    if (error?.code === 'PGRST202') {
+      const r = await supabase.from('actions').delete().eq('id', id).select('id')
+      error = r.error ?? (r.data?.length ? null : { message: 'Cette action a déjà eu lieu en partie (apport remis ou présence pointée) : elle ne peut pas être supprimée.' } as typeof error)
+    }
+    if (error) return toast.error(messageErreur(error))
+    toast.success('Action supprimée')
+    qc.invalidateQueries({ queryKey: ['actions'] })
+    navigate('/actions', { replace: true })
+  }
+
   return (
     <>
       <Link to="/actions" className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Actions</Link>
@@ -109,6 +125,9 @@ export function ActionDetail() {
               {!cloturee ? <Button variant="secondary" size="sm" onClick={() => setEdition(true)}><Pencil /> Modifier</Button> : null}
               <Button asChild variant="secondary" size="sm"><Link to={`/actions/${id}/rapport`}><FileText /> Rapport</Link></Button>
               <Button asChild variant="secondary" size="sm" title="Imprimer les cartes des participants (pointage par QR code)"><Link to={`/cartes?action=${id}`}><IdCard /> Cartes</Link></Button>
+              {action.statut === 'preparation' || action.statut === 'annulee' ? (
+                <Button variant="ghost" size="sm" className="text-destructive" onClick={supprimer} title="Possible tant que l'action n'a pas eu lieu"><Trash2 /> Supprimer</Button>
+              ) : null}
             </div>
           ) : voitBeneficiaires ? (
             <Button asChild variant="secondary" size="sm"><Link to={`/actions/${id}/rapport`}><FileText /> Rapport</Link></Button>

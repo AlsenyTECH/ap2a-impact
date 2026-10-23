@@ -71,9 +71,9 @@ const ORDRES: Record<TriCibles, [string, boolean]> = {
  * La recherche porte sur le nom, le prénom, le téléphone, le métier et les
  * groupes (un membre du « GPF Jigeen » se trouve en tapant « jigeen »).
  */
-export const useCibles = (recherche: string, type: string, categories?: number[] | null, tri: TriCibles = 'recentes', ids?: string[] | null) =>
+export const useCibles = (recherche: string, type: string, categories?: number[] | null, tri: TriCibles = 'recentes', ids?: string[] | null, retirees = false) =>
   useQuery({
-    queryKey: ['cibles', recherche, type, categories, tri, ids],
+    queryKey: ['cibles', recherche, type, categories, tri, ids, retirees],
     queryFn: async () => {
       const [colonne, croissant] = ORDRES[tri]
       // Un numéro tapé avec des espaces (« 77 123 45 ») est cherché en chiffres ;
@@ -85,6 +85,8 @@ export const useCibles = (recherche: string, type: string, categories?: number[]
         if (type) q = q.eq('type', type)
         if (categories) q = q.in('categorie_id', categories)
         if (lot) q = q.in('id', lot)
+        // Cibles retirées : absentes des listes et des recherches, sauf si on les demande.
+        else q = retirees ? q.not('retiree_le', 'is', null) : q.is('retiree_le', null)
         for (const mot of mots) q = q.like('recherche', `%${mot}%`)
         return q
       }
