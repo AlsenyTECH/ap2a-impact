@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { FileSpreadsheet, IdCard, Plus, Printer, Send, ShieldCheck, Trash2 } from 'lucide-react'
+import { FileSpreadsheet, IdCard, Plus, Printer, Send, ShieldCheck, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -21,7 +21,8 @@ import { PhotoFiche } from '@/components/PhotoFiche'
 import { usePhotos } from '@/lib/photos'
 import { useAuth } from '@/lib/auth'
 import { droitsDe, nomRole, roleDuMembre, useRoles, usePermissions } from '@/lib/droits'
-import { useMembres } from '@/lib/requetes'
+import { useMembres, useZones } from '@/lib/requetes'
+import { exporterExcel } from '@/lib/export'
 import { messageErreur, supabase } from '@/lib/supabase'
 import type { Membre } from '@/lib/types'
 
@@ -44,6 +45,39 @@ export function Membres() {
     && (!acces || (acces === 'actives') === !!m.user_id)
     && correspond(recherche, m.prenom, m.nom, m.telephone, m.email, m.numero_adherent, m.fonction, nomRole(m), libelleNiveau(m.niveau_etude), m.competences?.join(' ')))
   const ordreRole = new Map(roles.map((r, i) => [r.id, i]))
+  const { data: zones = [] } = useZones()
+
+  // Exporte la liste affichée (recherche et filtres compris), avec les adresses (lues par qui gère les membres).
+  async function exporter() {
+    try {
+      const { data: adresses, error } = await supabase.from('membres_adresses').select('membre_id, zone_id, adresse, repere')
+      if (error) throw error
+      const adresseDe = new Map(adresses.map((a) => [a.membre_id, a]))
+      const adresse = (m: Membre) => {
+        const a = adresseDe.get(m.id)
+        if (!a) return null
+        return [a.zone_id ? zones.find((z) => z.id === a.zone_id)?.nom : a.adresse, a.repere].filter(Boolean).join(' — ')
+      }
+      await exporterExcel(`membres-ap2a-${new Date().toISOString().slice(0, 10)}`, liste, [
+        { titre: "N° d'adhérent", valeur: (m) => m.numero_adherent, largeur: 16 },
+        { titre: 'Prénom', valeur: (m) => m.prenom, largeur: 18 },
+        { titre: 'Nom', valeur: (m) => m.nom, largeur: 18 },
+        { titre: 'Téléphone', valeur: (m) => m.telephone, largeur: 16 },
+        { titre: 'Email', valeur: (m) => m.email, largeur: 28 },
+        { titre: 'Fonction', valeur: (m) => m.fonction, largeur: 20 },
+        { titre: 'Rôle', valeur: (m) => nomRole(m), largeur: 14 },
+        { titre: "Date d'adhésion", valeur: (m) => m.date_adhesion?.split('-').reverse().join('/'), largeur: 14 },
+        { titre: 'Adresse', valeur: adresse, largeur: 30 },
+        { titre: "Niveau d'études", valeur: (m) => libelleNiveau(m.niveau_etude), largeur: 20 },
+        { titre: 'Compétences', valeur: (m) => m.competences?.join(', '), largeur: 30 },
+        { titre: 'Accès à l\'application', valeur: (m) => (m.user_id ? 'Activé' : 'Non activé'), largeur: 18 },
+        { titre: 'Statut', valeur: (m) => (m.actif ? 'Actif' : 'Inactif') },
+      ], 'Membres')
+    } catch (e) {
+      toast.error(messageErreur(e))
+    }
+  }
+
   const liste = tri === 'nom' ? trier(retenus, (m) => `${m.nom} ${m.prenom}`)
     : tri === 'numero' ? trier(retenus, (m) => m.numero_adherent)
     : tri === 'role' ? trier(retenus, (m) => ordreRole.get(m.role_id) ?? 99)
@@ -57,7 +91,8 @@ export function Membres() {
         actions={gestion ? (
           <>
             <Button asChild variant="secondary"><Link to="/cartes?membres=tous"><Printer className="size-4" /> Cartes de tous</Link></Button>
-            <Button variant="secondary" onClick={() => setImporter(true)}><FileSpreadsheet className="size-4" /> Importer Excel</Button>
+            <Button variant="secondary" onClick={() => setImporter(true)}><Upload className="size-4" /> Importer</Button>
+            <Button variant="secondary" onClick={exporter} disabled={!liste.length}><FileSpreadsheet className="size-4" /> Exporter</Button>
             <Button onClick={() => setEdition('nouveau')}><Plus className="size-4" /> Nouveau</Button>
           </>
         ) : null}
