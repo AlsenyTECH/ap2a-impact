@@ -14,6 +14,7 @@ import { correspond, trier } from '@/lib/recherche'
 import { Avatar, Liste as Encadre } from '@/components/design'
 import { CarteDialog } from '@/components/CarteDialog'
 import { ImportMembres } from '@/components/ImportMembres'
+import { ADRESSE_VIDE, ChampsAdresse, ChampsEtudes, enregistrerAdresse, libelleNiveau, lireCompetences, useAdresseMembre, type Adresse } from '@/components/ProfilMembre'
 import { BoutonsInvitation } from '@/components/Invitation'
 import { DialogDescription } from '@/components/ui/dialog'
 import { PhotoFiche } from '@/components/PhotoFiche'
@@ -41,7 +42,7 @@ export function Membres() {
   const [inactifs, setInactifs] = useState(false)
   const retenus = (membres ?? []).filter((m) => (inactifs || m.actif) && (!role || m.role_id === role)
     && (!acces || (acces === 'actives') === !!m.user_id)
-    && correspond(recherche, m.prenom, m.nom, m.telephone, m.email, m.numero_adherent, m.fonction, nomRole(m)))
+    && correspond(recherche, m.prenom, m.nom, m.telephone, m.email, m.numero_adherent, m.fonction, nomRole(m), libelleNiveau(m.niveau_etude), m.competences?.join(' ')))
   const ordreRole = new Map(roles.map((r, i) => [r.id, i]))
   const liste = tri === 'nom' ? trier(retenus, (m) => `${m.nom} ${m.prenom}`)
     : tri === 'numero' ? trier(retenus, (m) => m.numero_adherent)
@@ -64,7 +65,7 @@ export function Membres() {
       <OutilsListe
         recherche={recherche}
         setRecherche={setRecherche}
-        placeholder="Nom, n° d'adhérent, téléphone, fonction…"
+        placeholder="Nom, n° d'adhérent, téléphone, fonction, compétence…"
         tris={[['nom', 'Nom A → Z'], ['numero', "N° d'adhérent"], ['role', 'Par rôle'], ['recents', 'Adhésions récentes']]}
         tri={tri}
         setTri={setTri}
@@ -94,6 +95,9 @@ export function Membres() {
                 <div className="truncate text-xs text-muted-foreground">
                   {[m.numero_adherent, m.fonction, m.telephone].filter(Boolean).join(' · ')}
                 </div>
+                {m.competences?.length || m.niveau_etude ? (
+                  <div className="truncate text-xs font-medium text-primary">{[libelleNiveau(m.niveau_etude), ...(m.competences ?? [])].filter(Boolean).join(' · ')}</div>
+                ) : null}
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <Badge variant={m.role_info?.code === 'membre' ? 'outline' : 'secondary'}>{nomRole(m)}</Badge>
@@ -133,15 +137,23 @@ function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | n
   const { data: roles = [] } = useRoles()
   const { data: tousDroits = [] } = usePermissions()
   const roleMembre = roles.find((r) => r.code === 'membre')?.id ?? ''
-  const [v, setV] = useState({ prenom: '', nom: '', telephone: '', email: '', fonction: '', role_id: '', actif: true })
+  const vide = { prenom: '', nom: '', telephone: '', email: '', fonction: '', role_id: '', actif: true, niveau: '', competences: '' }
+  const [v, setV] = useState(vide)
   const [envoi, setEnvoi] = useState(false)
   const existant = membre && membre !== 'nouveau' ? membre : null
+  const { data: adresseLue } = useAdresseMembre(existant?.id)
+  const [adresse, setAdresse] = useState<Adresse>(ADRESSE_VIDE)
 
   useEffect(() => {
     if (membre) setV(existant
-      ? { prenom: existant.prenom, nom: existant.nom, telephone: existant.telephone ?? '', email: existant.email ?? '', fonction: existant.fonction ?? '', role_id: existant.role_id, actif: existant.actif }
-      : { prenom: '', nom: '', telephone: '', email: '', fonction: '', role_id: '', actif: true })
+      ? {
+        prenom: existant.prenom, nom: existant.nom, telephone: existant.telephone ?? '', email: existant.email ?? '', fonction: existant.fonction ?? '',
+        role_id: existant.role_id, actif: existant.actif, niveau: existant.niveau_etude ?? '', competences: (existant.competences ?? []).join(', '),
+      }
+      : vide)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [membre, existant])
+  useEffect(() => { if (membre) setAdresse(existant ? adresseLue ?? ADRESSE_VIDE : ADRESSE_VIDE) }, [membre, existant, adresseLue])
 
   async function enregistrer(e: FormEvent) {
     e.preventDefault()
@@ -149,15 +161,22 @@ function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | n
     const donnees = {
       prenom: v.prenom.trim(), nom: v.nom.trim(), telephone: v.telephone.trim() || null,
       email: v.email.trim().toLowerCase() || null, fonction: v.fonction.trim() || null, actif: v.actif,
+      niveau_etude: v.niveau || null, competences: lireCompetences(v.competences),
       ...(peut('roles.gerer') && v.role_id && v.role_id !== existant?.role_id ? { role_id: v.role_id } : {}),
     }
     const r = existant
-      ? await supabase.from('membres').update(donnees).eq('id', existant.id)
+      ? await supabase.from('membres').update(donnees).eq('id', existant.id).select().single()
       : await supabase.from('membres').insert(donnees).select().single()
+    if (r.error) { setEnvoi(false); return toast.error(messageErreur(r.error)) }
+    try {
+      await enregistrerAdresse((r.data as Membre).id, adresse)
+    } catch (err) {
+      toast.error(`Fiche enregistrée, mais pas l'adresse : ${messageErreur(err)}`)
+    }
     setEnvoi(false)
-    if (r.error) return toast.error(messageErreur(r.error))
     toast.success(existant ? 'Membre modifié' : 'Membre ajouté')
     qc.invalidateQueries({ queryKey: ['membres'] })
+    qc.invalidateQueries({ queryKey: ['adresse-membre'] })
     fermer()
     // Nouveau membre avec email : on propose tout de suite de l'inviter.
     if (!existant && r.data && (r.data as Membre).email) onCree?.(r.data as Membre)
@@ -197,6 +216,8 @@ function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | n
             <Input type="email" value={v.email} disabled={!!existant?.user_id} onChange={(e) => setV({ ...v, email: e.target.value })} />
           </Champ>
           {existant?.user_id && peut('membres.comptes') ? <ChangerEmail membre={existant} apres={(email) => setV({ ...v, email })} /> : null}
+          <ChampsAdresse valeur={adresse} changer={setAdresse} />
+          <ChampsEtudes niveau={v.niveau} competences={v.competences} changer={(niveau, competences) => setV({ ...v, niveau, competences })} />
           <Champ label="Fonction dans l'association"><Input value={v.fonction} placeholder="Présidente, trésorier, chargé de communication…" onChange={(e) => setV({ ...v, fonction: e.target.value })} /></Champ>
           {peut('roles.gerer') && !moiMeme ? (() => {
             // On n'attribue que des rôles qui n'ont pas plus de droits que soi.

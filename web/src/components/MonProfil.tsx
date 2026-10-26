@@ -14,6 +14,7 @@ import { nomRole } from '@/lib/droits'
 import { choisirMode, choisirTheme, MODES, THEMES, useMode, useTheme, type Theme } from '@/lib/theme'
 import { Pastilles } from '@/components/champs'
 import { heureCourte, JOURS, useReglagesRappels } from '@/lib/rappels'
+import { ADRESSE_VIDE, ChampsAdresse, ChampsEtudes, enregistrerAdresse, lireCompetences, useAdresseMembre, type Adresse } from '@/components/ProfilMembre'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 
 interface Envoi { id: number; envoye_le: string; type: string; email: string | null; nb: number; statut: string; erreur: string | null }
@@ -124,6 +125,8 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
             <p className="pl-8 text-xs text-muted-foreground">Demandez au bureau d'ajouter votre adresse email à votre fiche pour recevoir les rappels par email.</p>
           )}
         </section>
+
+        <MesInfos />
 
         <ChoixTheme />
 
@@ -248,5 +251,52 @@ function MotDePasse({ email }: { email: string | null }) {
         </form>
       )}
     </section>
+  )
+}
+
+/** Adresse, niveau d'études et compétences : chacun les complète lui-même. */
+function MesInfos() {
+  const { membre, recharger } = useAuth()
+  const qc = useQueryClient()
+  const { data: adresseLue } = useAdresseMembre(membre?.id)
+  const [adresse, setAdresse] = useState<Adresse | null>(null)
+  const [etudes, setEtudes] = useState<{ niveau: string; competences: string } | null>(null)
+  const [envoi, setEnvoi] = useState(false)
+  if (!membre) return null
+  const a = adresse ?? adresseLue ?? ADRESSE_VIDE
+  const e = etudes ?? { niveau: membre.niveau_etude ?? '', competences: (membre.competences ?? []).join(', ') }
+
+  async function enregistrer(ev: React.FormEvent) {
+    ev.preventDefault()
+    setEnvoi(true)
+    try {
+      const { error } = await supabase.rpc('maj_mon_profil', { p_niveau: e.niveau, p_competences: lireCompetences(e.competences) })
+      if (error) throw error
+      await enregistrerAdresse(membre!.id, a)
+      toast.success('Informations enregistrées')
+      setAdresse(null)
+      setEtudes(null)
+      qc.invalidateQueries({ queryKey: ['adresse-membre', membre!.id] })
+      qc.invalidateQueries({ queryKey: ['membres'] })
+      recharger()
+    } catch (err) {
+      toast.error(messageErreur(err))
+    } finally {
+      setEnvoi(false)
+    }
+  }
+
+  return (
+    <form onSubmit={enregistrer} className="space-y-3 border-t border-border pt-4">
+      <div>
+        <h3 className="text-sm font-semibold">Mes informations</h3>
+        <p className="text-xs text-muted-foreground">Votre adresse n'est visible que de vous et du bureau. Votre niveau d'études et vos compétences sont visibles des autres membres.</p>
+      </div>
+      <ChampsAdresse valeur={a} changer={setAdresse} />
+      <ChampsEtudes niveau={e.niveau} competences={e.competences} changer={(niveau, competences) => setEtudes({ niveau, competences })} />
+      <div className="flex justify-end">
+        <Button type="submit" size="sm" disabled={envoi || (!adresse && !etudes)}>Enregistrer</Button>
+      </div>
+    </form>
   )
 }

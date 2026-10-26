@@ -4,11 +4,13 @@ import { Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { lireCompetences, lireNiveau, trouverUnite } from '@/components/ProfilMembre'
 import { telechargerModele } from '@/lib/export'
+import { useZones } from '@/lib/requetes'
 import { messageErreur, supabase } from '@/lib/supabase'
 import type { Membre } from '@/lib/types'
 
-interface Ligne { prenom: string; nom: string; telephone: string; email: string; fonction: string; date_adhesion: string | null; doublon: boolean }
+interface Ligne { prenom: string; nom: string; telephone: string; email: string; fonction: string; date_adhesion: string | null; adresse: string; niveau: string; competences: string; doublon: boolean }
 
 const sansAccent = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 
@@ -20,6 +22,9 @@ const COLONNES: Record<Exclude<keyof Ligne, 'doublon'>, string[]> = {
   email: ['email', 'e-mail', 'mail', 'courriel', 'adresse email'],
   fonction: ['fonction', 'poste', 'responsabilite', 'role'],
   date_adhesion: ["date d'adhesion", 'adhesion', 'date adhesion', "date d'entree"],
+  adresse: ['adresse', 'unite', 'quartier', 'domicile', 'unite / adresse'],
+  niveau: ["niveau d'etudes", "niveau d'etude", 'niveau', 'etudes', 'diplome'],
+  competences: ['competences', 'competence', 'savoir-faire', 'metier'],
 }
 
 const MODELE: [string, string, number][] = [
@@ -29,6 +34,9 @@ const MODELE: [string, string, number][] = [
   ['Email', "Nécessaire pour l'inviter ensuite à se connecter à l'application.", 28],
   ['Fonction', 'Fonction dans l\'association : présidente, trésorier, chargé de communication… (facultatif).', 22],
   ["Date d'adhésion", 'Format jj/mm/aaaa. Vide : la date du jour.', 16],
+  ['Adresse', 'Unité des Parcelles (ex. « U17 » ou « Unité 17 »), sinon le quartier et la ville (ex. « Keur Massar »).', 20],
+  ["Niveau d'études", 'Ex. Primaire, BFEM, Bac, BTS, Licence, Master, CAP…', 18],
+  ['Compétences', 'Séparées par des virgules. Ex. « Électricité, couture ».', 28],
 ]
 
 const chiffres = (t: string) => {
@@ -49,6 +57,7 @@ function lireDate(v: unknown): string | null {
  */
 export function ImportMembres({ ouvert, fermer, existants }: { ouvert: boolean; fermer: () => void; existants: Membre[] }) {
   const qc = useQueryClient()
+  const { data: zones = [] } = useZones()
   const [lignes, setLignes] = useState<Ligne[]>([])
   const [envoi, setEnvoi] = useState(false)
 
@@ -72,6 +81,9 @@ export function ImportMembres({ ouvert, fermer, existants }: { ouvert: boolean; 
           email: String(val(r, 'email') ?? '').trim().toLowerCase(),
           fonction: String(val(r, 'fonction') ?? '').trim(),
           date_adhesion: lireDate(val(r, 'date_adhesion')),
+          adresse: String(val(r, 'adresse') ?? '').trim(),
+          niveau: String(val(r, 'niveau') ?? '').trim(),
+          competences: String(val(r, 'competences') ?? '').trim(),
           doublon: false,
         }
         if (!l.prenom || !l.nom) continue
@@ -94,12 +106,22 @@ export function ImportMembres({ ouvert, fermer, existants }: { ouvert: boolean; 
 
   async function importer() {
     setEnvoi(true)
-    const { error } = await supabase.from('membres').insert(nouveaux.map((l) => ({
+    const { data, error } = await supabase.from('membres').insert(nouveaux.map((l) => ({
       prenom: l.prenom, nom: l.nom, telephone: l.telephone || null, email: l.email || null,
       fonction: l.fonction || null, ...(l.date_adhesion ? { date_adhesion: l.date_adhesion } : {}),
-    })))
+      niveau_etude: lireNiveau(l.niveau), competences: lireCompetences(l.competences),
+    }))).select('id')
+    if (error) { setEnvoi(false); return toast.error(messageErreur(error)) }
+    // Adresses (table à part) : unité des Parcelles reconnue, sinon adresse en clair.
+    const adresses = nouveaux.map((l, i) => ({ l, id: data[i]?.id })).filter((x) => x.id && x.l.adresse).map(({ l, id }) => {
+      const zone_id = trouverUnite(zones, l.adresse)
+      return { membre_id: id, zone_id, adresse: zone_id ? null : l.adresse.slice(0, 200) }
+    })
+    if (adresses.length) {
+      const r = await supabase.from('membres_adresses').upsert(adresses)
+      if (r.error) toast.error(`Membres ajoutés, mais pas leurs adresses : ${messageErreur(r.error)}`)
+    }
     setEnvoi(false)
-    if (error) return toast.error(messageErreur(error))
     toast.success(`${nouveaux.length} membre(s) ajouté(s)${lignes.length > nouveaux.length ? `, ${lignes.length - nouveaux.length} déjà enregistré(s)` : ''}. Invitez-les ensuite depuis leur fiche.`)
     qc.invalidateQueries({ queryKey: ['membres'] })
     setLignes([])
@@ -113,7 +135,7 @@ export function ImportMembres({ ouvert, fermer, existants }: { ouvert: boolean; 
           <DialogTitle>Importer des membres depuis Excel</DialogTitle>
           <DialogDescription>
             Une ligne par membre, avec des colonnes <b>Prénom</b>, <b>Nom</b> et si possible <b>Téléphone</b>, <b>Email</b>,
-            <b> Fonction</b>, <b>Date d'adhésion</b>. Chacun reçoit le rôle « Membre » et son numéro de carte.
+            <b> Fonction</b>, <b>Date d'adhésion</b>, <b>Adresse</b>, <b>Niveau d'études</b>, <b>Compétences</b>. Chacun reçoit le rôle « Membre » et son numéro de carte.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border p-3 text-sm">

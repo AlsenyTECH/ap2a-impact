@@ -29,6 +29,8 @@ export interface Membre {
   date_adhesion: string
   actif: boolean
   photo_chemin?: string | null
+  niveau_etude?: string | null
+  competences?: string[]
 }
 
 export interface Zone { id: number; nom: string; niveau: string; parent_id: number | null; chemin: string }

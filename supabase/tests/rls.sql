@@ -641,4 +641,39 @@ select t.refuse($$select supprimer_membre(mon_membre_id())$$, 'admin : ne suppri
 select supprimer_membre((select id from membres where email = 'partant@ap2a.sn'));
 reset role;
 select t.ok(not exists (select 1 from membres where email = 'partant@ap2a.sn') and not exists (select 1 from auth.users where email = 'partant@ap2a.sn'), 'membre supprimé avec son compte de connexion');
+
+-- ===== Adresses des membres =====
+set role authenticated;
+select t.qui('admin@ap2a.sn');
+insert into membres_adresses (membre_id, adresse, zone_id) values ((select id from membres where email = 'membre@ap2a.sn'), 'Villa 123, près de la mosquée', (select id from zones where nom = 'Unité 17'));
+select t.ok((select count(*) from membres_adresses) = 1, 'gestion des membres : saisit et lit une adresse');
+select t.qui('membre@ap2a.sn');
+select t.ok((select adresse from membres_adresses) = 'Villa 123, près de la mosquée', 'membre : lit sa propre adresse');
+update membres_adresses set adresse = 'Villa 124' where membre_id = mon_membre_id();
+select t.ok((select adresse from membres_adresses) = 'Villa 124', 'membre : corrige sa propre adresse');
+select t.qui('coord@ap2a.sn');
+select t.ok((select count(*) from membres_adresses) = 0, 'autre membre : ne voit pas les adresses');
+select t.refuse($$insert into membres_adresses (membre_id, adresse) values ((select id from membres where email = 'bureau@ap2a.sn'), 'x')$$, 'autre membre : ne saisit pas l''adresse d''un autre');
+reset role;
+set role anon;
+select t.refuse($$select * from membres_adresses$$, 'anonyme : pas d''adresses');
+reset role;
+
+-- ===== Profil des membres : études, compétences =====
+set role authenticated;
+select t.qui('membre@ap2a.sn');
+select maj_mon_profil('licence', array[' Électricité ', 'électricité', 'Comptabilité', '']);
+select t.ok((select niveau_etude = 'licence' and competences = array['Électricité', 'Comptabilité'] from membres where email = 'membre@ap2a.sn'), 'chacun complète son niveau et ses compétences (nettoyées)');
+select t.refuse($$select maj_mon_profil('ingenieur-spatial', null)$$, 'niveau d''études hors liste');
+update membres_adresses set repere = 'près de la mosquée' where membre_id = mon_membre_id();
+select t.ok((select repere from membres_adresses) = 'près de la mosquée', 'membre : ajoute un repère à son adresse');
+select t.qui('coord@ap2a.sn');
+select t.ok((select competences[1] from membres where email = 'membre@ap2a.sn') = 'Électricité', 'les compétences sont visibles des autres membres');
+update membres set niveau_etude = 'master' where email = 'membre@ap2a.sn';
+select t.ok((select niveau_etude from membres where email = 'membre@ap2a.sn') = 'licence', 'coordinateur : ne change pas le niveau d''un autre');
+select t.qui('admin@ap2a.sn');
+select t.ok((select count(*) from membres_adresses) = 1, 'qui gère les membres voit les adresses');
+insert into membres_adresses (membre_id, adresse) values ((select id from membres where email = 'coord@ap2a.sn'), 'Thiès, Cité Lamy');
+select t.ok((select zone_id is null and adresse like 'Thiès%' from membres_adresses a join membres m on m.id = a.membre_id where m.email = 'coord@ap2a.sn'), 'adresse hors Parcelles (« autre »)');
+reset role;
 \echo 'Tous les tests sont passés.'
