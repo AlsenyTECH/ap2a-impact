@@ -676,4 +676,17 @@ select t.ok((select count(*) from membres_adresses) = 1, 'qui gère les membres 
 insert into membres_adresses (membre_id, adresse) values ((select id from membres where email = 'coord@ap2a.sn'), 'Thiès, Cité Lamy');
 select t.ok((select zone_id is null and adresse like 'Thiès%' from membres_adresses a join membres m on m.id = a.membre_id where m.email = 'coord@ap2a.sn'), 'adresse hors Parcelles (« autre »)');
 reset role;
+
+-- ===== Comptes protégés =====
+select set_config('request.jwt.claim.sub', '', false);
+update membres set protege = true where email = 'bureau@ap2a.sn';
+set role authenticated;
+select t.qui('admin@ap2a.sn');
+select t.refuse($$select supprimer_membre((select id from membres where email = 'bureau@ap2a.sn'))$$, 'compte protégé : pas supprimé');
+select t.refuse($$update membres set actif = false where email = 'bureau@ap2a.sn'$$, 'compte protégé : pas désactivé');
+select t.refuse($$update membres set protege = false where email = 'bureau@ap2a.sn'$$, 'protection : pas retirée depuis l''application');
+select t.refuse($$update membres set protege = true where email = 'membre@ap2a.sn'$$, 'protection : pas posée depuis l''application');
+update membres set fonction = 'Secrétaire' where email = 'bureau@ap2a.sn';
+select t.ok((select fonction from membres where email = 'bureau@ap2a.sn') = 'Secrétaire', 'compte protégé : sa fiche reste modifiable');
+reset role;
 \echo 'Tous les tests sont passés.'

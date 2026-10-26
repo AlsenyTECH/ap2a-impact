@@ -30,6 +30,8 @@ export interface Membre {
   actif: boolean
   photo_chemin?: string | null
   niveau_etude?: string | null
+  /** Compte protégé : ni supprimé ni désactivé (marque posée dans Supabase). */
+  protege?: boolean
   competences?: string[]
 }
 

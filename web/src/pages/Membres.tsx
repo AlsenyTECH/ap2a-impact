@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { FileSpreadsheet, IdCard, Plus, Printer, Send, Trash2 } from 'lucide-react'
+import { FileSpreadsheet, IdCard, Plus, Printer, Send, ShieldCheck, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -233,14 +233,17 @@ function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | n
               </Champ>
             )
           })() : null}
-          {existant && !moiMeme ? (
+          {existant && !moiMeme && !existant.protege ? (
             <label className="flex items-center justify-between text-sm">
               Membre actif (un membre inactif n'a plus accès)
               <Switch checked={v.actif} onCheckedChange={(actif) => setV({ ...v, actif })} />
             </label>
           ) : null}
+          {existant?.protege ? (
+            <p className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground"><ShieldCheck className="size-4 shrink-0 text-primary" /> Compte protégé : il ne peut être ni supprimé ni désactivé.</p>
+          ) : null}
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {existant && !moiMeme && peut('membres.supprimer') ? (
+            {existant && !moiMeme && !existant.protege && peut('membres.supprimer') ? (
               <Button type="button" variant="ghost" className="mr-auto text-destructive" disabled={envoi} onClick={supprimer}><Trash2 className="size-4" /> Supprimer</Button>
             ) : null}
             <Button type="button" variant="ghost" onClick={fermer}>Annuler</Button>
