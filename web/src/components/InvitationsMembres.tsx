@@ -113,7 +113,29 @@ export function InvitationsMembres({ membres, etats, fermer }: { membres: Membre
           <>
             {liens.length ? (
               <div className="space-y-2">
-                <p className="text-sm">Appuyez sur chaque bouton : WhatsApp s'ouvre avec le message prêt, il reste à appuyer sur <b>Envoyer</b>.</p>
+                {(() => {
+                  // Envoi à la suite : un appui ouvre WhatsApp sur la personne suivante, message prêt.
+                  const suivant = liens.find((r) => !ouverts.has(r.membre_id))
+                  const faits = liens.length - liens.filter((r) => !ouverts.has(r.membre_id)).length
+                  return (
+                    <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+                      <div className="mb-2 flex items-center justify-between text-sm">
+                        <span className="font-medium">{suivant ? 'Envoi à la suite' : 'Tous les messages ont été ouverts'}</span>
+                        <span className="text-muted-foreground">{faits} / {liens.length}</span>
+                      </div>
+                      <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary transition-all" style={{ width: `${(100 * faits) / liens.length}%` }} /></div>
+                      {suivant ? (
+                        <Button asChild className="w-full">
+                          <a target="_blank" rel="noreferrer" href={lienWhatsApp(suivant.telephone!, suivant.message!)} onClick={() => setOuverts((o) => new Set(o).add(suivant.membre_id))}>
+                            <MessageCircle /> {faits ? 'Envoyer au suivant' : 'Commencer'} : {suivant.nom}
+                          </a>
+                        </Button>
+                      ) : null}
+                      <p className="mt-2 text-xs text-muted-foreground">Dans WhatsApp, appuyez sur <b>Envoyer</b>, puis revenez ici : le bouton passe à la personne suivante.</p>
+                    </div>
+                  )
+                })()}
+                <p className="text-xs text-muted-foreground">Ou une personne précise :</p>
                 <div className="divide-y divide-border rounded-lg border border-border">
                   {liens.map((r) => (
                     <div key={r.membre_id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
@@ -121,7 +143,7 @@ export function InvitationsMembres({ membres, etats, fermer }: { membres: Membre
                       <span className="flex shrink-0 gap-1">
                         <Button size="sm" variant="ghost" aria-label="Copier le message" onClick={async () => { await navigator.clipboard.writeText(r.message!); toast.success('Message copié') }}><Copy /></Button>
                         <Button asChild size="sm" variant={ouverts.has(r.membre_id) ? 'secondary' : 'default'}>
-                          <a target="_blank" rel="noreferrer" href={lienWhatsApp(r.telephone!, r.message!)} onClick={() => setOuverts(new Set(ouverts).add(r.membre_id))}><MessageCircle /> WhatsApp</a>
+                          <a target="_blank" rel="noreferrer" href={lienWhatsApp(r.telephone!, r.message!)} onClick={() => setOuverts((o) => new Set(o).add(r.membre_id))}><MessageCircle /> WhatsApp</a>
                         </Button>
                       </span>
                     </div>
