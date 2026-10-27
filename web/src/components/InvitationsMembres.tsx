@@ -91,13 +91,17 @@ export function InvitationsMembres({ membres, etats, fermer }: { membres: Membre
             </div>
             <p className="text-xs text-muted-foreground">{CANAUX.find(([c]) => c === canal)?.[3]}</p>
             <div className="rounded-lg bg-muted/50 px-3 py-2 text-sm">
-              <b>{possibles.length}</b> membre(s) recevront l'invitation{exclus.length ? <>, <b>{exclus.length}</b> écarté(s) :</> : '.'}
-              {exclus.length ? (
-                <ul className="mt-1 max-h-32 overflow-y-auto text-xs text-muted-foreground">
+              <b>{possibles.length}</b> sur {membres.length} membre(s) sélectionné(s) recevront l'invitation{possibles.length ? ' :' : '.'}
+              {possibles.length ? <div className="mt-0.5 text-xs">{possibles.map((m) => `${m.prenom} ${m.nom}`).join(', ')}</div> : null}
+            </div>
+            {exclus.length ? (
+              <div className="rounded-lg border border-[#e9a812]/40 bg-[#e9a812]/10 px-3 py-2 text-sm">
+                <b>{exclus.length} écarté(s)</b> — ils ne recevront rien :
+                <ul className="mt-1 max-h-32 overflow-y-auto text-xs">
                   {exclus.map((m) => <li key={m.id}>{m.prenom} {m.nom} — {empechement(m, canal, etats.get(m.id))}</li>)}
                 </ul>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={fermer}>Annuler</Button>
               <Button onClick={lancer} disabled={envoi || !possibles.length}>
