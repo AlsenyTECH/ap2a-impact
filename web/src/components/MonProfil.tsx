@@ -36,7 +36,7 @@ async function appelerRappels(type: 'hebdo' | 'seances', apercu: boolean) {
 
 /** Mon profil : numéro de membre, rappels par email, aperçu, et (admin) journal des envois. */
 export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => void }) {
-  const { membre, peut } = useAuth()
+  const { membre, peut, session } = useAuth()
   const qc = useQueryClient()
   const [envoi, setEnvoi] = useState<string | null>(null)
   const [apercu, setApercu] = useState<'seances' | 'hebdo' | null>(null)
@@ -130,7 +130,8 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
 
         <ChoixTheme />
 
-        <MotDePasse email={membre.email} />
+        {/* L'identifiant du compte (email, ou adresse interne d'un compte par téléphone). */}
+        <MotDePasse email={session?.user.email ?? null} />
 
         <ApercuRappels key={apercu ?? 'x'} ouvert={!!apercu} type={apercu ?? 'seances'} fermer={() => setApercu(null)} />
 
@@ -219,7 +220,7 @@ function MotDePasse({ email }: { email: string | null }) {
       // Vérifie l'ancien mot de passe (la session reste la même).
       const { error: e1 } = await supabase.auth.signInWithPassword({ email, password: actuel })
       if (e1) throw new Error('Mot de passe actuel incorrect.')
-      const { error: e2 } = await supabase.auth.updateUser({ password: nouveau })
+      const { error: e2 } = await supabase.auth.updateUser({ password: nouveau, data: { mdp_choisi: true } })
       if (e2) throw new Error(/weak|short|characters/i.test(e2.message) ? 'Mot de passe trop faible : mélangez lettres, chiffres et symboles.' : e2.message)
       toast.success('Mot de passe changé')
       setOuvert(false); setActuel(''); setNouveau(''); setConfirmation('')

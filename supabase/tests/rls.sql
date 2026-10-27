@@ -689,4 +689,17 @@ select t.refuse($$update membres set protege = true where email = 'membre@ap2a.s
 update membres set fonction = 'Secrétaire' where email = 'bureau@ap2a.sn';
 select t.ok((select fonction from membres where email = 'bureau@ap2a.sn') = 'Secrétaire', 'compte protégé : sa fiche reste modifiable');
 reset role;
+
+-- ===== États de l'accès =====
+select set_config('request.jwt.claim.sub', '', false);
+update auth.users set invited_at = now() where email = 'coord2@ap2a.sn';
+update auth.users set invited_at = now(), raw_user_meta_data = '{"mdp_choisi": true}' where email = 'bureau@ap2a.sn';
+set role authenticated;
+select t.qui('admin@ap2a.sn');
+select t.ok((select etat from etats_acces() e join membres m on m.id = e.membre_id where m.email = 'coord2@ap2a.sn') = 'invite', 'accès : invité, mot de passe pas encore choisi');
+select t.ok((select etat from etats_acces() e join membres m on m.id = e.membre_id where m.email = 'bureau@ap2a.sn') = 'actif', 'accès : activé (mot de passe choisi)');
+select t.ok((select etat from etats_acces() e join membres m on m.id = e.membre_id where m.user_id is null limit 1) = 'aucun', 'accès : pas encore invité');
+select t.qui('coord@ap2a.sn');
+select t.ok((select count(*) from etats_acces()) = 0, 'accès : réservé à qui gère les membres');
+reset role;
 \echo 'Tous les tests sont passés.'

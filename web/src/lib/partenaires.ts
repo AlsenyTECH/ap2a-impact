@@ -21,7 +21,7 @@ export const messageInvitation = (prenom: string | null, email: string, organisa
 ` +
   `Vous allez recevoir à l'adresse ${email} un email « AP2A — Votre accès partenaire » (regardez aussi dans les indésirables).
 ` +
-  `Ouvrez le lien qu'il contient pour choisir votre mot de passe : il est personnel, ne sert qu'une fois et expire au bout de 24 heures.
+  `Ouvrez le lien qu'il contient pour choisir votre mot de passe : il est personnel, ne sert qu'une fois et expire au bout d'un délai limité.
 
 Merci pour votre engagement à nos côtés.`
 
@@ -32,4 +32,4 @@ export const messageInvitationMembre = (prenom: string | null, email: string) =>
 ` +
   `Vous allez recevoir à l'adresse ${email} un email « AP2A — Votre accès à l'application » (regardez aussi dans les indésirables).
 ` +
-  `Ouvrez le lien qu'il contient pour choisir votre mot de passe : il est personnel, ne sert qu'une fois et expire au bout de 24 heures.`
+  `Ouvrez le lien qu'il contient pour choisir votre mot de passe : il est personnel, ne sert qu'une fois et expire au bout d'un délai limité.`

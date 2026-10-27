@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { FileSpreadsheet, IdCard, Plus, Printer, Send, ShieldCheck, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
@@ -15,34 +15,43 @@ import { Avatar, Liste as Encadre } from '@/components/design'
 import { CarteDialog } from '@/components/CarteDialog'
 import { ImportMembres } from '@/components/ImportMembres'
 import { ADRESSE_VIDE, ChampsAdresse, ChampsEtudes, enregistrerAdresse, libelleNiveau, lireCompetences, useAdresseMembre, type Adresse } from '@/components/ProfilMembre'
-import { BoutonsInvitation } from '@/components/Invitation'
-import { DialogDescription } from '@/components/ui/dialog'
+import { InvitationsMembres } from '@/components/InvitationsMembres'
 import { PhotoFiche } from '@/components/PhotoFiche'
 import { usePhotos } from '@/lib/photos'
 import { useAuth } from '@/lib/auth'
 import { droitsDe, nomRole, roleDuMembre, useRoles, usePermissions } from '@/lib/droits'
 import { useMembres, useZones } from '@/lib/requetes'
 import { exporterExcel } from '@/lib/export'
-import { messageErreur, supabase } from '@/lib/supabase'
+import { messageErreur, supabase, verifier } from '@/lib/supabase'
 import type { Membre } from '@/lib/types'
 
 export function Membres() {
   const { peut, membre: moi } = useAuth()
+  const qc = useQueryClient()
   const { data: membres, isLoading, error } = useMembres()
   const { data: roles = [] } = useRoles()
   const [carteDe, setCarteDe] = useState<Membre | null>(null)
-  const [inviter, setInviter] = useState<Membre | null>(null)
+  const [inviter, setInviter] = useState<Membre[] | null>(null)
+  const [selection, setSelection] = useState<Set<string>>(new Set())
+  const [suppression, setSuppression] = useState(false)
   const [acces, setAcces] = useState<'' | 'actives' | 'attente'>('')
   const { data: photos = {} } = usePhotos((membres ?? []).map((m) => m.photo_chemin))
   const [edition, setEdition] = useState<Membre | 'nouveau' | null>(null)
   const [importer, setImporter] = useState(false)
   const [recherche, setRecherche] = useState('')
   const gestion = peut('membres.gerer')
+  // État réel de l'accès : pas encore invité, invité (mot de passe pas encore choisi), activé.
+  const { data: etats = new Map<string, string>() } = useQuery({
+    queryKey: ['etats-acces'],
+    enabled: gestion,
+    queryFn: async () => new Map(((verifier(await supabase.rpc('etats_acces')) ?? []) as { membre_id: string; etat: string }[]).map((e) => [e.membre_id, e.etat])),
+  })
+  const active = (m: Membre) => (etats.get(m.id) ?? (m.user_id ? 'actif' : 'aucun')) === 'actif'
   const [tri, setTri] = useState<'nom' | 'numero' | 'role' | 'recents'>('nom')
   const [role, setRole] = useState('')
   const [inactifs, setInactifs] = useState(false)
   const retenus = (membres ?? []).filter((m) => (inactifs || m.actif) && (!role || m.role_id === role)
-    && (!acces || (acces === 'actives') === !!m.user_id)
+    && (!acces || (acces === 'actives') === active(m))
     && correspond(recherche, m.prenom, m.nom, m.telephone, m.email, m.numero_adherent, m.fonction, nomRole(m), libelleNiveau(m.niveau_etude), m.competences?.join(' ')))
   const ordreRole = new Map(roles.map((r, i) => [r.id, i]))
   const { data: zones = [] } = useZones()
@@ -83,6 +92,28 @@ export function Membres() {
     : tri === 'role' ? trier(retenus, (m) => ordreRole.get(m.role_id) ?? 99)
     : trier(retenus, (m) => m.date_adhesion, 'desc')
 
+  // Suppression groupée : jamais soi-même ni un compte protégé ; chaque fiche passe par la même règle que le bouton seul.
+  async function supprimerSelection() {
+    const choisis = (membres ?? []).filter((m) => selection.has(m.id))
+    const gardes = choisis.filter((m) => m.protege || m.id === moi?.id)
+    const aSupprimer = choisis.filter((m) => !m.protege && m.id !== moi?.id)
+    if (!aSupprimer.length) return toast.info('Aucun membre supprimable dans la sélection (comptes protégés ou vous-même).')
+    if (!confirm(`Supprimer définitivement ${aSupprimer.length} membre(s) ?${gardes.length ? `\n\n${gardes.length} gardé(s) : ${gardes.map((m) => `${m.prenom} ${m.nom}`).join(', ')} (protégé ou vous-même).` : ''}\n\nLeurs fiches, cartes et accès à l'application seront effacés. Cette opération ne peut pas être annulée.`)) return
+    setSuppression(true)
+    const erreurs: string[] = []
+    for (const m of aSupprimer) {
+      const { error } = await supabase.rpc('supprimer_membre', { p_membre: m.id })
+      if (error) erreurs.push(`${m.prenom} ${m.nom} : ${messageErreur(error)}`)
+    }
+    setSuppression(false)
+    const ok = aSupprimer.length - erreurs.length
+    if (ok) toast.success(`${ok} membre(s) supprimé(s)`)
+    if (erreurs.length) toast.error(`${erreurs.length} non supprimé(s) — ${erreurs[0]}`)
+    setSelection(new Set())
+    qc.invalidateQueries({ queryKey: ['membres'] })
+    qc.invalidateQueries({ queryKey: ['etats-acces'] })
+  }
+
   return (
     <>
       <EnTete
@@ -110,7 +141,7 @@ export function Membres() {
           <Pastilles<string> value={role} onChange={(r) => setRole(r === role ? '' : r)} options={[['', 'Tous'], ...roles.filter((r) => (membres ?? []).some((m) => m.role_id === r.id)).map((r) => [r.id, r.nom] as [string, string])]} />
           {gestion ? (
             <Pastilles<'' | 'actives' | 'attente'> value={acces} onChange={(v) => setAcces(v === acces ? '' : v)}
-              options={[['actives', 'Accès activé'], ['attente', `Accès non activé (${(membres ?? []).filter((m) => m.actif && !m.user_id).length})`]]} />
+              options={[['actives', 'Accès activé'], ['attente', `Accès non activé (${(membres ?? []).filter((m) => m.actif && !active(m)).length})`]]} />
           ) : null}
           <label className="flex items-center gap-2 text-sm text-muted-foreground"><Switch checked={inactifs} onCheckedChange={setInactifs} /> Inclure les inactifs</label>
         </div>
@@ -118,7 +149,16 @@ export function Membres() {
       {error ? <Erreur erreur={error} /> : isLoading ? <Chargement /> : (
         <Encadre>
           {liste.map((m) => (
-            <div key={m.id} className="flex items-center gap-1 pr-2">
+            <div key={m.id} className={`flex items-center gap-1 pr-2 ${selection.has(m.id) ? 'bg-primary/5' : ''}`}>
+            {gestion ? (
+              <input
+                type="checkbox"
+                aria-label={`Sélectionner ${m.prenom} ${m.nom}`}
+                className="ml-3 size-4 shrink-0 accent-[var(--color-primary)]"
+                checked={selection.has(m.id)}
+                onChange={() => setSelection((x) => { const n = new Set(x); if (n.has(m.id)) n.delete(m.id); else n.add(m.id); return n })}
+              />
+            ) : null}
             <button
               disabled={!gestion}
               onClick={() => setEdition(m)}
@@ -136,11 +176,15 @@ export function Membres() {
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <Badge variant={m.role_info?.code === 'membre' ? 'outline' : 'secondary'}>{nomRole(m)}</Badge>
-                {gestion ? (m.user_id ? <span className="text-[11px] font-medium text-primary">accès activé</span> : <span className="text-[11px] text-muted-foreground">accès non activé</span>) : null}
+                {gestion ? (
+                  active(m) ? <span className="text-[11px] font-medium text-primary">accès activé</span>
+                    : etats.get(m.id) === 'invite' ? <span className="text-[11px] text-[#8a6a10]">invité, en attente</span>
+                    : <span className="text-[11px] text-muted-foreground">pas encore invité</span>
+                ) : null}
               </div>
             </button>
-            {gestion && !m.user_id && m.actif ? (
-              <Button size="icon" variant="ghost" title="Inviter à activer son accès" aria-label="Inviter" onClick={() => setInviter(m)}><Send className="text-primary" /></Button>
+            {gestion && m.actif && !active(m) ? (
+              <Button size="icon" variant="ghost" title={etats.get(m.id) === 'invite' ? "Renvoyer l'invitation" : 'Inviter à activer son accès'} aria-label="Inviter" onClick={() => setInviter([m])}><Send className="text-primary" /></Button>
             ) : null}
             {gestion || m.id === moi?.id ? (
               <Button size="icon" variant="ghost" title="Carte de membre" aria-label="Carte de membre" onClick={() => setCarteDe(m)}><IdCard className="text-muted-foreground" /></Button>
@@ -149,9 +193,21 @@ export function Membres() {
           ))}
         </Encadre>
       )}
+      {gestion && selection.size ? (
+        <div className="sticky bottom-3 z-30 mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3 shadow-lg">
+          <span className="text-sm font-medium">{selection.size} sélectionné(s)</span>
+          <Button size="sm" variant="ghost" onClick={() => setSelection(new Set(liste.map((m) => m.id)))}>Tout sélectionner ({liste.length})</Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelection(new Set())}>Aucun</Button>
+          <span className="flex-1" />
+          <Button size="sm" onClick={() => setInviter((membres ?? []).filter((m) => selection.has(m.id)))}><Send className="size-4" /> Inviter</Button>
+          {peut('membres.supprimer') ? (
+            <Button size="sm" variant="secondary" className="text-destructive" disabled={suppression} onClick={supprimerSelection}><Trash2 className="size-4" /> Supprimer</Button>
+          ) : null}
+        </div>
+      ) : null}
       {gestion ? <ImportMembres ouvert={importer} fermer={() => setImporter(false)} existants={membres ?? []} /> : null}
-      <MembreForm membre={edition} fermer={() => setEdition(null)} onCree={setInviter} />
-      {inviter ? <InviterMembre membre={inviter} fermer={() => setInviter(null)} /> : null}
+      <MembreForm membre={edition} fermer={() => setEdition(null)} onCree={(m) => setInviter([m])} />
+      {inviter ? <InvitationsMembres membres={inviter} etats={etats} fermer={() => { setInviter(null); setSelection(new Set()) }} /> : null}
       {carteDe ? (
         <CarteDialog
           ouvert
@@ -214,7 +270,7 @@ function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | n
     qc.invalidateQueries({ queryKey: ['adresse-membre'] })
     fermer()
     // Nouveau membre avec email : on propose tout de suite de l'inviter.
-    if (!existant && r.data && (r.data as Membre).email) onCree?.(r.data as Membre)
+    if (!existant && r.data && ((r.data as Membre).email || (r.data as Membre).telephone)) onCree?.(r.data as Membre)
   }
 
   // Suppression définitive, avec son compte de connexion (droit « Supprimer un membre »).
@@ -285,32 +341,6 @@ function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | n
             <Button type="submit" disabled={envoi}>Enregistrer</Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-/** Invitation d'un membre à activer son accès à l'application. */
-function InviterMembre({ membre, fermer }: { membre: Membre; fermer: () => void }) {
-  return (
-    <Dialog open onOpenChange={(o) => !o && fermer()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Inviter {membre.prenom} {membre.nom}</DialogTitle>
-          <DialogDescription>
-            L'accès est sur invitation : un email lui apporte un lien personnel (usage unique, 24 h) pour choisir son mot de passe.
-            Son accès dépendra de son rôle : <b>{nomRole(membre)}</b>.
-          </DialogDescription>
-        </DialogHeader>
-        {membre.email ? (
-          <>
-            <div className="rounded-lg bg-muted/50 px-3 py-2 text-sm">Adresse : <b>{membre.email}</b>{membre.telephone ? <> · {membre.telephone}</> : null}</div>
-            <BoutonsInvitation personne={{ prenom: membre.prenom, email: membre.email, telephone: membre.telephone }} membreId={membre.id} />
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">Ajoutez d'abord son adresse email sur sa fiche : c'est elle qui lui servira d'identifiant.</p>
-        )}
-        <div className="flex justify-end"><Button variant="ghost" onClick={fermer}>Fermer</Button></div>
       </DialogContent>
     </Dialog>
   )

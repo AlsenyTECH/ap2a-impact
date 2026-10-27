@@ -2,8 +2,9 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
 import { Chargement } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
+import { identifiantLisible } from '@/lib/identifiant'
 import { configurationManquante, lienAChoisirMotDePasse } from '@/lib/supabase'
-import { Connexion, NouveauMotDePasse, SansFiche } from '@/pages/Connexion'
+import { Activer, Connexion, NouveauMotDePasse, SansFiche } from '@/pages/Connexion'
 import { Accueil } from '@/pages/Accueil'
 import { Cibles } from '@/pages/Cibles'
 import { CibleDetail } from '@/pages/CibleDetail'
@@ -36,6 +37,8 @@ export function App() {
   if (configurationManquante) {
     return <p className="p-6 text-sm">Configuration manquante : VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY (voir web/.env.example).</p>
   }
+  // Lien envoyé par l'application (email, SMS, WhatsApp) : il ouvre la session, puis le choix du mot de passe.
+  if (pathname === '/activer') return <Activer />
   // Arrivée par un lien d'invitation ou de mot de passe oublié : choisir son mot de passe d'abord.
   if (pathname === '/nouveau-mot-de-passe' || lienAChoisirMotDePasse()) return <NouveauMotDePasse />
   // Vérification d'une carte : page publique, sans compte.
@@ -45,7 +48,7 @@ export function App() {
   if (!session) return pathname === '/' || pathname === '/association' ? <Vitrine /> : <Connexion />
   if (pathname === '/association') return <Vitrine connecte />
   if (pathname === '/connexion') return <Navigate to="/" replace />
-  if (!membre) return <SansFicheOuPartenaire email={session.user.email} deconnecter={deconnecter} />
+  if (!membre) return <SansFicheOuPartenaire email={identifiantLisible(session.user.email) ?? undefined} deconnecter={deconnecter} />
 
   return (
     <Routes>

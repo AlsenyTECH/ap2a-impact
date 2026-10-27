@@ -7,6 +7,9 @@
 //    même vide, pour voir à quoi il ressemble ; droit « rappels.regler » : envoi à tous ;
 //  * droit « membres.gerer » / « partenaires.gerer » : { type: 'invitation', membre_id | acces_id } → lien personnel
 //    à usage unique pour choisir son mot de passe (l'inscription libre est fermée) ;
+//  * droit « membres.gerer » : { type: 'invitations', membre_ids, canal: 'email' | 'sms' | 'whatsapp' } → invitations
+//    groupées ; un membre sans email se connecte avec son téléphone. WhatsApp : les liens sont rendus à
+//    l'application, qui ouvre chaque message (pas d'envoi automatique sans l'API WhatsApp Business) ;
 //  * droit « membres.comptes » : { type: 'changer_email', membre_id, email } → change l'adresse de connexion ;
 //  * droit « rappels.regler » : { type: 'sms_test', telephone } → SMS d'essai (vérifie les crédits Brevo).
 //
@@ -166,12 +169,12 @@ async function envoyer(a: string, sujet: string, html: string) {
  * SMS en caractères simples (alphabet GSM) : un accent comme « ê » ferait passer
  * le message en Unicode, limité à 70 caractères, donc facturé deux ou trois fois.
  */
-export function versGsm(t: string) {
+export function versGsm(t: string, max = 160) {
   return t
     .replace(/[«»“”]/g, '"').replace(/[’‘]/g, "'").replace(/[–—]/g, '-').replace(/…/g, '...')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^\x20-\x7E\n]/g, '')
-    .slice(0, 160)
+    .slice(0, max)
 }
 
 /** Numéro international sans « + » (Sénégal par défaut). */
@@ -182,13 +185,13 @@ export function numeroIntl(t: string) {
   return d
 }
 
-async function envoyerSms(numero: string, texte: string, expediteur: string) {
+async function envoyerSms(numero: string, texte: string, expediteur: string, max = 160) {
   const brevo = secret('BREVO_API_KEY')
   if (!brevo) throw new Error('Les SMS passent par Brevo : secret BREVO_API_KEY manquant')
   const r = await fetch('https://api.brevo.com/v3/transactionalSMS/sms', {
     method: 'POST',
     headers: { 'api-key': brevo, 'content-type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify({ sender: expediteur, recipient: numero, content: versGsm(texte), type: 'transactional' }),
+    body: JSON.stringify({ sender: expediteur, recipient: numero, content: versGsm(texte, max), type: 'transactional' }),
   })
   if (!r.ok) {
     const detail = (await r.text()).slice(0, 300)
@@ -197,15 +200,58 @@ async function envoyerSms(numero: string, texte: string, expediteur: string) {
   }
 }
 
+// Connexion par téléphone : Supabase identifie un compte par une adresse email ; un membre sans
+// email reçoit une adresse interne tirée de son numéro. « .invalid » est réservé (RFC 2606) :
+// rien ne peut y être envoyé. Même règle dans l'application (web/src/lib/identifiant.ts).
+const DOMAINE_TELEPHONE = 'tel.ap2a.invalid'
+const emailDeTelephone = (t: string) => `${numeroIntl(t)}@${DOMAINE_TELEPHONE}`
+function identifiantLisible(email: string) {
+  if (!email.endsWith(`@${DOMAINE_TELEPHONE}`)) return email
+  const d = email.split('@')[0]
+  const local = d.startsWith('221') && d.length === 12 ? d.slice(3) : `+${d}`
+  return local.length === 9 ? local.replace(/^(\d{2})(\d{3})(\d{2})(\d{2})$/, '$1 $2 $3 $4') : local
+}
+
+type AdminAuth = ReturnType<typeof createClient>['auth']['admin']
+
+/**
+ * Lien personnel à usage unique pour choisir son mot de passe. Court (le jeton seul, dans le « # »
+ * de l'adresse) : il tient dans un SMS et ne dépend pas des adresses de redirection de Supabase.
+ * Compte déjà créé (invitation précédente) : nouveau lien. Mot de passe déjà choisi : refusé.
+ */
+async function lienPersonnel(admin: AdminAuth, email: string, userId: string | null) {
+  let identifiant = email
+  if (userId) {
+    const { data: u } = await admin.getUserById(userId)
+    // Même règle que etats_acces() : mot de passe choisi, ou compte ouvert avant les invitations.
+    if (u?.user?.user_metadata?.mdp_choisi || (u?.user && !u.user.invited_at && u.user.last_sign_in_at)) throw new Error('Son accès est déjà activé')
+    if (u?.user?.email) identifiant = u.user.email
+  }
+  let g = await admin.generateLink({ type: 'invite', email: identifiant })
+  if (g.error && /already|registered|exists/i.test(g.error.message)) {
+    g = await admin.generateLink({ type: 'recovery', email: identifiant })
+  }
+  const jeton = g.data?.properties?.hashed_token
+  if (g.error || !jeton || !g.data?.user) throw new Error(`Lien d'invitation impossible : ${g.error?.message ?? 'inconnu'}`)
+  if (g.data.user.user_metadata?.mdp_choisi) throw new Error('Son accès est déjà activé')
+  const invite = g.data.properties.verification_type === 'invite'
+  return { lien: `${APP}/activer#${invite ? 'i' : 'r'}=${jeton}`, userId: g.data.user.id, identifiant: identifiantLisible(identifiant) }
+}
+
+const messageInvitationTexte = (prenom: string | null, identifiant: string, lien: string) =>
+  `Bonjour${prenom ? ` ${prenom}` : ''}, l'AP2A vous invite à utiliser son application.\n`
+  + `Votre identifiant : ${identifiant}\n`
+  + `Choisissez votre mot de passe avec ce lien personnel (une seule fois) :\n${lien}`
+
 /** Invitation à créer son compte (membre ou partenaire). */
-function emailInvitation(prenom: string | null, lien: string, partenaire: string | null) {
+function emailInvitation(prenom: string | null, lien: string, partenaire: string | null, identifiant?: string) {
   const corps = `<p style="margin:0 0 16px">Bonjour${prenom ? ` ${echapper(prenom)}` : ''},</p>
     <p style="margin:0 0 12px">${partenaire
       ? `L'association AP2A vous donne accès à son application, en tant que partenaire (${echapper(partenaire)}), pour suivre les actions que nous menons ensemble.`
       : `Vous êtes inscrit(e) comme membre de l'AP2A. Vous pouvez maintenant utiliser l'application de l'association : actions, suivis des bénéficiaires, événements, votre carte de membre…`}</p>
-    <p style="margin:0 0 12px">Ouvrez ce lien pour <b>choisir votre mot de passe</b> : votre accès sera activé aussitôt.</p>
+    <p style="margin:0 0 12px">Ouvrez ce lien pour <b>choisir votre mot de passe</b> : votre accès sera activé aussitôt.${identifiant ? `<br>Votre identifiant de connexion : <b>${echapper(identifiant)}</b>` : ''}</p>
     ${bouton(lien, 'Créer mon mot de passe')}
-    <p style="margin:16px 0 0;font-size:12px;color:#5c6b64">Ce lien est personnel : il ne sert qu'une fois et expire au bout de 24 heures. Ne le transférez à personne.
+    <p style="margin:16px 0 0;font-size:12px;color:#5c6b64">Ce lien est personnel : il ne sert qu'une fois et expire au bout d'un délai limité. Ne le transférez à personne.
       S'il a expiré, demandez au bureau une nouvelle invitation.</p>`
   return { sujet: partenaire ? 'AP2A — Votre accès partenaire' : 'AP2A — Votre accès à l\'application', html: gabarit('Bienvenue dans l\'application AP2A', corps, "Cet email vous a été envoyé par le bureau de l'AP2A. Si vous n'êtes pas concerné(e), vous pouvez l'ignorer.") }
 }
@@ -216,8 +262,8 @@ const repondre = (corps: unknown, statut = 200) =>
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
-    const { type = 'hebdo', apercu = false, membre_id = null, acces_id = null, email: nouvelEmail = null, jour: jourRecu = null, telephone = null } = await req.json().catch(() => ({}))
-    if (!['hebdo', 'seances', 'sms', 'sms_test', 'invitation', 'changer_email'].includes(type)) return repondre({ erreur: 'Type inconnu' }, 400)
+    const { type = 'hebdo', apercu = false, membre_id = null, acces_id = null, email: nouvelEmail = null, jour: jourRecu = null, telephone = null, membre_ids = [], canal = 'email' } = await req.json().catch(() => ({}))
+    if (!['hebdo', 'seances', 'sms', 'sms_test', 'invitation', 'invitations', 'changer_email'].includes(type)) return repondre({ erreur: 'Type inconnu' }, 400)
     const jour = typeof jourRecu === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(jourRecu) ? jourRecu : null
 
     const service = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
@@ -273,6 +319,67 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Invitations groupées de membres (email, SMS ou WhatsApp).
+    if (type === 'invitations') {
+      const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
+      const { data: u } = await service.auth.getUser(jeton)
+      const { data: moi } = u?.user ? await service.from('membres').select('id, actif').eq('user_id', u.user.id).maybeSingle() : { data: null }
+      if (!moi?.actif || !(await droit(moi.id, 'membres.gerer'))) return repondre({ erreur: 'Il faut le droit « Gérer les membres » pour inviter des membres' }, 403)
+      if (!['email', 'sms', 'whatsapp'].includes(canal)) return repondre({ erreur: 'Canal inconnu' }, 400)
+      const ids = Array.isArray(membre_ids) ? [...new Set(membre_ids.map(String))].slice(0, 100) : []
+      if (!ids.length) return repondre({ erreur: 'Aucun membre choisi' }, 400)
+      const { data: fiches } = await service.from('membres').select('id, prenom, nom, email, telephone, user_id, actif').in('id', ids)
+      const { data: r } = await service.from('reglages_rappels').select('sms_expediteur').single()
+      const resultats: { membre_id: string; nom: string; statut: 'envoye' | 'lien' | 'echec'; erreur?: string; lien?: string; message?: string; telephone?: string }[] = []
+      let plusDeCredits: string | null = null
+      for (const m of fiches ?? []) {
+        const nom = `${m.prenom} ${m.nom}`
+        try {
+          if (!m.actif) throw new Error('Membre inactif')
+          if (m.id === moi.id) throw new Error('Pas vous-même')
+          if (!(await couvre(moi.id, m.id))) throw new Error('A plus de droits que vous')
+          if (canal === 'email' && !m.email) throw new Error("Pas d'adresse email")
+          if (canal !== 'email' && !m.telephone) throw new Error('Pas de numéro de téléphone')
+          const tel = m.telephone ? numeroIntl(m.telephone) : null
+          if (canal !== 'email' && (!tel || tel.length < 11 || tel.length > 15)) throw new Error(`Numéro invalide (${m.telephone})`)
+          if (canal === 'sms' && plusDeCredits) throw new Error(plusDeCredits)
+          // Identifiant : son email s'il en a un, sinon son téléphone.
+          const { lien, userId, identifiant } = await lienPersonnel(service.auth.admin, m.email ?? emailDeTelephone(m.telephone!), m.user_id)
+          // Le compte (créé ou retrouvé) doit être celui de cette fiche, et d'aucune autre.
+          const { data: autre } = await service.from('membres').select('prenom, nom').eq('user_id', userId).neq('id', m.id).maybeSingle()
+          if (autre) throw new Error(`Cet identifiant (${identifiant}) sert déjà à ${autre.prenom} ${autre.nom}`)
+          if (m.user_id !== userId) {
+            const { error } = await service.from('membres').update({ user_id: userId }).eq('id', m.id)
+            if (error) throw error
+          }
+          const message = messageInvitationTexte(m.prenom, identifiant, lien)
+          if (canal === 'whatsapp') {
+            resultats.push({ membre_id: m.id, nom, statut: 'lien', lien, message, telephone: tel! })
+            continue
+          }
+          if (canal === 'email') {
+            const { sujet, html } = emailInvitation(m.prenom, lien, null, identifiant)
+            await envoyer(m.email!, sujet, html)
+          } else {
+            try {
+              await envoyerSms(tel!, `AP2A : ${m.prenom}, activez votre acces a l'application. Identifiant : ${identifiant}. Lien personnel (une seule fois) : ${lien}`, r?.sms_expediteur ?? 'AP2A', 320)
+            } catch (e) {
+              if (/Crédits SMS/.test((e as Error).message)) plusDeCredits = (e as Error).message
+              throw e
+            }
+          }
+          resultats.push({ membre_id: m.id, nom, statut: 'envoye' })
+          await service.from('rappels_envoyes').insert({ type: `invitation-${canal}`, membre_id: m.id, email: canal === 'email' ? m.email : `+${tel}`, nb: 1, statut: 'envoye' })
+        } catch (e) {
+          resultats.push({ membre_id: m.id, nom, statut: 'echec', erreur: (e as Error).message })
+          if (canal !== 'whatsapp') {
+            await service.from('rappels_envoyes').insert({ type: `invitation-${canal}`, membre_id: m.id, email: (canal === 'email' ? m.email : m.telephone) ?? '—', nb: 1, statut: 'echec', erreur: (e as Error).message })
+          }
+        }
+      }
+      return repondre({ resultats })
+    }
+
     // Invitation d'un membre ou d'un partenaire : réservée au bureau.
     if (type === 'invitation') {
       const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
@@ -292,19 +399,13 @@ Deno.serve(async (req) => {
         if (data && !data.revoque_le) destinataire = { prenom: data.prenom, email: data.email, user_id: data.user_id, partenaire: p?.sigle || p?.nom || 'partenaire', membre: null }
       }
       if (!destinataire?.email) return repondre({ erreur: 'Personne introuvable ou sans adresse email' }, 400)
-      // Accès sur invitation seulement : lien personnel à usage unique (24 h) pour choisir son mot de passe.
-      // Compte déjà créé mais jamais utilisé (invitation précédente) : nouveau lien.
-      if (destinataire.user_id) {
-        const { data: u2 } = await service.auth.admin.getUserById(destinataire.user_id)
-        if (u2?.user?.last_sign_in_at) return repondre({ erreur: 'Son accès est déjà activé' }, 400)
+      // Accès sur invitation seulement : lien personnel à usage unique pour choisir son mot de passe.
+      let action: string
+      try {
+        action = (await lienPersonnel(service.auth.admin, destinataire.email, destinataire.user_id)).lien
+      } catch (e) {
+        return repondre({ erreur: (e as Error).message }, 400)
       }
-      const redirectTo = `${APP}/nouveau-mot-de-passe?bienvenue=1`
-      let lien = await service.auth.admin.generateLink({ type: 'invite', email: destinataire.email, options: { redirectTo } })
-      if (lien.error && /already|registered|exists/i.test(lien.error.message)) {
-        lien = await service.auth.admin.generateLink({ type: 'recovery', email: destinataire.email, options: { redirectTo } })
-      }
-      const action = lien.data?.properties?.action_link
-      if (lien.error || !action) return repondre({ erreur: `Lien d'invitation impossible : ${lien.error?.message ?? 'inconnu'}` }, 500)
       const { sujet, html } = emailInvitation(destinataire.prenom, action, destinataire.partenaire)
       try {
         await envoyer(destinataire.email, sujet, html)

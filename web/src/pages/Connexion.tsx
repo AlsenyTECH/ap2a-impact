@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Champ } from '@/components/champs'
 import { lienAChoisirMotDePasse, messageErreur, oublierLien, supabase } from '@/lib/supabase'
 import { lireMotif, oublierMotif } from '@/lib/session'
+import { estUnTelephone, identifiantLisible, identifiantVersEmail } from '@/lib/identifiant'
 import logo from '@/assets/logo_AP2A.jpeg'
 
 type Mode = 'connexion' | 'oubli'
@@ -20,8 +21,13 @@ export function Connexion() {
   async function valider(e: FormEvent) {
     e.preventDefault()
     setEnvoi(true)
-    const adresse = email.trim().toLowerCase()
+    const adresse = identifiantVersEmail(email)
     try {
+      if (mode === 'oubli' && estUnTelephone(email)) {
+        // Pas d'email pour un compte par téléphone : le bureau renvoie un lien.
+        toast.info("Pour un accès par téléphone, demandez au bureau de vous renvoyer un lien d'invitation (WhatsApp ou SMS).")
+        return
+      }
       if (mode === 'connexion') {
         const { error } = await supabase.auth.signInWithPassword({ email: adresse, password: motDePasse })
         if (error) throw error
@@ -85,8 +91,8 @@ export function Connexion() {
             <p role="status" className="mt-4 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm">{motif}</p>
           ) : null}
           <form onSubmit={valider} className="mt-6 space-y-4">
-            <Champ label="Email">
-              <Input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="prenom@exemple.sn" />
+            <Champ label="Email ou numéro de téléphone">
+              <Input type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="prenom@exemple.sn ou 77 123 45 67" />
             </Champ>
             {mode !== 'oubli' ? (
               <Champ label="Mot de passe">
@@ -125,6 +131,8 @@ export function NouveauMotDePasse() {
   const [motDePasse, setMotDePasse] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [envoi, setEnvoi] = useState(false)
+  const [identifiant, setIdentifiant] = useState<string | null>(null)
+  useEffect(() => { supabase.auth.getSession().then(({ data }) => setIdentifiant(identifiantLisible(data.session?.user.email))) }, [])
   const different = confirmation.length > 0 && confirmation !== motDePasse
   async function valider(e: FormEvent) {
     e.preventDefault()
@@ -136,7 +144,8 @@ export function NouveauMotDePasse() {
       setEnvoi(false)
       return toast.error("Ce lien a expiré ou a déjà servi. Demandez une nouvelle invitation au bureau, ou utilisez « Mot de passe oublié ».")
     }
-    const { error } = await supabase.auth.updateUser({ password: motDePasse })
+    // « mdp_choisi » : l'accès est activé (une nouvelle invitation n'est plus possible).
+    const { error } = await supabase.auth.updateUser({ password: motDePasse, data: { mdp_choisi: true } })
     setEnvoi(false)
     if (error) toast.error(messageErreur(error))
     else {
@@ -154,6 +163,9 @@ export function NouveauMotDePasse() {
           <p className="mb-5 mt-1 text-center text-sm text-muted-foreground">
             {bienvenue ? 'Choisissez votre mot de passe pour activer votre accès.' : 'Choisissez votre nouveau mot de passe.'}
           </p>
+          {identifiant ? (
+            <p className="mb-4 rounded-lg bg-muted/60 px-3 py-2 text-center text-sm">Pour vous connecter : <b>{identifiant}</b> et ce mot de passe.</p>
+          ) : null}
           <form onSubmit={valider} className="space-y-4">
             <Champ label="Mot de passe (8 caractères au moins)">
               <Input type="password" required minLength={8} autoComplete="new-password" value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} />
@@ -181,6 +193,42 @@ export function SansFiche({ email, deconnecter }: { email?: string; deconnecter:
             (ou de corriger l'adresse sur votre fiche), puis reconnectez-vous.
           </p>
           <Button variant="secondary" onClick={deconnecter}>Se déconnecter</Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+/**
+ * Lien d'invitation (ou de nouveau mot de passe) envoyé par l'application :
+ * /activer#i=<jeton> (invitation) ou #r=<jeton>. Le jeton est dans le « # »,
+ * jamais envoyé au serveur du site ; il ne sert qu'une fois.
+ */
+export function Activer() {
+  const [erreur, setErreur] = useState<string | null>(null)
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.hash.slice(1))
+    const jeton = p.get('i') ?? p.get('r')
+    const type = p.get('i') ? 'invite' : 'recovery'
+    history.replaceState(null, '', '/activer')
+    if (!jeton) { setErreur("Ce lien est incomplet. Demandez au bureau de vous le renvoyer."); return }
+    supabase.auth.verifyOtp({ token_hash: jeton, type }).then(({ error }) => {
+      if (error) { setErreur("Ce lien a expiré ou a déjà servi. Demandez au bureau une nouvelle invitation."); return }
+      try { sessionStorage.setItem('ap2a-lien', type) } catch { /* stockage indisponible */ }
+      window.location.replace(`/nouveau-mot-de-passe${type === 'invite' ? '?bienvenue=1' : ''}`)
+    })
+  }, [])
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-sm">
+        <CardContent className="space-y-4 p-6 text-center text-sm">
+          <img src={logo} alt="AP2A" className="mx-auto h-14 rounded-lg bg-white object-contain p-1" />
+          {erreur ? (
+            <>
+              <p className="font-medium">{erreur}</p>
+              <Button variant="secondary" onClick={() => window.location.replace('/connexion')}>Aller à la connexion</Button>
+            </>
+          ) : <p className="text-muted-foreground">Vérification de votre lien…</p>}
         </CardContent>
       </Card>
     </div>
