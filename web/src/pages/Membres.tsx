@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { FileSpreadsheet, IdCard, Plus, Printer, Send, ShieldCheck, Trash2, Upload } from 'lucide-react'
@@ -41,11 +41,13 @@ export function Membres() {
   const [recherche, setRecherche] = useState('')
   const gestion = peut('membres.gerer')
   // État réel de l'accès : pas encore invité, invité (mot de passe pas encore choisi), activé.
-  const { data: etats = new Map<string, string>() } = useQuery({
+  // Liste simple (pas de Map) : le cache est gardé dans le téléphone en JSON.
+  const { data: listeEtats } = useQuery({
     queryKey: ['etats-acces'],
     enabled: gestion,
-    queryFn: async () => new Map(((verifier(await supabase.rpc('etats_acces')) ?? []) as { membre_id: string; etat: string }[]).map((e) => [e.membre_id, e.etat])),
+    queryFn: async () => (verifier(await supabase.rpc('etats_acces')) ?? []) as { membre_id: string; etat: string }[],
   })
+  const etats = useMemo(() => new Map((Array.isArray(listeEtats) ? listeEtats : []).map((e) => [e.membre_id, e.etat])), [listeEtats])
   const active = (m: Membre) => (etats.get(m.id) ?? (m.user_id ? 'actif' : 'aucun')) === 'actif'
   const [tri, setTri] = useState<'nom' | 'numero' | 'role' | 'recents'>('nom')
   const [role, setRole] = useState('')
