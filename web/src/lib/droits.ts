@@ -12,7 +12,7 @@ export type Permission =
   | 'kits.gerer'
   | 'partenaires.gerer'
   | 'membres.gerer' | 'membres.supprimer' | 'membres.comptes' | 'roles.gerer'
-  | 'referentiels.gerer' | 'vitrine.gerer' | 'rappels.voir' | 'rappels.regler' | 'journal.voir' | 'medical.journal' | 'demo.gerer'
+  | 'referentiels.gerer' | 'vitrine.gerer' | 'rappels.voir' | 'rappels.regler' | 'journal.voir' | 'medical.journal' | 'medical.lire' | 'demo.gerer'
 
 export interface DefinitionDroit { code: Permission; groupe: string; libelle: string; description: string | null; ordre: number }
 
@@ -25,11 +25,13 @@ export interface RoleApp {
   permissions: Permission[]
   systeme: boolean
   ordre: number
+  /** Les membres de ce rôle doivent valider un code (double authentification) pour avoir leurs droits. */
+  mfa_obligatoire?: boolean
 }
 
 /** Ce qu'on charge du rôle avec chaque membre. */
-export type RoleResume = Pick<RoleApp, 'id' | 'code' | 'nom' | 'permissions'>
-export const CHAMPS_ROLE = 'role_info:roles!membres_role_id_fkey(id, code, nom, permissions)'
+export type RoleResume = Pick<RoleApp, 'id' | 'code' | 'nom' | 'permissions' | 'mfa_obligatoire'>
+export const CHAMPS_ROLE = 'role_info:roles!membres_role_id_fkey(id, code, nom, permissions, mfa_obligatoire)'
 
 /** L'administrateur a tous les droits, y compris ceux ajoutés plus tard. */
 export function roleA(role: RoleResume | null | undefined, p: Permission) {
@@ -67,7 +69,7 @@ export const usePermissions = () => useQuery({
 
 export const useRoles = () => useQuery({
   queryKey: ['roles'],
-  queryFn: async () => verifier(await supabase.from('roles').select('id, code, nom, description, permissions, systeme, ordre').order('ordre').order('nom')) as RoleApp[],
+  queryFn: async () => verifier(await supabase.from('roles').select('id, code, nom, description, permissions, systeme, ordre, mfa_obligatoire').order('ordre').order('nom')) as RoleApp[],
 })
 
 /** Les droits regroupés par fonctionnalité, dans l'ordre. */

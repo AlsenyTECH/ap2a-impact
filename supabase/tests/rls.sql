@@ -15,8 +15,10 @@ begin
 exception when insufficient_privilege or check_violation or unique_violation then
   raise notice 'ok - refusé : %', msg;
 end $$;
-create function t.qui(email text) returns void language sql as $$
-  select set_config('request.jwt.claim.sub', (select id::text from auth.users u where u.email = qui.email), false)
+-- Session de cette personne, double authentification validée (aal2), sauf mention contraire.
+create function t.qui(email text, aal text default 'aal2') returns void language sql as $$
+  select set_config('request.jwt.claim.sub', (select id::text from auth.users u where u.email = qui.email), false),
+         set_config('request.jwt.claims', jsonb_build_object('aal', aal)::text, false)
 $$;
 create function t.cat(motif text) returns int language sql security definer as $$ select id from public.categories_cible where libelle like motif order by id limit 1 $$;
 create function t.profil(motif text) returns int language sql security definer as $$ select id from public.profils_personne where libelle like motif order by id limit 1 $$;
@@ -818,5 +820,19 @@ select t.ok(exists (select 1 from journal where table_nom = 'consultations'), 'M
 select t.ok(not has_function_privilege('authenticated', 'public.garder_membre_protege()', 'execute'), 'fonctions de déclencheur : pas appelables directement');
 select t.ok(not has_function_privilege('authenticated', 'public.rappels_dus(timestamp without time zone)', 'execute') and not has_function_privilege('authenticated', 'public.responsable_action(uuid)', 'execute'), 'fonctions internes : pas appelables depuis l''application');
 select t.ok(not has_function_privilege('anon', 'public.date_longue(date)', 'execute') and has_function_privilege('anon', 'public.verifier_carte(text)', 'execute'), 'anonyme : seulement les fonctions publiques prévues');
+reset role;
+
+-- ===== Double authentification =====
+set role authenticated;
+select t.qui('admin@ap2a.sn', 'aal1');
+select t.ok(not a_permission('membres.gerer') and not double_auth_ok(), 'double authentification : administrateur sans code validé, aucun droit');
+select t.refuse($$select membres_complets()$$, 'double authentification : pas de liste complète sans code');
+select t.ok(cardinality(mes_permissions()) = 0, 'double authentification : aucun droit dans les comparaisons sans code');
+select t.qui('admin@ap2a.sn', 'aal2');
+select t.ok(a_permission('membres.gerer') and double_auth_ok(), 'double authentification : avec le code, tous ses droits');
+select t.qui('coord@ap2a.sn', 'aal1');
+select t.ok(a_permission('actions.creer'), 'double authentification : rôle qui ne l''exige pas, droits sans code');
+select t.qui('admin@ap2a.sn');
+select t.refuse($$update roles set mfa_obligatoire = false where code = 'admin'$$, 'double authentification : jamais retirée à l''administrateur');
 reset role;
 \echo 'Tous les tests sont passés.'

@@ -20,6 +20,9 @@ interface Auth {
   /** Relit sa fiche (après un changement de son rôle). */
   recharger: () => void
   deconnecter: () => Promise<void>
+  /** Niveau de la session : « aal2 » une fois le code de double authentification validé. */
+  aal: { actuel: string; suivant: string } | null
+  rechargerAal: () => void
   /** Session expirée alors que des saisies hors ligne attendent : écran verrouillé, mot de passe demandé. */
   verrouille: boolean
   deverrouiller: (motDePasse: string) => Promise<string | null>
@@ -51,6 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Vrai une fois la session de départ lue (et fermée si elle avait expiré).
   const [pret, setPret] = useState(false)
   const [verrouille, setVerrouille] = useState(false)
+  const [aal, setAal] = useState<{ actuel: string; suivant: string } | null>(null)
+  const [versionAal, setVersionAal] = useState(0)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -74,6 +79,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const userId = session?.user.id
+
+  // Double authentification : niveau atteint par la session, et niveau possible (aal2 si un code est enregistré).
+  const jetonSession = session?.access_token
+  useEffect(() => {
+    if (!jetonSession) { setAal(null); return }
+    let annule = false
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel().then(({ data }) => {
+      if (!annule) setAal({ actuel: data?.currentLevel ?? 'aal1', suivant: data?.nextLevel ?? 'aal1' })
+    })
+    return () => { annule = true }
+  }, [jetonSession, versionAal])
 
   const fermer = useCallback(async (scope: 'global' | 'local') => {
     await nettoyer(userId, scope)
@@ -146,10 +162,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const valeur: Auth = {
     session,
     membre,
-    chargement: chargement || !pret,
+    chargement: chargement || !pret || (!!session && !aal),
     peut: (p) => !!membre && roleA(roleDuMembre(membre), p),
     peutUn: (...p) => !!membre && p.some((x) => roleA(roleDuMembre(membre), x)),
     recharger: () => setVersion((v) => v + 1),
+    aal,
+    rechargerAal: () => setVersionAal((v) => v + 1),
     verrouille,
     deverrouiller: async (motDePasse) => {
       const email = session?.user.email

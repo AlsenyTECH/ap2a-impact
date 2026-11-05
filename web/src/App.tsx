@@ -1,4 +1,6 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
+import { ActivationDoubleAuth, CodeDoubleAuth } from '@/components/DoubleAuth'
 import { Layout } from '@/components/Layout'
 import { Chargement } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
@@ -31,8 +33,9 @@ import { BonRemise } from '@/pages/BonRemise'
 import { Roles } from '@/pages/Roles'
 
 export function App() {
-  const { session, membre, chargement, deconnecter, verrouille, deverrouiller } = useAuth()
+  const { session, membre, chargement, deconnecter, verrouille, deverrouiller, aal, rechargerAal } = useAuth()
   const { pathname } = useLocation()
+  const qc = useQueryClient()
 
   if (configurationManquante) {
     return <p className="p-6 text-sm">Configuration manquante : VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY (voir web/.env.example).</p>
@@ -53,6 +56,14 @@ export function App() {
   if (verrouille) return <Verrou identifiant={identifiantLisible(session.user.email)} deverrouiller={deverrouiller} deconnecter={deconnecter} />
   if (pathname === '/connexion') return <Navigate to="/" replace />
   if (!membre) return <SansFicheOuPartenaire email={identifiantLisible(session.user.email) ?? undefined} deconnecter={deconnecter} />
+  // Double authentification : code demandé si elle est activée ; activation imposée si le rôle l'exige.
+  // (La base ne reconnaît de toute façon aucun droit de ce rôle sans elle.)
+  if (aal && aal.suivant === 'aal2' && aal.actuel !== 'aal2') {
+    return <CodeDoubleAuth valide={() => { rechargerAal(); qc.invalidateQueries() }} deconnecter={deconnecter} />
+  }
+  if (membre.role_info?.mfa_obligatoire && aal?.actuel !== 'aal2') {
+    return <ActivationDoubleAuth obligatoire termine={() => { rechargerAal(); qc.invalidateQueries() }} annuler={deconnecter} />
+  }
 
   return (
     <Routes>

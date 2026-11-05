@@ -23,5 +23,10 @@ create table storage.objects (id uuid primary key default gen_random_uuid(),
   bucket_id text references storage.buckets, name text);
 alter table storage.objects enable row level security;
 grant usage on schema public, auth, storage, extensions to anon, authenticated;
+-- Comme Supabase : les revendications du jeton de session (niveau « aal » de la double authentification…).
+create function auth.jwt() returns jsonb language sql stable as $$
+  select coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb, '{}'::jsonb)
+$$;
 grant execute on function auth.uid() to anon, authenticated;
+grant execute on function auth.jwt() to anon, authenticated;
 grant select, insert, delete on storage.objects to authenticated;

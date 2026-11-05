@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import { Chargement, Champ, EnTete, Erreur, Liste } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
 import { droitsDe, parGroupe, roleA, roleDuMembre, usePermissions, useRoles, type DefinitionDroit, type Permission, type RoleApp } from '@/lib/droits'
@@ -66,6 +67,7 @@ export function Roles() {
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="font-semibold">{r.nom}</span>
                       {r.systeme ? <Badge variant="outline">d'origine</Badge> : null}
+                      {r.mfa_obligatoire ? <Badge variant="secondary" title="Double authentification obligatoire">2FA</Badge> : null}
                       {moi?.role_id === r.id ? <Badge variant="secondary">votre rôle</Badge> : null}
                     </div>
                     {r.description ? <p className="mt-0.5 text-sm text-muted-foreground">{r.description}</p> : null}
@@ -143,6 +145,7 @@ function RoleForm({ role, fermer, droits, roles, lectureSeule, nbMembres }: {
   const admin = existant?.code === 'admin'
   const [nom, setNom] = useState('')
   const [description, setDescription] = useState('')
+  const [mfa, setMfa] = useState(false)
   const [choisis, setChoisis] = useState<Set<Permission>>(new Set())
   const [envoi, setEnvoi] = useState(false)
   const mesDroits = new Set(moi ? droitsDe(roleDuMembre(moi), droits) : [])
@@ -153,6 +156,7 @@ function RoleForm({ role, fermer, droits, roles, lectureSeule, nbMembres }: {
     const base = role === 'nouveau' ? null : role
     setNom(base?.nom ?? '')
     setDescription(base?.description ?? '')
+    setMfa(base?.code === 'admin' || !!base?.mfa_obligatoire)
     // Nouveau rôle (ou copie) : seulement des droits qu'on a soi-même.
     const depart = base ? droitsDe(base, droits) : []
     setChoisis(new Set(base?.id ? depart : depart.filter((d) => !!moi && roleA(roleDuMembre(moi), d))))
@@ -175,7 +179,7 @@ function RoleForm({ role, fermer, droits, roles, lectureSeule, nbMembres }: {
     e.preventDefault()
     if (existant && nbMembres && !confirm(`Ce rôle est attribué à ${nbMembres} membre(s) : leurs accès changent tout de suite. Continuer ?`)) return
     setEnvoi(true)
-    const donnees = { nom: nom.trim(), description: description.trim() || null, ...(admin ? {} : { permissions: [...choisis] }) }
+    const donnees = { nom: nom.trim(), description: description.trim() || null, mfa_obligatoire: admin || mfa, ...(admin ? {} : { permissions: [...choisis] }) }
     const { error } = existant
       ? await supabase.from('roles').update(donnees).eq('id', existant.id)
       : await supabase.from('roles').insert(donnees)
@@ -204,6 +208,15 @@ function RoleForm({ role, fermer, droits, roles, lectureSeule, nbMembres }: {
             <>
               <Champ label="Nom du rôle"><Input required maxLength={60} value={nom} placeholder="Magasinier, Chargé de communication…" onChange={(e) => setNom(e.target.value)} /></Champ>
               <Champ label="Description (facultatif)"><Textarea rows={2} maxLength={300} value={description} onChange={(e) => setDescription(e.target.value)} /></Champ>
+              <label className="flex items-start justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                <span>
+                  <span className="font-medium">Double authentification obligatoire</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {admin ? "Toujours exigée pour l'administrateur." : "Les membres de ce rôle valident un code à 6 chiffres (application d'authentification) à chaque connexion ; sans lui, ils n'ont aucun de ces droits."}
+                  </span>
+                </span>
+                <Switch checked={admin || mfa} disabled={admin} onCheckedChange={setMfa} />
+              </label>
               {!existant ? (
                 <Champ label="Partir des droits d'un rôle existant">
                   <Liste defaultValue="" onChange={(e) => partirDe(e.target.value)}>

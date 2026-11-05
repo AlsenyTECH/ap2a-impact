@@ -14,6 +14,7 @@ import { nomRole } from '@/lib/droits'
 import { choisirMode, choisirTheme, MODES, THEMES, useMode, useTheme, type Theme } from '@/lib/theme'
 import { Pastilles } from '@/components/champs'
 import { heureCourte, JOURS, useReglagesRappels } from '@/lib/rappels'
+import { GestionDoubleAuth } from '@/components/DoubleAuth'
 import { ADRESSE_VIDE, ChampsAdresse, ChampsEtudes, enregistrerAdresse, lireCompetences, useAdresseMembre, type Adresse } from '@/components/ProfilMembre'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 
@@ -127,6 +128,8 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
         </section>
 
         <MesInfos />
+
+        <GestionDoubleAuth obligatoire={!!membre.role_info?.mfa_obligatoire} />
 
         <ChoixTheme />
 

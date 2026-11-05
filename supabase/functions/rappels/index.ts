@@ -13,7 +13,9 @@
 //    il faut alors aussi « membres.comptes ». Quotas : 200 invitations par jour et par personne, une par
 //    membre toutes les 10 minutes ; SMS vers le Sénégal (+221) seulement ;
 //  * droit « membres.comptes » : { type: 'changer_email', membre_id, email } → change l'adresse de connexion ;
-//  * droit « rappels.regler » : { type: 'sms_test', telephone } → SMS d'essai (vérifie les crédits Brevo).
+//  * droit « rappels.regler » : { type: 'sms_test', telephone } → SMS d'essai (vérifie les crédits Brevo) ;
+//  * droit « membres.comptes » : { type: 'reinitialiser_2fa', membre_id } → téléphone perdu.
+// Un rôle qui exige la double authentification n'a aucun droit ici tant que la session n'est pas aal2.
 //
 // Secrets : EXPEDITEUR_EMAIL, et BREVO_API_KEY ou RESEND_API_KEY.
 // La clé des appels planifiés est dans le coffre de la base (fonction cle_rappels).
@@ -310,7 +312,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
     const { type = 'hebdo', apercu = false, membre_id = null, acces_id = null, email: nouvelEmail = null, jour: jourRecu = null, telephone = null, membre_ids = [], canal = 'email' } = await req.json().catch(() => ({}))
-    if (!['hebdo', 'seances', 'sms', 'sms_test', 'invitation', 'invitations', 'changer_email'].includes(type)) return repondre({ erreur: 'Type inconnu' }, 400)
+    if (!['hebdo', 'seances', 'sms', 'sms_test', 'invitation', 'invitations', 'changer_email', 'reinitialiser_2fa'].includes(type)) return repondre({ erreur: 'Type inconnu' }, 400)
     const jour = typeof jourRecu === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(jourRecu) ? jourRecu : null
 
     const service = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
@@ -325,14 +327,21 @@ Deno.serve(async (req) => {
       return !a.error && !v.error && Array.isArray(v.data) && (v.data as string[]).every((d) => mes.has(d))
     }
 
-    // Membre connecté qui appelle (jeton de session), ou null.
+    // Membre connecté qui appelle (jeton de session), ou null. « mfaOk » : la double authentification
+    // exigée par son rôle est validée dans cette session (niveau aal2 du jeton, signé par Supabase).
     const appelant = async () => {
       const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
       const { data: u } = await service.auth.getUser(jeton)
       if (!u?.user) return null
-      const { data: m } = await service.from('membres').select('id, prenom, nom, numero_adherent, actif').eq('user_id', u.user.id).maybeSingle()
-      return m?.actif ? { ...m, nomComplet: `${m.prenom} ${m.nom} (${m.numero_adherent})` } : null
+      const { data: m } = await service.from('membres').select('id, prenom, nom, numero_adherent, actif, role_info:roles!membres_role_id_fkey(mfa_obligatoire)').eq('user_id', u.user.id).maybeSingle()
+      if (!m?.actif) return null
+      let aal = 'aal1'
+      try { aal = JSON.parse(atob(jeton.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).aal ?? 'aal1' } catch { /* jeton illisible : aal1 */ }
+      const exige = (m.role_info as unknown as { mfa_obligatoire: boolean } | null)?.mfa_obligatoire === true
+      return { id: m.id, prenom: m.prenom, nom: m.nom, nomComplet: `${m.prenom} ${m.nom} (${m.numero_adherent})`, mfaOk: !exige || aal === 'aal2' }
     }
+    // Droit de la personne qui appelle : aucun tant que la double authentification exigée n'est pas validée.
+    const droitDe = async (moi: { id: string; mfaOk: boolean }, permission: string) => moi.mfaOk && await droit(moi.id, permission)
     // Nombre d'envois récents (quotas).
     const recents = async (filtre: { type?: string; typeLike?: string; par?: string; membre?: string }, minutes: number) => {
       let q = service.from('rappels_envoyes').select('id', { count: 'exact', head: true }).gte('envoye_le', new Date(Date.now() - minutes * 60_000).toISOString())
@@ -346,7 +355,7 @@ Deno.serve(async (req) => {
     // Changer l'adresse de connexion d'un membre dont l'accès est activé : réservé à l'administrateur.
     if (type === 'changer_email') {
       const moi = await appelant()
-      if (!moi || !(await droit(moi.id, 'membres.comptes'))) return repondre({ erreur: "Il faut le droit « Gérer les comptes de connexion » pour changer une adresse de connexion" }, 403)
+      if (!moi || !(await droitDe(moi, 'membres.comptes'))) return repondre({ erreur: "Il faut le droit « Gérer les comptes de connexion » pour changer une adresse de connexion" }, 403)
       const email = String(nouvelEmail ?? '').trim().toLowerCase()
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.endsWith('.invalid')) return repondre({ erreur: 'Adresse email invalide' }, 400)
       const { data: m } = await service.from('membres').select('id, user_id, email, prenom, actif').eq('id', membre_id).maybeSingle()
@@ -373,10 +382,33 @@ Deno.serve(async (req) => {
       return repondre({ ok: true })
     }
 
+    // Téléphone perdu : l'administrateur réinitialise la double authentification d'un membre, qui est prévenu.
+    if (type === 'reinitialiser_2fa') {
+      const moi = await appelant()
+      if (!moi || !(await droitDe(moi, 'membres.comptes'))) return repondre({ erreur: "Il faut le droit « Gérer les comptes de connexion » (et votre double authentification validée)" }, 403)
+      const { data: m } = await service.from('membres').select('id, user_id, email, prenom, nom').eq('id', membre_id).maybeSingle()
+      if (!m?.user_id) return repondre({ erreur: "Ce membre n'a pas de compte de connexion" }, 404)
+      if (m.id === moi.id || !(await couvre(moi.id, m.id))) return repondre({ erreur: "Vous ne pouvez pas réinitialiser la double authentification de quelqu'un qui a plus de droits que vous (ni la vôtre)" }, 403)
+      const { data: f, error } = await service.auth.admin.mfa.listFactors({ userId: m.user_id })
+      if (error) return repondre({ erreur: 'Réinitialisation impossible pour le moment' }, 500)
+      for (const facteur of f?.factors ?? []) await service.auth.admin.mfa.deleteFactor({ id: facteur.id, userId: m.user_id })
+      // Ses sessions ouvertes sont fermées : il se reconnecte et réactive la double authentification.
+      await service.auth.admin.signOut(m.user_id, 'global').catch(() => undefined)
+      await service.from('journal').insert({ membre_id: moi.id, auteur_nom: moi.nomComplet, table_nom: 'double_authentification', operation: 'REINITIALISATION', ligne_id: m.id, libelle: `${m.prenom} ${m.nom}` })
+      if (m.email && !m.email.endsWith('.invalid')) {
+        const corps = `<p style="margin:0 0 12px">Bonjour${prenomSur(m.prenom) ? ` ${echapper(prenomSur(m.prenom))}` : ''},</p>
+          <p style="margin:0 0 12px">La double authentification de votre compte AP2A vient d'être réinitialisée par ${echapper(moi.nomComplet)}. À votre prochaine connexion, vous l'activerez à nouveau avec votre téléphone.</p>
+          <p style="margin:0 0 12px">Si vous n'avez rien demandé, prévenez <b>immédiatement</b> le président ou l'administrateur de l'association.</p>`
+        await envoyer(m.email, 'AP2A — Double authentification réinitialisée', gabarit('Double authentification réinitialisée', corps,
+          "Message de sécurité envoyé automatiquement par l'application AP2A.")).catch((e) => console.error('alerte 2fa', e))
+      }
+      return repondre({ ok: true, facteurs: f?.factors?.length ?? 0 })
+    }
+
     // SMS d'essai : réservé à qui règle les rappels, 5 par jour.
     if (type === 'sms_test') {
       const moi = await appelant()
-      if (!moi || !(await droit(moi.id, 'rappels.regler'))) return repondre({ erreur: "Il faut le droit « Régler les rappels » pour envoyer un SMS d'essai" }, 403)
+      if (!moi || !(await droitDe(moi, 'rappels.regler'))) return repondre({ erreur: "Il faut le droit « Régler les rappels » pour envoyer un SMS d'essai" }, 403)
       const numero = numeroIntl(String(telephone ?? ''))
       if (!numeroSenegal(numero)) return repondre({ erreur: 'Numéro sénégalais attendu (77, 78, 76, 70, 75 ou 33…)' }, 400)
       if (await recents({ type: 'sms-test', par: moi.id }, 24 * 60) >= 5) return repondre({ erreur: "5 SMS d'essai par jour au plus" }, 429)
@@ -395,10 +427,10 @@ Deno.serve(async (req) => {
     // Invitations groupées de membres (email, SMS ou WhatsApp).
     if (type === 'invitations') {
       const moi = await appelant()
-      if (!moi || !(await droit(moi.id, 'membres.gerer'))) return repondre({ erreur: 'Il faut le droit « Gérer les membres » pour inviter des membres' }, 403)
+      if (!moi || !(await droitDe(moi, 'membres.gerer'))) return repondre({ erreur: 'Il faut le droit « Gérer les membres » pour inviter des membres' }, 403)
       if (!['email', 'sms', 'whatsapp'].includes(canal)) return repondre({ erreur: 'Canal inconnu' }, 400)
       // WhatsApp : les liens d'accès sont remis à la personne qui invite ; il faut le droit sur les comptes.
-      if (canal === 'whatsapp' && !(await droit(moi.id, 'membres.comptes'))) {
+      if (canal === 'whatsapp' && !(await droitDe(moi, 'membres.comptes'))) {
         return repondre({ erreur: "Les invitations par WhatsApp remettent les liens d'accès à la personne qui invite : il faut le droit « Gérer les comptes de connexion ». Utilisez l'email ou le SMS, ou demandez ce droit à l'administrateur." }, 403)
       }
       const ids = Array.isArray(membre_ids) ? [...new Set(membre_ids.map(String))].slice(0, 100) : []
@@ -468,8 +500,8 @@ Deno.serve(async (req) => {
     if (type === 'invitation') {
       const moi = await appelant()
       if (!moi) return repondre({ erreur: 'Non autorisé' }, 403)
-      if (membre_id && !(await droit(moi.id, 'membres.gerer'))) return repondre({ erreur: 'Il faut le droit « Gérer les membres » pour inviter un membre' }, 403)
-      if (!membre_id && !(await droit(moi.id, 'partenaires.gerer'))) return repondre({ erreur: 'Il faut le droit « Gérer les partenaires » pour inviter un partenaire' }, 403)
+      if (membre_id && !(await droitDe(moi, 'membres.gerer'))) return repondre({ erreur: 'Il faut le droit « Gérer les membres » pour inviter un membre' }, 403)
+      if (!membre_id && !(await droitDe(moi, 'partenaires.gerer'))) return repondre({ erreur: 'Il faut le droit « Gérer les partenaires » pour inviter un partenaire' }, 403)
       let destinataire: { prenom: string | null; email: string | null; user_id: string | null; partenaire: string | null; membre: string | null; acces: string | null } | null = null
       if (membre_id) {
         const { data } = await service.from('membres').select('id, prenom, email, user_id, actif').eq('id', membre_id).maybeSingle()
@@ -525,7 +557,7 @@ Deno.serve(async (req) => {
         if (await recents({ typeLike: '%-apercu', membre: m.id }, 60) >= 10) return repondre({ erreur: "10 aperçus par heure au plus : réessayez plus tard" }, 429)
         pour = m.id
       } else {
-        if (!(await droit(m.id, 'rappels.regler'))) return repondre({ erreur: "Il faut le droit « Régler les rappels » pour envoyer les rappels à tous" }, 403)
+        if (!(await droitDe(m, 'rappels.regler'))) return repondre({ erreur: "Il faut le droit « Régler les rappels » pour envoyer les rappels à tous" }, 403)
         // Envoi manuel à tous : pas deux fois en une heure.
         if (await recents({ type }, 60) > 0) return repondre({ erreur: 'Ces rappels sont déjà partis il y a moins d\'une heure' }, 429)
         // SMS aux bénéficiaires : seulement pour hier, aujourd'hui ou demain.

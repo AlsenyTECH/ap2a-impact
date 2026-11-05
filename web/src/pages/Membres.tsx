@@ -311,6 +311,7 @@ function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | n
             <Input type="email" value={v.email} disabled={!!existant?.user_id} onChange={(e) => setV({ ...v, email: e.target.value })} />
           </Champ>
           {existant?.user_id && peut('membres.comptes') ? <ChangerEmail membre={existant} apres={(email) => setV({ ...v, email })} /> : null}
+          {existant?.user_id && peut('membres.comptes') && !moiMeme ? <ReinitialiserDoubleAuth membre={existant} /> : null}
           <ChampsAdresse valeur={adresse} changer={setAdresse} />
           <ChampsEtudes niveau={v.niveau} competences={v.competences} changer={(niveau, competences) => setV({ ...v, niveau, competences })} />
           <Champ label="Fonction dans l'association"><Input value={v.fonction} placeholder="Présidente, trésorier, chargé de communication…" onChange={(e) => setV({ ...v, fonction: e.target.value })} /></Champ>
@@ -389,5 +390,26 @@ function ChangerEmail({ membre, apres }: { membre: Membre; apres: (email: string
         <Button type="button" size="sm" onClick={valider} disabled={envoi || !email.includes('@')}>Changer</Button>
       </div>
     </div>
+  )
+}
+
+/** Téléphone perdu : supprime la double authentification d'un membre (il la réactive à sa prochaine connexion). */
+function ReinitialiserDoubleAuth({ membre }: { membre: Membre }) {
+  const [envoi, setEnvoi] = useState(false)
+  async function reinitialiser() {
+    if (!confirm(`Réinitialiser la double authentification de ${membre.prenom} ${membre.nom} ?\n\nÀ faire seulement s'il ou elle a perdu ou changé de téléphone, et après avoir vérifié que c'est bien cette personne qui le demande. Ses sessions ouvertes seront fermées, et un email l'en préviendra.`)) return
+    setEnvoi(true)
+    const { data, error } = await supabase.functions.invoke('rappels', { body: { type: 'reinitialiser_2fa', membre_id: membre.id } })
+    setEnvoi(false)
+    if (error) {
+      const corps = await (error as { context?: Response }).context?.json?.().catch(() => null)
+      return toast.error(corps?.erreur ?? messageErreur(error))
+    }
+    toast.success(data?.facteurs ? 'Double authentification réinitialisée' : "Ce membre n'avait pas de double authentification")
+  }
+  return (
+    <button type="button" disabled={envoi} onClick={reinitialiser} className="text-left text-xs font-medium text-primary underline disabled:opacity-50">
+      Téléphone perdu ? Réinitialiser sa double authentification
+    </button>
   )
 }
