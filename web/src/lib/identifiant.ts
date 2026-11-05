@@ -11,6 +11,8 @@ export const DOMAINE_TELEPHONE = 'tel.ap2a.invalid'
 export function numeroIntl(t: string) {
   let d = t.replace(/\D/g, '')
   if (d.startsWith('00')) d = d.slice(2)
+  // « 0771234567 » (habitude d'autres pays) : le 0 initial n'existe pas au Sénégal.
+  if (d.length === 10 && d.startsWith('0')) d = d.slice(1)
   if (d.length === 9) d = `221${d}`
   return d
 }

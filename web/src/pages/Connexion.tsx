@@ -206,18 +206,29 @@ export function SansFiche({ email, deconnecter }: { email?: string; deconnecter:
  */
 export function Activer() {
   const [erreur, setErreur] = useState<string | null>(null)
-  useEffect(() => {
+  const [lien] = useState(() => {
     const p = new URLSearchParams(window.location.hash.slice(1))
-    const jeton = p.get('i') ?? p.get('r')
-    const type = p.get('i') ? 'invite' : 'recovery'
+    return { jeton: p.get('i') ?? p.get('r'), type: (p.get('i') ? 'invite' : 'recovery') as 'invite' | 'recovery' }
+  })
+  const [envoi, setEnvoi] = useState(false)
+  useEffect(() => {
+    // Le jeton quitte la barre d'adresse tout de suite (historique, captures d'écran).
     history.replaceState(null, '', '/activer')
-    if (!jeton) { setErreur("Ce lien est incomplet. Demandez au bureau de vous le renvoyer."); return }
-    supabase.auth.verifyOtp({ token_hash: jeton, type }).then(({ error }) => {
-      if (error) { setErreur("Ce lien a expiré ou a déjà servi. Demandez au bureau une nouvelle invitation."); return }
-      try { sessionStorage.setItem('ap2a-lien', type) } catch { /* stockage indisponible */ }
-      window.location.replace(`/nouveau-mot-de-passe${type === 'invite' ? '?bienvenue=1' : ''}`)
-    })
-  }, [])
+    if (!lien.jeton) setErreur('Ce lien est incomplet. Demandez au bureau de vous le renvoyer.')
+  }, [lien])
+  // Le lien n'est utilisé qu'au clic : un robot qui « ouvre » les liens reçus (antivirus,
+  // aperçu de messagerie) ne peut pas le consommer à votre place.
+  async function continuer() {
+    if (!lien.jeton) return
+    setEnvoi(true)
+    // Une autre session ouverte sur cet appareil est fermée d'abord.
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
+    const { error } = await supabase.auth.verifyOtp({ token_hash: lien.jeton, type: lien.type })
+    setEnvoi(false)
+    if (error) { setErreur('Ce lien a expiré ou a déjà servi. Demandez au bureau une nouvelle invitation.'); return }
+    try { sessionStorage.setItem('ap2a-lien', lien.type) } catch { /* stockage indisponible */ }
+    window.location.replace(`/nouveau-mot-de-passe${lien.type === 'invite' ? '?bienvenue=1' : ''}`)
+  }
   return (
     <div className="flex min-h-dvh items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
@@ -228,7 +239,48 @@ export function Activer() {
               <p className="font-medium">{erreur}</p>
               <Button variant="secondary" onClick={() => window.location.replace('/connexion')}>Aller à la connexion</Button>
             </>
-          ) : <p className="text-muted-foreground">Vérification de votre lien…</p>}
+          ) : (
+            <>
+              <h1 className="text-xl font-semibold">{lien.type === 'invite' ? "Bienvenue dans l'application AP2A" : 'Nouveau mot de passe'}</h1>
+              <p className="text-muted-foreground">Ce lien est personnel. Continuez pour choisir votre mot de passe.</p>
+              <Button className="w-full" disabled={envoi} onClick={continuer}>{envoi ? 'Vérification…' : 'Continuer'}</Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+/**
+ * Session expirée alors que des saisies faites sans réseau attendent : elles
+ * sont gardées, mais rien ne s'affiche tant que le mot de passe n'est pas redonné.
+ */
+export function Verrou({ identifiant, deverrouiller, deconnecter }: { identifiant: string | null; deverrouiller: (mdp: string) => Promise<string | null>; deconnecter: () => void }) {
+  const [motDePasse, setMotDePasse] = useState('')
+  const [envoi, setEnvoi] = useState(false)
+  async function valider(e: FormEvent) {
+    e.preventDefault()
+    setEnvoi(true)
+    const erreur = await deverrouiller(motDePasse)
+    setEnvoi(false)
+    if (erreur) toast.error(erreur)
+  }
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-sm">
+        <CardContent className="space-y-4 p-6">
+          <img src={logo} alt="AP2A" className="mx-auto h-14 rounded-lg bg-white object-contain p-1" />
+          <h1 className="text-center text-xl font-semibold">Application verrouillée</h1>
+          <p className="text-center text-sm text-muted-foreground">
+            Votre session a expiré. Des saisies faites sans réseau attendent d'être envoyées : elles sont gardées.
+            Redonnez votre mot de passe pour continuer{identifiant ? <> (<b>{identifiant}</b>)</> : null}.
+          </p>
+          <form onSubmit={valider} className="space-y-3">
+            <Input type="password" required autoFocus autoComplete="current-password" value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} placeholder="Mot de passe" />
+            <Button type="submit" className="w-full" disabled={envoi}>{envoi ? 'Patientez…' : 'Déverrouiller'}</Button>
+          </form>
+          <button type="button" onClick={deconnecter} className="w-full text-center text-xs text-muted-foreground underline">Se déconnecter (les saisies en attente seront perdues)</button>
         </CardContent>
       </Card>
     </div>

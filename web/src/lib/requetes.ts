@@ -1,6 +1,7 @@
 import { CHAMPS_ROLE } from './droits'
 import { useQuery } from '@tanstack/react-query'
 import { supabase, verifier } from './supabase'
+import { useAuth } from './auth'
 import { normaliser, trier } from './recherche'
 import type { Action, Beneficiaire, CategorieCible, Cible, FamilleCible, Membre, Partenaire, ProfilPersonne, TypeAction, Zone } from './types'
 
@@ -52,11 +53,23 @@ export const useProfils = () =>
     queryFn: async () => verifier(await supabase.from('profils_personne').select('*').order('ordre').order('libelle')) as ProfilPersonne[],
   })
 
-export const useMembres = () =>
-  useQuery({
-    queryKey: ['membres'],
-    queryFn: async () => verifier(await supabase.from('membres').select(`*, ${CHAMPS_ROLE}`).order('nom').order('prenom')) as Membre[],
+/**
+ * Colonnes des fiches membres lisibles par tous les membres. Email, téléphone,
+ * compte et réglages personnels ne le sont pas (audit M1) : la personne les lit
+ * avec ma_fiche, qui gère les membres avec membres_complets.
+ */
+export const CHAMPS_MEMBRE_PUBLIC = 'id, prenom, nom, role, role_id, fonction, numero_adherent, date_adhesion, actif, photo_chemin, niveau_etude, competences, cree_le, modifie_le'
+
+export const useMembres = () => {
+  const { peut } = useAuth()
+  const complet = peut('membres.gerer')
+  return useQuery({
+    queryKey: ['membres', complet],
+    queryFn: async () => complet
+      ? (verifier(await supabase.rpc('membres_complets')) ?? []) as Membre[]
+      : verifier(await supabase.from('membres').select(`${CHAMPS_MEMBRE_PUBLIC}, ${CHAMPS_ROLE}`).order('nom').order('prenom')) as unknown as Membre[],
   })
+}
 
 const CHAMPS_CIBLE = '*, zone:zones(chemin, nom), referent:membres!cibles_referent_id_fkey(prenom, nom, numero_adherent), categorie:categories_cible(libelle, famille:familles_cible(nom))'
 
@@ -136,3 +149,16 @@ export const useAction = (id: string) =>
     queryKey: ['action', id],
     queryFn: async () => verifier(await supabase.from('actions').select(CHAMPS_ACTION).eq('id', id).single()) as Action,
   })
+
+/** Colonnes des cartes lisibles : tout sauf le jeton du QR code (audit M2). */
+export const CHAMPS_CARTE = 'id, membre_id, cible_id, emise_le, emise_par, revoquee_le, jeton_hash'
+
+/** Jetons des cartes (pour afficher ou imprimer le QR code), seulement celles qu'on a le droit d'imprimer. */
+export async function jetonsDesCartes(ids: string[]) {
+  const jetons = new Map<string, string>()
+  for (let i = 0; i < ids.length; i += 200) {
+    const lot = (verifier(await supabase.rpc('jetons_cartes', { p_cartes: ids.slice(i, i + 200) })) ?? []) as { id: string; jeton: string }[]
+    for (const x of lot) jetons.set(x.id, x.jeton)
+  }
+  return jetons
+}

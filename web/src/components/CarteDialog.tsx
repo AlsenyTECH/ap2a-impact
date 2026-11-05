@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { CarteVisuelle, type TitulaireCarte } from '@/components/CarteQR'
 import { date } from '@/lib/format'
 import { usePhoto } from '@/lib/photos'
+import { CHAMPS_CARTE, jetonsDesCartes } from '@/lib/requetes'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 import type { Carte } from '@/lib/types'
 
@@ -30,8 +31,10 @@ export function CarteDialog({ ouvert, fermer, titulaire, membreId, cibleId, phot
     queryKey: cle,
     enabled: ouvert,
     queryFn: async () => {
-      const q = supabase.from('cartes').select('*').is('revoquee_le', null)
-      return (verifier(await (membreId ? q.eq('membre_id', membreId) : q.eq('cible_id', cibleId!)).maybeSingle()) as Carte | null)
+      const q = supabase.from('cartes').select(CHAMPS_CARTE).is('revoquee_le', null)
+      const c = verifier(await (membreId ? q.eq('membre_id', membreId) : q.eq('cible_id', cibleId!)).maybeSingle()) as Carte | null
+      if (!c) return null
+      return { ...c, jeton: (await jetonsDesCartes([c.id])).get(c.id) ?? '' } as Carte
     },
   })
   const photo = usePhoto(photoChemin)
@@ -64,7 +67,7 @@ export function CarteDialog({ ouvert, fermer, titulaire, membreId, cibleId, phot
         {isLoading ? null : carte ? (
           <>
             <div className="flex justify-center overflow-x-auto py-1">
-              <CarteVisuelle t={{ ...titulaire, jeton: carte.jeton, photo }} />
+              <CarteVisuelle t={{ ...titulaire, jeton: carte.jeton || null, photo }} />
             </div>
             <p className="text-center text-xs text-muted-foreground">Carte émise le {date(carte.emise_le.slice(0, 10))}{photoChemin ? '' : ' · sans photo (ajoutez-la sur la fiche)'}</p>
             <div className="flex flex-wrap justify-center gap-2">

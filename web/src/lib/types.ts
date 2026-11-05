@@ -204,7 +204,8 @@ export interface LigneJournal {
 /** Carte de membre ou de bénéficiaire (QR code). */
 export interface Carte {
   id: string
-  jeton: string
+  jeton?: string
+  jeton_hash?: string
   membre_id: string | null
   cible_id: string | null
   emise_le: string

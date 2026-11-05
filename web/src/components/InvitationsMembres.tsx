@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { lienWhatsApp } from '@/lib/format'
+import { useAuth } from '@/lib/auth'
 import { messageErreur, supabase } from '@/lib/supabase'
 import type { Membre } from '@/lib/types'
 
@@ -32,7 +33,9 @@ function empechement(m: Membre, canal: Canal, etat: string | undefined) {
  */
 export function InvitationsMembres({ membres, etats, fermer }: { membres: Membre[]; etats: Map<string, string>; fermer: () => void }) {
   const qc = useQueryClient()
-  const [canal, setCanal] = useState<Canal>(membres.some((m) => m.email) && membres.every((m) => m.email) ? 'email' : 'whatsapp')
+  // WhatsApp remet les liens d'accès à la personne qui invite : droit « Gérer les comptes » exigé.
+  const whatsapp = useAuth().peut('membres.comptes')
+  const [canal, setCanal] = useState<Canal>(membres.every((m) => m.email) ? 'email' : whatsapp ? 'whatsapp' : 'sms')
   const [envoi, setEnvoi] = useState(false)
   const [resultats, setResultats] = useState<Resultat[] | null>(null)
   const [ouverts, setOuverts] = useState<Set<string>>(new Set())
@@ -82,14 +85,18 @@ export function InvitationsMembres({ membres, etats, fermer }: { membres: Membre
                 <button
                   key={c}
                   type="button"
+                  disabled={c === 'whatsapp' && !whatsapp}
+                  title={c === 'whatsapp' && !whatsapp ? 'Il faut le droit « Gérer les comptes de connexion »' : undefined}
                   onClick={() => setCanal(c)}
-                  className={`flex flex-col items-center gap-1 rounded-xl border p-3 text-sm font-medium transition-colors ${canal === c ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/50'}`}
+                  className={`flex flex-col items-center gap-1 rounded-xl border p-3 text-sm font-medium transition-colors disabled:opacity-40 ${canal === c ? 'border-primary bg-primary/10 text-primary' : 'border-border enabled:hover:bg-muted/50'}`}
                 >
                   <Icone className="size-5" /> {libelle}
                 </button>
               ))}
             </div>
             <p className="text-xs text-muted-foreground">{CANAUX.find(([c]) => c === canal)?.[3]}</p>
+            {!whatsapp ? <p className="text-xs text-muted-foreground">WhatsApp : réservé à qui a le droit « Gérer les comptes de connexion », car les liens d'accès vous sont remis.</p> : null}
+            {canal === 'sms' ? <p className="text-xs text-muted-foreground">SMS : numéros sénégalais (+221) seulement.</p> : null}
             <div className="rounded-lg bg-muted/50 px-3 py-2 text-sm">
               <b>{possibles.length}</b> sur {membres.length} membre(s) sélectionné(s) recevront l'invitation{possibles.length ? ' :' : '.'}
               {possibles.length ? <div className="mt-0.5 text-xs">{possibles.map((m) => `${m.prenom} ${m.nom}`).join(', ')}</div> : null}

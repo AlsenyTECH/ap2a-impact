@@ -213,6 +213,8 @@ export function ApportForm({ ouvert, fermer, beneficiaires, partenaireParDefaut 
 /** Ouvre le justificatif dans un nouvel onglet (lien signé valable 5 minutes). */
 export async function ouvrirJustificatif(chemin: string) {
   const fenetre = window.open('', '_blank')
+  // La fenêtre du justificatif ne garde aucun lien vers l'application (window.opener).
+  if (fenetre) fenetre.opener = null
   const { data, error } = await supabase.storage.from('justificatifs').createSignedUrl(chemin, 300)
   if (error || !data) {
     fenetre?.close()

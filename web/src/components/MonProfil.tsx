@@ -48,7 +48,7 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
   const { data: actif } = useQuery({
     queryKey: ['mes-rappels', membre?.id],
     enabled: ouvert && !!membre,
-    queryFn: async () => (verifier(await supabase.from('membres').select('rappels_email').eq('id', membre!.id).single()) as { rappels_email: boolean }).rappels_email,
+    queryFn: async () => verifier(await supabase.rpc('mes_rappels_email')) as boolean,
   })
   const { data: journal = [] } = useQuery({
     queryKey: ['rappels-envoyes'],

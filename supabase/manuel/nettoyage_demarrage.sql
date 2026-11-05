@@ -21,15 +21,16 @@ delete from public.kits_modeles;
 delete from public.appartenances;
 delete from public.cartes
   where cible_id is not null
-     or membre_id not in (select id from public.membres where lower(email) in ('mathsnexus2024@gmail.com', 'thdiakhate@gmail.com'));
+     or membre_id not in (select id from public.membres where protege);
 delete from public.cibles;
 delete from public.acces_partenaires;
 delete from public.partenaires where nom <> 'Fonds de Financement de la Formation professionnelle et technique';
 delete from public.journal;
 delete from public.journal_medical;
 delete from public.donnees_demo;
-delete from public.membres where lower(coalesce(email, '')) not in ('mathsnexus2024@gmail.com', 'thdiakhate@gmail.com');
-delete from auth.users where lower(email) not in ('mathsnexus2024@gmail.com', 'thdiakhate@gmail.com');
+-- Comptes gardés : les fiches protégées (marque « protege », posée dans Supabase).
+delete from auth.users where id not in (select user_id from public.membres where protege and user_id is not null);
+delete from public.membres where not protege;
 
 commit;
 

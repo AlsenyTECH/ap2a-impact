@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@/components/ui/input'
 import { Champ, Pastilles } from '@/components/champs'
 import { Scanner } from '@/components/Scanner'
+import { empreinteJeton } from '@/components/CarteQR'
 import { OutilsListe } from '@/components/OutilsListe'
 import { correspond, trier } from '@/lib/recherche'
 import { Avatar, BlocDate } from '@/components/design'
@@ -76,9 +77,20 @@ export function Seances({ actionId, planifier, appel, voitBeneficiaires, debut, 
   const { data: inscrits = [] } = useQuery({
     queryKey: ['inscrits-appel', actionId],
     enabled: voitBeneficiaires,
-    queryFn: async () =>
-      verifier(await supabase.from('beneficiaires').select('id, statut, cible_id, cible:cibles!beneficiaires_cible_id_fkey(prenom, nom, type)')
-        .eq('action_id', actionId).neq('statut', 'abandon').order('ajoute_le')) as unknown as Inscrit[],
+    queryFn: async () => {
+      const liste = verifier(await supabase.from('beneficiaires').select('id, statut, cible_id, cible:cibles!beneficiaires_cible_id_fkey(prenom, nom, type)')
+        .eq('action_id', actionId).neq('statut', 'abandon').order('ajoute_le')) as unknown as Inscrit[]
+      // Équipe de terrain sans accès aux fiches : nom et prénom par la fonction dédiée.
+      if (liste.some((b) => !b.cible)) {
+        const parts = (verifier(await supabase.rpc('participants_equipe', { p_action: actionId })) ?? []) as { beneficiaire_id: string; prenom: string | null; nom: string; type: string }[]
+        const parBenef = new Map(parts.map((x) => [x.beneficiaire_id, x]))
+        for (const b of liste) {
+          const x = parBenef.get(b.id)
+          if (!b.cible && x) b.cible = { prenom: x.prenom, nom: x.nom, type: x.type } as Inscrit['cible']
+        }
+      }
+      return liste
+    },
   })
 
   const rafraichir = () => {
@@ -89,9 +101,9 @@ export function Seances({ actionId, planifier, appel, voitBeneficiaires, debut, 
   // Fin du scan : ceux qui n'ont pas été pointés peuvent être marqués absents d'un coup.
   // Cartes des participants, gardées dans le téléphone : le scan marche aussi sans réseau.
   const { data: cartesAction = [] } = useQuery({
-    queryKey: ['cartes-action', actionId, inscrits.length],
+    queryKey: ['cartes-action', 'empreintes', actionId, inscrits.length],
     enabled: appel && voitBeneficiaires && inscrits.length > 0,
-    queryFn: async () => verifier(await supabase.from('cartes').select('jeton, cible_id, revoquee_le').in('cible_id', inscrits.map((b) => b.cible_id).slice(0, 300))) as { jeton: string; cible_id: string; revoquee_le: string | null }[],
+    queryFn: async () => verifier(await supabase.from('cartes').select('jeton_hash, cible_id, revoquee_le').in('cible_id', inscrits.map((b) => b.cible_id).slice(0, 300))) as { jeton_hash: string; cible_id: string; revoquee_le: string | null }[],
   })
 
   // Présences ajoutées sur le téléphone, affichées tout de suite (avant l'envoi).
@@ -115,7 +127,8 @@ export function Seances({ actionId, planifier, appel, voitBeneficiaires, debut, 
       }
     }
     // Sans réseau : la carte est reconnue grâce à la liste gardée dans le téléphone.
-    const carte = cartesAction.find((c) => c.jeton === jeton)
+    const empreinte = await empreinteJeton(jeton)
+    const carte = cartesAction.find((c) => c.jeton_hash === empreinte)
     if (!carte) return { statut: 'inconnue' }
     const b = inscrits.find((i) => i.cible_id === carte.cible_id)
     if (carte.revoquee_le) return { statut: 'revoquee', prenom: b?.cible.prenom ?? undefined, nom: b?.cible.nom }

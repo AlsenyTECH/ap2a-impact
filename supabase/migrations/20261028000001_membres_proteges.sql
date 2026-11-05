@@ -27,5 +27,6 @@ create trigger membres_proteges_modif before update of protege, actif on public.
   for each row execute function public.garder_membre_protege();
 
 -- Les deux comptes fondateurs de l'application.
-update public.membres set protege = true
-  where lower(email) in ('mathsnexus2024@gmail.com', 'thdiakhate@gmail.com');
+-- La marque se pose sur les comptes fondateurs depuis le SQL Editor de Supabase
+-- (pas d'adresse personnelle dans le dépôt) :
+--   update public.membres set protege = true where id = '<identifiant de la fiche>';

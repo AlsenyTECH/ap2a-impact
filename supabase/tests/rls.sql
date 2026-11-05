@@ -20,6 +20,9 @@ create function t.qui(email text) returns void language sql as $$
 $$;
 create function t.cat(motif text) returns int language sql security definer as $$ select id from public.categories_cible where libelle like motif order by id limit 1 $$;
 create function t.profil(motif text) returns int language sql security definer as $$ select id from public.profils_personne where libelle like motif order by id limit 1 $$;
+-- Fiche d'un membre par son email (les colonnes de contact ne sont plus lisibles par les membres).
+create function t.m(email text) returns public.membres language sql security definer as $$ select * from public.membres where lower(membres.email) = lower(m.email) $$;
+create function t.jeton(carte uuid) returns text language sql security definer as $$ select jeton from public.cartes where id = carte $$;
 grant execute on all functions in schema t to authenticated, anon;
 grant select on auth.users to authenticated;
 
@@ -30,12 +33,13 @@ insert into membres (prenom, nom, email, role) values
   ('Moussa', 'Fall', 'coord@ap2a.sn', 'coordinateur'),
   ('Ibrahima', 'Sow', 'coord2@ap2a.sn', 'coordinateur'),
   ('Aminata', 'Ba', 'membre@ap2a.sn', 'membre');
+select set_config('request.jwt.claim.sub', '', false);
 insert into auth.users (email) values
   ('admin@ap2a.sn'), ('BUREAU@ap2a.sn'), ('coord@ap2a.sn'), ('coord2@ap2a.sn'), ('membre@ap2a.sn'), ('inconnu@gmail.com');
 update auth.users set email = lower(email);
 
 select t.ok((select count(*) from membres where user_id is not null) = 5, 'les 5 comptes sont reliés à leur fiche (email insensible à la casse)');
-select t.ok(numero_valide((select numero_adherent from membres where email = 'admin@ap2a.sn')) and (select numero_adherent from membres where email = 'admin@ap2a.sn') like 'M' || to_char(current_date, 'YY') || '-%', 'numéro d''adhérent automatique (aléatoire, contrôlé)');
+select t.ok(numero_valide((t.m('admin@ap2a.sn')).numero_adherent) and (t.m('admin@ap2a.sn')).numero_adherent like 'M' || to_char(current_date, 'YY') || '-%', 'numéro d''adhérent automatique (aléatoire, contrôlé)');
 select t.ok((select count(*) from zones where niveau = 'region') = 14, '14 régions');
 select t.ok((select count(*) from zones where niveau = 'departement') = 46, '46 départements');
 select t.ok(exists (select 1 from zones where chemin = 'Dakar > Dakar > Parcelles Assainies > Unité 17'), 'Unité 17 des Parcelles Assainies');
@@ -89,7 +93,7 @@ select t.ok((select telephone_normalise from cibles where nom = 'Diop') = '77000
 insert into actions (type_id, titre, date_debut, responsable_id)
   values ((select id from types_action where code = 'formation'), 'Formation électricité bâtiment', '2026-03-01', mon_membre_id());
 insert into action_partenaires values ((select id from actions), (select id from partenaires where sigle = '3FPT'), 'formateur');
-insert into action_equipe values ((select id from actions), (select id from membres where email = 'membre@ap2a.sn'), 'logistique');
+insert into action_equipe values ((select id from actions), (t.m('membre@ap2a.sn')).id, 'logistique');
 insert into beneficiaires (action_id, cible_id) values ((select id from actions), (select id from cibles where nom = 'Diop'));
 insert into apports (beneficiaire_id, nature, description, partenaire_id, numero_document)
   values ((select id from beneficiaires), 'certificat', 'Certificat électricité bâtiment', (select id from partenaires where sigle = '3FPT'), '3FPT-2026-0042');
@@ -97,7 +101,7 @@ insert into apports (beneficiaire_id, nature, description, valeur_fcfa)
   values ((select id from beneficiaires), 'kit', 'Kit d''électricien', 150000);
 insert into storage.objects (bucket_id, name) values ('justificatifs', (select id from beneficiaires) || '/certificat.jpg');
 select t.ok((select count(*) from apports) = 2, 'coordinateur : enregistre certificat (partenaire) et kit');
-update membres set role = 'admin' where email = 'coord@ap2a.sn';
+update membres set role = 'admin' where id = (t.m('coord@ap2a.sn')).id;
 select t.ok(mon_role() = 'coordinateur', 'coordinateur : ne peut pas se donner le rôle admin');
 select t.refuse($$insert into partenaires (nom) values ('X')$$, 'coordinateur : modifier les référentiels');
 
@@ -114,20 +118,23 @@ select t.ok((select notes from cibles where nom = 'Diop') is null, 'coordinateur
 -- ===== Membre simple =====
 select t.qui('membre@ap2a.sn');
 select t.ok((select count(*) from actions) = 1, 'membre : voit les actions');
-select t.ok((select count(*) from cibles) = 1, 'membre de l''équipe : voit seulement les bénéficiaires de son action');
+select t.ok((select count(*) from cibles) = 0, 'membre de l''équipe : ne lit pas les fiches complètes des bénéficiaires (vulnérabilités, notes…)');
+select t.ok((select count(*) from participants_equipe((select id from actions))) = 1
+  and (select prenom from participants_equipe((select id from actions))) = 'Mamadou', 'membre de l''équipe : nom et téléphone des participants de son action, pour l''appel');
 select t.ok((select count(*) from storage.objects) = 1, 'membre de l''équipe : voit le certificat');
 select t.refuse($$insert into actions (type_id, titre, date_debut) values (1, 'x', current_date)$$, 'membre : créer une action');
 reset role;
 delete from action_equipe;
 set role authenticated;
 select t.ok((select count(*) from cibles) = 0 and (select count(*) from apports) = 0, 'membre hors équipe : ne voit aucune donnée personnelle');
+select t.refuse($$select * from participants_equipe((select id from actions))$$, 'membre hors équipe : pas la liste des participants');
 
 -- ===== Séances et présences (action en cours) =====
 select t.qui('coord@ap2a.sn');
 insert into seances (action_id, date, heure_debut, heure_fin, theme) values
   ((select id from actions), '2026-03-02', '09:00', '12:00', 'Sécurité électrique'),
   ((select id from actions), '2026-03-03', '09:00', '12:00', 'Schémas électriques');
-insert into action_equipe values ((select id from actions), (select id from membres where email = 'membre@ap2a.sn'), 'Appel');
+insert into action_equipe values ((select id from actions), (t.m('membre@ap2a.sn')).id, 'Appel');
 select t.ok((select count(*) from seances) = 2, 'responsable : planifie les séances');
 select t.qui('membre@ap2a.sn');
 insert into presences (seance_id, beneficiaire_id, present) select id, (select id from beneficiaires), true from seances;
@@ -142,7 +149,7 @@ select t.qui('coord@ap2a.sn');
 select t.ok((emettre_carte(null, (select id from cibles where nom = 'Diop'))).jeton ~ '^[0-9a-f]{32}$', 'coordinateur : émet la carte d''un participant (jeton aléatoire)');
 select t.ok(numero_valide((select numero_beneficiaire from cibles where nom = 'Diop')) and (select numero_beneficiaire from cibles where nom = 'Diop') like 'B%', 'numéro de bénéficiaire attribué à la première carte');
 select t.refuse($$select emettre_carte(null, (select id from cibles where nom = 'ASC Jappo Unité 17'))$$, 'pas de carte pour un collectif');
-select t.refuse($$select emettre_carte((select id from membres where email = 'membre@ap2a.sn'))$$, 'coordinateur : carte d''un autre membre');
+select t.refuse($$select emettre_carte((t.m('membre@ap2a.sn')).id)$$, 'coordinateur : carte d''un autre membre');
 select t.ok((emettre_carte(mon_membre_id())).membre_id = mon_membre_id(), 'membre : obtient sa propre carte');
 select t.ok(emettre_cartes_action((select id from actions)) = 0, 'cartes de l''action : seulement ceux qui n''en ont pas');
 reset role;
@@ -150,7 +157,7 @@ select jeton as j_diop from cartes where cible_id is not null and revoquee_le is
 select jeton as j_coord from cartes where membre_id is not null and revoquee_le is null \gset
 set role anon;
 select t.ok(verifier_carte(:'j_diop') ->> 'statut' = 'valide' and verifier_carte(:'j_diop') ->> 'nom' = 'D.', 'vérification publique : carte valide, nom du bénéficiaire masqué');
-select t.ok(numero_valide(verifier_carte(:'j_coord') ->> 'numero') and verifier_carte(:'j_coord') ->> 'numero' like 'M%', 'vérification publique : numéro du membre');
+select t.ok(verifier_carte(:'j_coord') ->> 'numero' ~ '^M[0-9]{2}-' and verifier_carte(:'j_coord') ? 'role_nom' and not verifier_carte(:'j_coord') ? 'depuis', 'vérification publique : numéro et fonction du membre, rien de plus');
 select t.ok(verifier_carte('0000') ->> 'statut' = 'inconnue', 'vérification publique : jeton inconnu');
 select t.refuse($$select * from cartes$$, 'anonyme : ne lit pas la liste des cartes');
 reset role;
@@ -162,7 +169,7 @@ select t.ok(pointer_seance((select id from seances order by date desc limit 1), 
 select t.ok((select mode = 'scan' and pointe_le is not null from presences where seance_id = (select id from seances order by date desc limit 1)), 'scan : heure et mode du pointage');
 select t.ok(pointer_seance((select id from seances order by date limit 1), :'j_coord') ->> 'statut' = 'carte_membre', 'scan : une carte de membre n''est pas un participant');
 insert into storage.objects (bucket_id, name) values ('photos', 'membres/' || mon_membre_id() || '.jpg');
-select t.refuse($$insert into storage.objects (bucket_id, name) values ('photos', 'membres/' || (select id from membres where email = 'admin@ap2a.sn') || '.jpg')$$, 'membre : changer la photo d''un autre membre');
+select t.refuse($$insert into storage.objects (bucket_id, name) values ('photos', 'membres/' || (t.m('admin@ap2a.sn')).id || '.jpg')$$, 'membre : changer la photo d''un autre membre');
 select t.refuse($$insert into storage.objects (bucket_id, name) values ('photos', 'cibles/' || (select id from cibles limit 1) || '.jpg')$$, 'membre simple : photo d''un bénéficiaire');
 select t.qui('coord2@ap2a.sn');
 select t.refuse($$select pointer_seance((select id from seances limit 1), 'x')$$, 'hors équipe : pas de pointage');
@@ -176,14 +183,14 @@ insert into evenements (titre, type, date) values ('Assemblée générale 2026',
 select t.ok(pointer_evenement((select id from evenements), :'j_coord') ->> 'statut' = 'ok', 'événement : pointage par scan');
 select t.ok(pointer_evenement((select id from evenements), :'j_coord') ->> 'statut' = 'deja', 'événement : double scan signalé');
 select t.ok(pointer_evenement((select id from evenements), :'j_diop') ->> 'statut' = 'carte_beneficiaire', 'événement : carte de bénéficiaire refusée');
-insert into evenement_presences (evenement_id, membre_id) values ((select id from evenements), (select id from membres where email = 'membre@ap2a.sn'));
+insert into evenement_presences (evenement_id, membre_id) values ((select id from evenements), (t.m('membre@ap2a.sn')).id);
 select t.ok((select count(*) from evenement_presences) = 2, 'événement : pointage manuel');
 -- Clôture d'un événement
 select t.qui('coord@ap2a.sn');
 update evenements set cloture_le = now();
 select t.ok((select cloture_par from evenements) = mon_membre_id(), 'événement clôturé par son créateur, auteur noté');
 select t.ok(pointer_evenement((select id from evenements), :'j_coord') ->> 'statut' = 'cloture', 'événement clôturé : scan refusé');
-select t.refuse($$insert into evenement_presences (evenement_id, membre_id) values ((select id from evenements), (select id from membres where email = 'admin@ap2a.sn'))$$, 'événement clôturé : pointage manuel refusé');
+select t.refuse($$insert into evenement_presences (evenement_id, membre_id) values ((select id from evenements), (t.m('admin@ap2a.sn')).id)$$, 'événement clôturé : pointage manuel refusé');
 select t.refuse($$delete from evenement_presences$$, 'événement clôturé : retirer une présence');
 select t.refuse($$update evenements set lieu = 'Ailleurs'$$, 'événement clôturé : modifier les informations');
 update evenements set compte_rendu = 'Bureau réélu à l''unanimité.';
@@ -224,6 +231,7 @@ select t.refuse($$insert into acces_partenaires (partenaire_id, type, nom, email
 select t.qui('coord@ap2a.sn');
 select t.refuse($$insert into acces_partenaires (partenaire_id, type, nom, email) values ((select id from partenaires limit 1), 'bailleur', 'X', 'x@x.sn')$$, 'coordinateur : inviter un partenaire');
 reset role;
+select set_config('request.jwt.claim.sub', '', false);
 insert into auth.users (email) values ('formateur@3fpt.sn'), ('medecin@sante.sn'), ('bailleur@fondation.sn');
 select t.ok((select count(*) from acces_partenaires where user_id is not null) = 3, 'comptes des partenaires reliés à leur invitation');
 set role authenticated;
@@ -243,12 +251,26 @@ select t.ok(enregistrer_consultation(:'b1', 'oriente', 'Cataracte œil gauche', 
 select t.ok(lire_consultations(:'a1') -> 0 -> 'detail' ->> 'diagnostic' = 'Cataracte œil gauche', 'soignant : relit ses notes');
 select t.refuse($$select * from consultations_notes$$, 'notes médicales : jamais en accès direct');
 select t.qui('coord@ap2a.sn');
-select t.ok(lire_consultations(:'a1') -> 0 -> 'detail' ->> 'orientation' = 'Hôpital de Pikine', 'responsable de l''action : lit le détail médical');
+select t.ok(lire_consultations(:'a1') -> 0 -> 'detail' = 'null'::jsonb, 'responsable de l''action : ne lit plus le détail médical sans le droit dédié');
 select t.ok((select count(*) from consultations where statut = 'oriente') = 1, 'équipe : voit le résultat de la consultation');
 select t.qui('bureau@ap2a.sn');
-select t.ok(lire_consultations(:'a1') -> 0 ->> 'statut' = 'oriente' and lire_consultations(:'a1') -> 0 -> 'detail' = 'null'::jsonb, 'bureau (non responsable) : résultat sans le détail médical');
+-- Se nommer responsable de l'action ne donne plus accès aux notes (faille E3).
+update actions set responsable_id = mon_membre_id() where id = :'a1';
+select t.ok(lire_consultations(:'a1') -> 0 ->> 'statut' = 'oriente' and lire_consultations(:'a1') -> 0 -> 'detail' = 'null'::jsonb, 'bureau qui se nomme responsable : résultat sans le détail médical');
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+update actions set responsable_id = (t.m('coord@ap2a.sn')).id where id = :'a1';
+insert into roles (nom, permissions) values ('Médecin référent', array['cibles.voir', 'medical.lire']);
+update membres set role_id = (select id from roles where nom = 'Médecin référent') where id = (t.m('coord2@ap2a.sn')).id;
+set role authenticated;
+select t.qui('coord2@ap2a.sn');
+select t.ok(lire_consultations(:'a1') -> 0 -> 'detail' ->> 'orientation' = 'Hôpital de Pikine', 'droit « Lire les notes médicales » : lit le détail');
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+update membres set role_id = (select id from roles where code = 'coordinateur') where id = (t.m('coord2@ap2a.sn')).id;
+set role authenticated;
 select t.qui('admin@ap2a.sn');
-select t.ok((select count(*) from journal_medical) = 1 and (select qui from journal_medical) like 'Moussa Fall%', 'lecture du détail médical notée au journal');
+select t.ok((select count(*) from journal_medical) = 1 and (select qui from journal_medical) like 'Ibrahima Sow%', 'lecture du détail médical notée au journal');
 select t.qui('bailleur@fondation.sn');
 select t.refuse($$select portail_participants(t.a1())$$, 'bailleur : aucun nom de bénéficiaire');
 select t.ok((portail_rapport(:'a1') ->> 'beneficiaires')::int = 1 and (portail_rapport(:'a1') -> 'consultations' ->> 'oriente')::int = 1, 'bailleur : rapport chiffré anonyme');
@@ -268,7 +290,7 @@ select t.refuse($$update beneficiaires set statut = 'abandon'$$, 'clôturée : c
 select t.refuse($$delete from beneficiaires$$, 'clôturée : retirer un bénéficiaire');
 select t.refuse($$insert into apports (beneficiaire_id, nature, description) values ((select id from beneficiaires), 'don', 'x')$$, 'clôturée : ajouter un apport');
 select t.refuse($$delete from apports$$, 'clôturée : retirer un apport');
-select t.refuse($$insert into action_equipe values ((select id from actions), (select id from membres where email = 'coord2@ap2a.sn'), null)$$, 'clôturée : modifier l''équipe');
+select t.refuse($$insert into action_equipe values ((select id from actions), (t.m('coord2@ap2a.sn')).id, null)$$, 'clôturée : modifier l''équipe');
 select t.refuse($$insert into seances (action_id, date) values ((select id from actions), current_date)$$, 'clôturée : ajouter une séance');
 select t.refuse($$update presences set present = false$$, 'clôturée : modifier l''appel');
 select t.refuse($$update actions set titre = 'Autre titre'$$, 'clôturée : modifier l''action');
@@ -280,12 +302,12 @@ select t.ok(exists (select 1 from journal where table_nom = 'actions' and detail
 select t.ok(exists (select 1 from journal where table_nom = 'beneficiaires' and operation = 'INSERT' and libelle = 'Mamadou Diop'), 'journal : ajout de bénéficiaire enregistré avec son nom');
 select t.ok(exists (select 1 from journal where table_nom = 'action_equipe' and libelle like 'Aminata Ba (M%-%)'), 'journal : membre d''équipe identifié par son numéro');
 select t.refuse($$insert into journal (table_nom, operation) values ('x', 'y')$$, 'journal : écriture directe interdite');
-select t.refuse($$update membres set role = 'bureau' where email = 'membre@ap2a.sn'$$, 'bureau : changer un rôle');
+select t.refuse($$update membres set role = 'bureau' where id = (t.m('membre@ap2a.sn')).id$$, 'bureau : changer un rôle');
 select t.qui('admin@ap2a.sn');
-update membres set role = 'coordinateur' where email = 'membre@ap2a.sn';
-select t.ok((select role from membres where email = 'membre@ap2a.sn') = 'coordinateur', 'admin : change le rôle d''un membre');
-select t.refuse($$update membres set role = 'membre' where email = 'admin@ap2a.sn'$$, 'admin : changer son propre rôle');
-update membres set actif = false where email = 'coord2@ap2a.sn';
+update membres set role = 'coordinateur' where id = (t.m('membre@ap2a.sn')).id;
+select t.ok((t.m('membre@ap2a.sn')).role = 'coordinateur', 'admin : change le rôle d''un membre');
+select t.refuse($$update membres set role = 'membre' where id = (t.m('admin@ap2a.sn')).id$$, 'admin : changer son propre rôle');
+update membres set actif = false where id = (t.m('coord2@ap2a.sn')).id;
 select t.qui('coord2@ap2a.sn');
 select t.ok((select count(*) from actions) = 0, 'membre désactivé : plus aucun accès');
 
@@ -294,7 +316,7 @@ select t.ok((select count(*) from actions) = 0, 'membre désactivé : plus aucun
 select t.qui('admin@ap2a.sn');
 select t.ok((select count(*) from suivis) = 3, 'clôture : 3 suivis planifiés pour le bénéficiaire');
 select t.ok((select array_agg(date_prevue order by echeance_mois) from suivis) = '{2026-08-31,2026-11-30,2027-05-31}'::date[], 'dates prévues à 3, 6 et 12 mois après la fin');
-select t.ok((select charge_id from suivis_detail limit 1) = (select id from membres where email = 'coord@ap2a.sn'), 'chargé du suivi : le responsable de l''action (pas de référent)');
+select t.ok((select charge_id from suivis_detail limit 1) = (t.m('coord@ap2a.sn')).id, 'chargé du suivi : le responsable de l''action (pas de référent)');
 update actions set statut = 'en_cours';
 select t.ok((select statut from actions) = 'en_cours', 'admin : rouvre une action clôturée');
 update actions set date_fin = '2026-06-30';
@@ -324,14 +346,14 @@ select t.ok((select cible_groupes from suivis_detail limit 1) like 'ASC Jappo%' 
 
 -- Un coordinateur qui n'est ni responsable ni référent ne renseigne pas.
 reset role;
-update membres set actif = true where email = 'coord2@ap2a.sn';
+update membres set actif = true where id = (t.m('coord2@ap2a.sn')).id;
 set role authenticated;
 select t.qui('coord2@ap2a.sn');
 update suivis set commentaire = 'piraté' where echeance_mois = 6;
 select t.ok((select commentaire from suivis where echeance_mois = 6) is null, 'autre coordinateur : ne renseigne pas le suivi');
 -- ... sauf s'il devient le référent de la cible.
 select t.qui('admin@ap2a.sn');
-update cibles set referent_id = (select id from membres where email = 'coord2@ap2a.sn');
+update cibles set referent_id = (t.m('coord2@ap2a.sn')).id;
 select t.qui('coord2@ap2a.sn');
 update suivis set commentaire = 'Appel fait' where echeance_mois = 6;
 select t.ok((select commentaire from suivis where echeance_mois = 6) = 'Appel fait', 'référent de la cible : renseigne le suivi');
@@ -356,7 +378,7 @@ select t.qui('coord2@ap2a.sn');
 select regler_rappels(false);
 reset role;
 select t.ok(not exists (select 1 from jsonb_array_elements(donnees_rappels('hebdo')) x where x->>'email' = 'coord2@ap2a.sn'), 'rappels désactivés : plus d''email');
-select t.ok(jsonb_array_length(donnees_rappels('hebdo', (select id from membres where email = 'coord2@ap2a.sn'))) = 1, 'aperçu : envoyé même si les rappels sont désactivés');
+select t.ok(jsonb_array_length(donnees_rappels('hebdo', (t.m('coord2@ap2a.sn')).id)) = 1, 'aperçu : envoyé même si les rappels sont désactivés');
 select t.ok(donnees_rappels('seances') = '[]', 'rappel séances : aucune séance aujourd''hui');
 -- Expiration : un mois après la fin d'une action clôturée.
 select t.qui('medecin@sante.sn');
@@ -375,7 +397,7 @@ insert into vitrine_medias (type, chemin, titre, publie) values
   ('photo', '22222222-2222-2222-2222-222222222222.webp', 'Brouillon', false);
 insert into vitrine_medias (type, youtube_id, emplacement, titre, publie) values ('youtube', 'dQw4w9WgXcQ', 'video', 'Le film', true);
 select t.ok((select count(*) from vitrine_medias) = 3, 'médias vitrine : le bureau voit aussi les brouillons');
-select t.ok((select cree_par from vitrine_medias where titre = 'Le film') = (select id from membres where email = 'bureau@ap2a.sn'), 'médias vitrine : auteur noté');
+select t.ok((select cree_par from vitrine_medias where titre = 'Le film') = (t.m('bureau@ap2a.sn')).id, 'médias vitrine : auteur noté');
 select t.refuse($$insert into vitrine_medias (type, chemin) values ('photo', '../../etc/passwd')$$, 'médias vitrine : chemin de fichier contrôlé');
 select t.refuse($$insert into vitrine_medias (type, youtube_id, emplacement) values ('youtube', 'x"><script>', 'video')$$, 'médias vitrine : identifiant YouTube contrôlé');
 select t.refuse($$insert into storage.objects (bucket_id, name) values ('photos', 'vitrine-pas-ici.webp')$$, 'médias vitrine : pas de dépôt hors règles dans « photos »');
@@ -422,7 +444,7 @@ select t.ok(rappels_dus('2030-01-04 06:30') = array['seances'], 'planification :
 set role authenticated;
 select t.qui('bureau@ap2a.sn');
 insert into actions (type_id, titre, date_debut, responsable_id, lieu)
-  values ((select id from types_action where code = 'formation'), 'Couture 2026', current_date, (select id from membres where email = 'coord2@ap2a.sn'), 'Unité 17');
+  values ((select id from types_action where code = 'formation'), 'Couture 2026', current_date, (t.m('coord2@ap2a.sn')).id, 'Unité 17');
 update cibles set telephone = '77 123 45 67', rappels_accord = true where prenom = 'Coumba';
 insert into beneficiaires (action_id, cible_id) select id, (select id from cibles where prenom = 'Coumba') from actions where titre = 'Couture 2026';
 insert into beneficiaires (action_id, cible_id) select id, (select id from cibles where nom = 'Diop') from actions where titre = 'Couture 2026';
@@ -444,13 +466,13 @@ select t.qui('membre@ap2a.sn');
 select t.ok((select count(*) from rappels_cibles_a_envoyer()) = 0, 'rappels bénéficiaires : un membre hors de l''action ne voit rien');
 select t.qui('admin@ap2a.sn');
 reset role;
-update membres set role = 'membre' where email = 'coord2@ap2a.sn';
+update membres set role = 'membre' where id = (t.m('coord2@ap2a.sn')).id;
 set role authenticated;
 select t.qui('coord2@ap2a.sn');
 select t.ok((select count(*) from rappels_cibles_a_envoyer()) = 0, 'rappels bénéficiaires : un ancien responsable devenu simple membre ne voit plus les numéros');
 select t.qui('admin@ap2a.sn');
 reset role;
-update membres set role = 'coordinateur' where email = 'coord2@ap2a.sn';
+update membres set role = 'coordinateur' where id = (t.m('coord2@ap2a.sn')).id;
 set role authenticated;
 select t.qui('membre@ap2a.sn');
 select t.refuse($$select noter_rappel((select id from cibles where prenom = 'Coumba'), 'suivi', (select id from suivis where echeance_mois = 1 and date_prevue = current_date + 3))$$, 'rappels bénéficiaires : noter un rappel hors de ses actions');
@@ -500,8 +522,8 @@ select t.refuse($$update apports set signature_chemin = 'x.png' where descriptio
 select t.refuse($$update apports set signature_chemin = beneficiaire_id || '/../' || (select id from beneficiaires limit 1 offset 0) || '/x.png' where description = 'Kit couture'$$, 'signature : chemin avec « .. »');
 select emettre_carte(p_cible := (select id from cibles where prenom = 'Coumba'));
 select t.qui('coord2@ap2a.sn');
-select t.ok((carte_pour_remise((select id from actions where titre = 'Couture 2026'), (select jeton from cartes where cible_id = (select id from cibles where prenom = 'Coumba') and revoquee_le is null), (select id from kits_modeles where nom = 'Kit couture')) ->> 'statut') = 'deja', 'remise par scan : « a déjà reçu ce kit »');
-select t.ok((carte_pour_remise((select id from actions where titre = 'Couture 2026'), (select jeton from cartes where cible_id = (select id from cibles where prenom = 'Coumba') and revoquee_le is null), null) ->> 'statut') = 'ok', 'remise par scan : la personne est reconnue');
+select t.ok((carte_pour_remise((select id from actions where titre = 'Couture 2026'), t.jeton((select id from cartes where cible_id = (select id from cibles where prenom = 'Coumba') and revoquee_le is null)), (select id from kits_modeles where nom = 'Kit couture')) ->> 'statut') = 'deja', 'remise par scan : « a déjà reçu ce kit »');
+select t.ok((carte_pour_remise((select id from actions where titre = 'Couture 2026'), t.jeton((select id from cartes where cible_id = (select id from cibles where prenom = 'Coumba') and revoquee_le is null)), null) ->> 'statut') = 'ok', 'remise par scan : la personne est reconnue');
 select t.ok((carte_pour_remise((select id from actions where titre = 'Couture 2026'), 'nimportequoi', null) ->> 'statut') = 'inconnue', 'remise par scan : carte inconnue');
 select t.qui('membre@ap2a.sn');
 select t.refuse($$select carte_pour_remise((select id from actions where titre = 'Couture 2026'), 'x', null)$$, 'remise par scan : réservée à qui gère l''action');
@@ -525,8 +547,8 @@ select t.refuse($$insert into roles (nom, permissions) values ('X', array['incon
 select t.refuse($$update roles set permissions = '{}' where code = 'admin'$$, 'les droits de l''administrateur ne changent pas');
 delete from roles where code = 'bureau';
 select t.ok(exists (select 1 from roles where code = 'bureau'), 'un rôle d''origine ne se supprime pas');
-update membres set role_id = (select id from roles where nom = 'Magasinier') where email = 'coord2@ap2a.sn';
-select t.ok((select role from membres where email = 'coord2@ap2a.sn') = 'membre', 'rôle personnalisé attribué');
+update membres set role_id = (select id from roles where nom = 'Magasinier') where id = (t.m('coord2@ap2a.sn')).id;
+select t.ok((t.m('coord2@ap2a.sn')).role = 'membre', 'rôle personnalisé attribué');
 select t.qui('coord2@ap2a.sn');
 select t.ok(a_permission('kits.gerer') and not a_permission('cibles.voir') and not voit_cibles(), 'magasinier : les kits, pas les cibles');
 insert into kits_mouvements (modele_id, quantite, motif) select id, 3, 'don' from kits_modeles where nom = 'Kit couture';
@@ -535,45 +557,49 @@ select t.refuse($$insert into partenaires (nom) values ('Test magasinier')$$, 'm
 select t.ok(not peut_gerer_action((select id from actions where titre = 'Couture 2026')), 'magasinier : ne gère plus l''action dont il est responsable');
 select t.qui('bureau@ap2a.sn');
 select t.refuse($$insert into roles (nom, permissions) values ('Y', '{}')$$, 'bureau : ne crée pas de rôle');
-select t.refuse($$update membres set role_id = (select id from roles where code = 'coordinateur') where email = 'coord2@ap2a.sn'$$, 'bureau : n''attribue pas de rôle');
+select t.refuse($$update membres set role_id = (select id from roles where code = 'coordinateur') where id = (t.m('coord2@ap2a.sn')).id$$, 'bureau : n''attribue pas de rôle');
 select t.qui('admin@ap2a.sn');
 insert into roles (nom, permissions) values ('Gestion des rôles', array['roles.gerer', 'membres.gerer', 'kits.gerer']);
-update membres set role_id = (select id from roles where nom = 'Gestion des rôles') where email = 'coord@ap2a.sn';
+update membres set role_id = (select id from roles where nom = 'Gestion des rôles') where id = (t.m('coord@ap2a.sn')).id;
 select t.qui('coord@ap2a.sn');
 select t.refuse($$insert into roles (nom, permissions) values ('Trop', array['cibles.gerer'])$$, 'pas de rôle avec un droit qu''on n''a pas');
 select t.refuse($$update roles set permissions = permissions || 'cibles.gerer'::text where nom = 'Magasinier'$$, 'pas d''ajout d''un droit qu''on n''a pas');
-select t.refuse($$update membres set role_id = (select id from roles where code = 'admin') where email = 'coord2@ap2a.sn'$$, 'pas d''attribution d''un rôle plus puissant que le sien');
-select t.refuse($$update membres set role_id = (select id from roles where code = 'membre') where email = 'admin@ap2a.sn'$$, 'pas de rétrogradation de plus puissant que soi');
-select t.refuse($$update membres set role_id = (select id from roles where code = 'membre') where email = 'coord@ap2a.sn'$$, 'pas de changement de son propre rôle');
-update membres set role_id = (select id from roles where code = 'membre') where email = 'coord2@ap2a.sn';
-select t.ok((select role from membres where email = 'coord2@ap2a.sn') = 'membre', 'gestion des rôles : attribue un rôle dans ses droits');
+select t.refuse($$update membres set role_id = (select id from roles where code = 'admin') where id = (t.m('coord2@ap2a.sn')).id$$, 'pas d''attribution d''un rôle plus puissant que le sien');
+select t.refuse($$update membres set role_id = (select id from roles where code = 'membre') where id = (t.m('admin@ap2a.sn')).id$$, 'pas de rétrogradation de plus puissant que soi');
+select t.refuse($$update membres set role_id = (select id from roles where code = 'membre') where id = (t.m('coord@ap2a.sn')).id$$, 'pas de changement de son propre rôle');
+update membres set role_id = (select id from roles where code = 'membre') where id = (t.m('coord2@ap2a.sn')).id;
+select t.ok((t.m('coord2@ap2a.sn')).role = 'membre', 'gestion des rôles : attribue un rôle dans ses droits');
 select t.qui('admin@ap2a.sn');
 update roles set permissions = array['membres.gerer', 'kits.gerer'] where nom = 'Gestion des rôles';
-select t.refuse($$update membres set actif = false where email = 'admin@ap2a.sn'$$, 'il reste toujours quelqu''un pour gérer les rôles');
+select t.refuse($$update membres set actif = false where id = (t.m('admin@ap2a.sn')).id$$, 'il reste toujours quelqu''un pour gérer les rôles');
 update roles set description = 'Tous les droits.' where code = 'admin';
 select t.ok((select description from roles where code = 'admin') = 'Tous les droits.', 'administrateur : nom et description modifiables');
 insert into roles (nom, permissions) values ('Comptes', array['membres.gerer', 'membres.comptes']);
 insert into membres (prenom, nom, email) values ('Fiche', 'Puissante', 'puissante@ap2a.sn');
-update membres set role_id = (select id from roles where code = 'admin') where email = 'puissante@ap2a.sn';
-update membres set role_id = (select id from roles where nom = 'Comptes') where email = 'coord2@ap2a.sn';
+update membres set role_id = (select id from roles where code = 'admin') where id = (t.m('puissante@ap2a.sn')).id;
+update membres set role_id = (select id from roles where nom = 'Comptes') where id = (t.m('coord2@ap2a.sn')).id;
 select t.qui('coord2@ap2a.sn');
-select t.refuse($$update membres set user_id = (select id from auth.users where email = 'inconnu@gmail.com') where email = 'admin@ap2a.sn'$$, 'comptes : ne prend pas le compte de plus puissant que soi');
-select t.refuse($$update membres set email = 'pirate@evil.sn' where email = 'puissante@ap2a.sn'$$, 'pas de changement d''email d''une fiche plus puissante non reliée');
+select t.refuse($$update membres set user_id = (select id from auth.users where email = 'inconnu@gmail.com') where id = (t.m('admin@ap2a.sn')).id$$, 'comptes : ne prend pas le compte de plus puissant que soi');
+select t.refuse($$update membres set email = 'pirate@evil.sn' where id = (t.m('puissante@ap2a.sn')).id$$, 'pas de changement d''email d''une fiche plus puissante non reliée');
 select t.qui('bureau@ap2a.sn');
 select t.refuse($$insert into membres (prenom, nom, user_id) values ('X', 'Y', (select id from auth.users where email = 'inconnu@gmail.com'))$$, 'pas de compte relié à la création sans le droit « comptes »');
-select t.refuse($$update membres set email = 'pirate@evil.sn' where email = 'puissante@ap2a.sn'$$, 'bureau : pas d''email changé sur une fiche admin non reliée');
+select t.refuse($$update membres set email = 'pirate@evil.sn' where id = (t.m('puissante@ap2a.sn')).id$$, 'bureau : pas d''email changé sur une fiche admin non reliée');
 select t.qui('admin@ap2a.sn');
 update roles set permissions = array['roles.gerer', 'membres.gerer', 'kits.gerer'] where nom = 'Comptes';
 select t.qui('coord2@ap2a.sn');
 select t.refuse($$update roles set permissions = '{kits.gerer}' where code = 'bureau'$$, 'pas de retrait de droits qu''on n''a pas');
 select t.qui('admin@ap2a.sn');
-update membres set role = 'bureau' where email = 'coord2@ap2a.sn';
-select t.ok((select r.code from membres m join roles r on r.id = m.role_id where m.email = 'coord2@ap2a.sn') = 'bureau', 'ancien champ rôle : le rôle suit');
-update membres set role = 'coordinateur' where email in ('coord@ap2a.sn', 'coord2@ap2a.sn');
+update membres set role = 'bureau' where id = (t.m('coord2@ap2a.sn')).id;
+select t.ok((select r.code from membres m join roles r on r.id = m.role_id where m.id = (t.m('coord2@ap2a.sn')).id) = 'bureau', 'ancien champ rôle : le rôle suit');
+update membres set role = 'coordinateur' where id in ((t.m('coord@ap2a.sn')).id, (t.m('coord2@ap2a.sn')).id);
 delete from roles where nom = 'Magasinier';
-update membres set actif = false where email = 'puissante@ap2a.sn';
+update membres set actif = false where id = (t.m('puissante@ap2a.sn')).id;
 select t.ok(not exists (select 1 from roles where nom = 'Magasinier'), 'rôle personnalisé inutilisé supprimé');
-select t.ok(membre_a_permission((select id from membres where email = 'coord@ap2a.sn'), 'impact.voir') and not membre_a_permission((select id from membres where email = 'coord@ap2a.sn'), 'kits.gerer'), 'droits d''un autre membre');
+select t.refuse($$select membre_a_permission((t.m('coord@ap2a.sn')).id, 'impact.voir')$$, 'droits d''un autre membre : pas lisibles depuis l''application');
+select t.refuse($$select droits_membre((t.m('coord@ap2a.sn')).id)$$, 'liste des droits d''un autre membre : pas lisible');
+reset role;
+select t.ok(membre_a_permission((t.m('coord@ap2a.sn')).id, 'impact.voir') and not membre_a_permission((t.m('coord@ap2a.sn')).id, 'kits.gerer'), 'droits d''un autre membre (fonctions internes)');
+set role authenticated;
 reset role;
 set role authenticated;
 select t.qui('coord@ap2a.sn');
@@ -630,22 +656,23 @@ update cibles set retiree_le = null where nom = 'Aretirer';
 select t.ok((select retiree_le is null and retiree_par is null from cibles where nom = 'Aretirer'), 'cible réintégrée');
 select t.qui('coord@ap2a.sn');
 select t.refuse($$update cibles set retiree_le = now() where nom = 'Diop'$$, 'coordinateur : ne retire pas une cible');
-select t.refuse($$select supprimer_membre((select id from membres where email = 'membre@ap2a.sn'))$$, 'coordinateur : ne supprime pas un membre');
+select t.refuse($$select supprimer_membre((t.m('membre@ap2a.sn')).id)$$, 'coordinateur : ne supprime pas un membre');
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
 insert into membres (prenom, nom, email) values ('Partant', 'Test', 'partant@ap2a.sn');
+select set_config('request.jwt.claim.sub', '', false);
 insert into auth.users (email) values ('partant@ap2a.sn');
 set role authenticated;
 select t.qui('admin@ap2a.sn');
 select t.refuse($$select supprimer_membre(mon_membre_id())$$, 'admin : ne supprime pas sa propre fiche');
-select supprimer_membre((select id from membres where email = 'partant@ap2a.sn'));
+select supprimer_membre((t.m('partant@ap2a.sn')).id);
 reset role;
-select t.ok(not exists (select 1 from membres where email = 'partant@ap2a.sn') and not exists (select 1 from auth.users where email = 'partant@ap2a.sn'), 'membre supprimé avec son compte de connexion');
+select t.ok(not exists (select 1 from membres where lower(email) = 'partant@ap2a.sn') and not exists (select 1 from auth.users where email = 'partant@ap2a.sn'), 'membre supprimé avec son compte de connexion');
 
 -- ===== Adresses des membres =====
 set role authenticated;
 select t.qui('admin@ap2a.sn');
-insert into membres_adresses (membre_id, adresse, zone_id) values ((select id from membres where email = 'membre@ap2a.sn'), 'Villa 123, près de la mosquée', (select id from zones where nom = 'Unité 17'));
+insert into membres_adresses (membre_id, adresse, zone_id) values ((t.m('membre@ap2a.sn')).id, 'Villa 123, près de la mosquée', (select id from zones where nom = 'Unité 17'));
 select t.ok((select count(*) from membres_adresses) = 1, 'gestion des membres : saisit et lit une adresse');
 select t.qui('membre@ap2a.sn');
 select t.ok((select adresse from membres_adresses) = 'Villa 123, près de la mosquée', 'membre : lit sa propre adresse');
@@ -653,7 +680,7 @@ update membres_adresses set adresse = 'Villa 124' where membre_id = mon_membre_i
 select t.ok((select adresse from membres_adresses) = 'Villa 124', 'membre : corrige sa propre adresse');
 select t.qui('coord@ap2a.sn');
 select t.ok((select count(*) from membres_adresses) = 0, 'autre membre : ne voit pas les adresses');
-select t.refuse($$insert into membres_adresses (membre_id, adresse) values ((select id from membres where email = 'bureau@ap2a.sn'), 'x')$$, 'autre membre : ne saisit pas l''adresse d''un autre');
+select t.refuse($$insert into membres_adresses (membre_id, adresse) values ((t.m('bureau@ap2a.sn')).id, 'x')$$, 'autre membre : ne saisit pas l''adresse d''un autre');
 reset role;
 set role anon;
 select t.refuse($$select * from membres_adresses$$, 'anonyme : pas d''adresses');
@@ -663,43 +690,132 @@ reset role;
 set role authenticated;
 select t.qui('membre@ap2a.sn');
 select maj_mon_profil('licence', array[' Électricité ', 'électricité', 'Comptabilité', '']);
-select t.ok((select niveau_etude = 'licence' and competences = array['Électricité', 'Comptabilité'] from membres where email = 'membre@ap2a.sn'), 'chacun complète son niveau et ses compétences (nettoyées)');
+select t.ok((select niveau_etude = 'licence' and competences = array['Électricité', 'Comptabilité'] from membres where id = (t.m('membre@ap2a.sn')).id), 'chacun complète son niveau et ses compétences (nettoyées)');
 select t.refuse($$select maj_mon_profil('ingenieur-spatial', null)$$, 'niveau d''études hors liste');
 update membres_adresses set repere = 'près de la mosquée' where membre_id = mon_membre_id();
 select t.ok((select repere from membres_adresses) = 'près de la mosquée', 'membre : ajoute un repère à son adresse');
 select t.qui('coord@ap2a.sn');
-select t.ok((select competences[1] from membres where email = 'membre@ap2a.sn') = 'Électricité', 'les compétences sont visibles des autres membres');
-update membres set niveau_etude = 'master' where email = 'membre@ap2a.sn';
-select t.ok((select niveau_etude from membres where email = 'membre@ap2a.sn') = 'licence', 'coordinateur : ne change pas le niveau d''un autre');
+select t.ok((select competences[1] from membres where id = (t.m('membre@ap2a.sn')).id) = 'Électricité', 'les compétences sont visibles des autres membres');
+update membres set niveau_etude = 'master' where id = (t.m('membre@ap2a.sn')).id;
+select t.ok((t.m('membre@ap2a.sn')).niveau_etude = 'licence', 'coordinateur : ne change pas le niveau d''un autre');
 select t.qui('admin@ap2a.sn');
 select t.ok((select count(*) from membres_adresses) = 1, 'qui gère les membres voit les adresses');
-insert into membres_adresses (membre_id, adresse) values ((select id from membres where email = 'coord@ap2a.sn'), 'Thiès, Cité Lamy');
-select t.ok((select zone_id is null and adresse like 'Thiès%' from membres_adresses a join membres m on m.id = a.membre_id where m.email = 'coord@ap2a.sn'), 'adresse hors Parcelles (« autre »)');
+insert into membres_adresses (membre_id, adresse) values ((t.m('coord@ap2a.sn')).id, 'Thiès, Cité Lamy');
+select t.ok((select zone_id is null and adresse like 'Thiès%' from membres_adresses a join membres m on m.id = a.membre_id where m.id = (t.m('coord@ap2a.sn')).id), 'adresse hors Parcelles (« autre »)');
 reset role;
 
 -- ===== Comptes protégés =====
 select set_config('request.jwt.claim.sub', '', false);
-update membres set protege = true where email = 'bureau@ap2a.sn';
+update membres set protege = true where id = (t.m('bureau@ap2a.sn')).id;
 set role authenticated;
 select t.qui('admin@ap2a.sn');
-select t.refuse($$select supprimer_membre((select id from membres where email = 'bureau@ap2a.sn'))$$, 'compte protégé : pas supprimé');
-select t.refuse($$update membres set actif = false where email = 'bureau@ap2a.sn'$$, 'compte protégé : pas désactivé');
-select t.refuse($$update membres set protege = false where email = 'bureau@ap2a.sn'$$, 'protection : pas retirée depuis l''application');
-select t.refuse($$update membres set protege = true where email = 'membre@ap2a.sn'$$, 'protection : pas posée depuis l''application');
-update membres set fonction = 'Secrétaire' where email = 'bureau@ap2a.sn';
-select t.ok((select fonction from membres where email = 'bureau@ap2a.sn') = 'Secrétaire', 'compte protégé : sa fiche reste modifiable');
+select t.refuse($$select supprimer_membre((t.m('bureau@ap2a.sn')).id)$$, 'compte protégé : pas supprimé');
+select t.refuse($$update membres set actif = false where id = (t.m('bureau@ap2a.sn')).id$$, 'compte protégé : pas désactivé');
+select t.refuse($$update membres set protege = false where id = (t.m('bureau@ap2a.sn')).id$$, 'protection : pas retirée depuis l''application');
+select t.refuse($$update membres set protege = true where id = (t.m('membre@ap2a.sn')).id$$, 'protection : pas posée depuis l''application');
+update membres set fonction = 'Secrétaire' where id = (t.m('bureau@ap2a.sn')).id;
+select t.ok((t.m('bureau@ap2a.sn')).fonction = 'Secrétaire', 'compte protégé : sa fiche reste modifiable');
 reset role;
 
 -- ===== États de l'accès =====
 select set_config('request.jwt.claim.sub', '', false);
-update auth.users set invited_at = now() where email = 'coord2@ap2a.sn';
-update auth.users set invited_at = now(), raw_user_meta_data = '{"mdp_choisi": true}' where email = 'bureau@ap2a.sn';
+update auth.users set invited_at = now(), raw_user_meta_data = '{"mdp_choisi": true}' where email = 'coord2@ap2a.sn';
+update auth.users set invited_at = now(), encrypted_password = '$2a$10$hash' where email = 'bureau@ap2a.sn';
 set role authenticated;
 select t.qui('admin@ap2a.sn');
-select t.ok((select etat from etats_acces() e join membres m on m.id = e.membre_id where m.email = 'coord2@ap2a.sn') = 'invite', 'accès : invité, mot de passe pas encore choisi');
-select t.ok((select etat from etats_acces() e join membres m on m.id = e.membre_id where m.email = 'bureau@ap2a.sn') = 'actif', 'accès : activé (mot de passe choisi)');
-select t.ok((select etat from etats_acces() e join membres m on m.id = e.membre_id where m.user_id is null limit 1) = 'aucun', 'accès : pas encore invité');
+select t.ok((select etat from etats_acces() e join membres m on m.id = e.membre_id where m.id = (t.m('coord2@ap2a.sn')).id) = 'invite', 'accès : invité, mot de passe pas encore choisi (la marque « mdp_choisi » posée par l''utilisateur ne compte pas)');
+select t.ok((select etat from etats_acces() e join membres m on m.id = e.membre_id where m.id = (t.m('bureau@ap2a.sn')).id) = 'actif', 'accès : activé (mot de passe choisi)');
+select t.ok((select etat from etats_acces() e where e.membre_id = (t.m('puissante@ap2a.sn')).id) = 'aucun', 'accès : pas encore invité');
 select t.qui('coord@ap2a.sn');
 select t.ok((select count(*) from etats_acces()) = 0, 'accès : réservé à qui gère les membres');
+reset role;
+
+-- ===== Audit de sécurité du 5 novembre 2026 : chaque faille corrigée =====
+select set_config('request.jwt.claim.sub', '', false);
+insert into membres (prenom, nom, email, role) values ('Admin', 'Deux', 'admin2@ap2a.sn', 'admin');
+set role authenticated;
+-- E1 : le bureau ne touche pas à la fiche d'un administrateur
+select t.qui('bureau@ap2a.sn');
+select t.refuse($$update membres set actif = false where id = (t.m('admin2@ap2a.sn')).id$$, 'E1 : le bureau ne désactive pas un administrateur');
+select t.refuse($$update membres set email = 'pirate@evil.sn' where id = (t.m('admin@ap2a.sn')).id$$, 'E1 : le bureau ne change pas l''email d''un administrateur relié');
+update membres set fonction = 'Chargé de mission' where id = (t.m('membre@ap2a.sn')).id;
+select t.ok((t.m('membre@ap2a.sn')).fonction = 'Chargé de mission', 'E1 : le bureau modifie toujours la fiche d''un simple membre');
+-- E2 : un administrateur désactivé garde ses droits dans les comparaisons
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+update membres set actif = false where id = (t.m('admin2@ap2a.sn')).id;
+insert into roles (nom, permissions) values ('Suppression', array['membres.gerer', 'membres.supprimer']);
+update membres set role_id = (select id from roles where nom = 'Suppression') where id = (t.m('coord2@ap2a.sn')).id;
+set role authenticated;
+select t.qui('coord2@ap2a.sn');
+select t.refuse($$select supprimer_membre((t.m('admin2@ap2a.sn')).id)$$, 'E2 : pas de suppression d''un administrateur désactivé');
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+update membres set role_id = (select id from roles where code = 'coordinateur') where id = (t.m('coord2@ap2a.sn')).id;
+-- E6 : un compte créé hors invitation n'est jamais relié à une fiche
+insert into membres (prenom, nom, email) values ('Fiche', 'Libre', 'libre@ap2a.sn'), ('Fiche', 'Piegee', 'piege@ap2a.sn');
+insert into auth.users (email, invited_at) values ('libre@ap2a.sn', null);
+insert into auth.users (email, invited_at, encrypted_password) values ('piege@ap2a.sn', now(), '$2a$10$attaquant');
+select t.ok((t.m('libre@ap2a.sn')).user_id is null, 'E6 : inscription libre : compte non relié à la fiche');
+select t.ok((t.m('piege@ap2a.sn')).user_id is null, 'E6 : compte qui avait déjà un mot de passe : non relié');
+-- E4 : le compte relié à un accès partenaire ne se change pas
+set role authenticated;
+select t.qui('bureau@ap2a.sn');
+select t.refuse($$update acces_partenaires set user_id = (select user_id from acces_partenaires where nom = 'Kane') where nom = 'Sarr'$$, 'E4 : pas de changement du compte relié à un accès partenaire');
+insert into acces_partenaires (partenaire_id, type, nom, email) values ((select id from partenaires where sigle = '3FPT'), 'formateur', 'Nouveau', 'nouveau@3fpt.sn');
+select t.ok((select user_id is null from acces_partenaires where nom = 'Nouveau'), 'E4 : un nouvel accès n''est relié à aucun compte existant');
+select t.refuse($$insert into acces_partenaires (partenaire_id, type, nom, email) values ((select id from partenaires limit 1), 'formateur', 'X', '221771234567@tel.ap2a.invalid')$$, 'adresse interne des comptes par téléphone : refusée');
+select t.refuse($$insert into membres (prenom, nom, email) values ('X', 'Y', 'nouveau@3fpt.sn')$$, 'email déjà celui d''un accès partenaire : refusé');
+select t.refuse($$insert into membres (prenom, nom, email) values ('X', 'Y', 'MEMBRE@ap2a.sn')$$, 'email déjà celui d''un membre (majuscules comprises) : refusé');
+-- M1 : annuaire
+select t.qui('membre@ap2a.sn');
+select t.refuse($$select email from membres$$, 'M1 : un membre ne lit pas les emails des autres');
+select t.refuse($$select telephone from membres$$, 'M1 : un membre ne lit pas les téléphones des autres');
+select t.ok((select count(*) from (select prenom, nom, fonction from membres) x) >= 5, 'M1 : un membre voit toujours les noms et fonctions');
+select t.ok(ma_fiche() ->> 'email' = 'membre@ap2a.sn' and ma_fiche() -> 'role_info' ->> 'code' is not null, 'M1 : chacun lit sa propre fiche complète');
+select t.refuse($$select membres_complets()$$, 'M1 : liste complète réservée à qui gère les membres');
+select t.qui('admin@ap2a.sn');
+select t.ok(jsonb_array_length(membres_complets()) >= 5 and membres_complets() -> 0 ? 'email', 'M1 : qui gère les membres a la liste complète');
+-- M2 : jetons des cartes
+select t.qui('membre@ap2a.sn');
+select t.refuse($$select jeton from cartes$$, 'M2 : un membre ne lit pas les jetons des cartes');
+select t.ok((select count(*) from cartes where jeton_hash is not null) > 0, 'M2 : seule l''empreinte des jetons est lisible');
+select t.ok((select count(*) from jetons_cartes(array(select id from cartes where membre_id is not null))) <= 1, 'M2 : un membre n''obtient que le jeton de sa propre carte');
+select t.qui('admin@ap2a.sn');
+select t.ok((select count(*) from jetons_cartes(array(select id from cartes where membre_id is not null))) = (select count(*) from cartes where membre_id is not null) and (select count(*) from cartes where membre_id is not null) > 0, 'M2 : qui gère les membres obtient les jetons pour imprimer les cartes');
+-- M3 : une action de santé avec consultations ne se supprime pas
+select t.qui('coord@ap2a.sn');
+insert into actions (type_id, titre, date_debut, responsable_id) values ((select id from types_action where code = 'sante'), 'Dépistage à annuler', current_date, mon_membre_id());
+insert into beneficiaires (action_id, cible_id) values ((select id from actions where titre = 'Dépistage à annuler'), (select id from cibles where nom = 'Diop'));
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+insert into consultations (beneficiaire_id, statut) select b.id, 'vu' from beneficiaires b join actions a on a.id = b.action_id where a.titre = 'Dépistage à annuler';
+set role authenticated;
+select t.qui('coord@ap2a.sn');
+select t.refuse($$select supprimer_action((select id from actions where titre = 'Dépistage à annuler'))$$, 'M3 : action avec consultations : pas supprimable');
+insert into actions (type_id, titre, date_debut, responsable_id) values ((select id from types_action where code = 'formation'), 'Projet sans suite', current_date, mon_membre_id());
+insert into beneficiaires (action_id, cible_id) values ((select id from actions where titre = 'Projet sans suite'), (select id from cibles where nom = 'Diop'));
+update actions set statut = 'annulee' where titre = 'Projet sans suite';
+select supprimer_action((select id from actions where titre = 'Projet sans suite'));
+select t.qui('admin@ap2a.sn');
+select t.ok(exists (select 1 from journal where table_nom = 'actions' and operation = 'DELETE' and libelle = 'Projet sans suite')
+  and exists (select 1 from journal where table_nom = 'beneficiaires' and operation = 'DELETE'), 'M3 : la suppression d''une action et de sa liste est journalisée');
+-- M4 : relier un événement à une action qu'on ne gère pas
+select t.qui('coord2@ap2a.sn');
+insert into evenements (titre, date) values ('Réunion test M4', current_date + 3);
+select t.refuse($$insert into evenement_actions values ((select id from evenements where titre = 'Réunion test M4'), (select id from actions where titre = 'Dépistage à annuler'))$$, 'M4 : pas de lien vers une action qu''on ne gère pas');
+-- Auteur non modifiable (L7)
+select t.qui('coord@ap2a.sn');
+update actions set cree_par = (t.m('admin@ap2a.sn')).id where titre = 'Dépistage à annuler';
+select t.ok((select cree_par from actions where titre = 'Dépistage à annuler') = (t.m('coord@ap2a.sn')).id, 'L7 : l''auteur d''une action ne change pas');
+-- M6 : journal des rôles et des accès, avec le nom de l'auteur
+select t.qui('admin@ap2a.sn');
+update roles set description = 'Audit' where nom = 'Médecin référent';
+select t.ok(exists (select 1 from journal where table_nom = 'roles' and auteur_nom like 'Fatou Kiné%'), 'M6 : changement de rôle journalisé, avec le nom de l''auteur');
+select t.ok(exists (select 1 from journal where table_nom = 'acces_partenaires' and operation = 'INSERT'), 'M6 : création d''un accès partenaire journalisée');
+select t.ok(exists (select 1 from journal where table_nom = 'consultations'), 'M6 : consultations journalisées (sans le détail médical)');
+-- L6 : pas de nom pour une carte étrangère à l'action
+select t.ok(not has_function_privilege('authenticated', 'public.garder_membre_protege()', 'execute'), 'fonctions de déclencheur : pas appelables directement');
+select t.ok(not has_function_privilege('anon', 'public.date_longue(date)', 'execute') and has_function_privilege('anon', 'public.verifier_carte(text)', 'execute'), 'anonyme : seulement les fonctions publiques prévues');
 reset role;
 \echo 'Tous les tests sont passés.'

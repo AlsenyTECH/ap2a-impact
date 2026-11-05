@@ -24,7 +24,7 @@ import { correspond, membreAvecNumero, trier } from '@/lib/recherche'
 import { Avatar, IconeType, StatutPastille } from '@/components/design'
 import { useAuth } from '@/lib/auth'
 import { date, fcfa, LIBELLES_NATURE, LIBELLES_STATUT_BENEFICIAIRE, nomCible } from '@/lib/format'
-import { useAction, useCibles, usePartenaires, useTypesAction } from '@/lib/requetes'
+import { CHAMPS_MEMBRE_PUBLIC, useAction, useCibles, usePartenaires, useTypesAction } from '@/lib/requetes'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 import type { Apport, Beneficiaire, Cible, Membre, RolePartenaire, StatutAction, StatutBeneficiaire } from '@/lib/types'
 
@@ -46,7 +46,7 @@ export function ActionDetail() {
 
   const { data: equipe = [] } = useQuery({
     queryKey: ['equipe', id],
-    queryFn: async () => verifier(await supabase.from('action_equipe').select('role, membre:membres(*)').eq('action_id', id)) as unknown as { role: string | null; membre: Membre }[],
+    queryFn: async () => verifier(await supabase.from('action_equipe').select(`role, membre:membres(${CHAMPS_MEMBRE_PUBLIC})`).eq('action_id', id)) as unknown as { role: string | null; membre: Membre }[],
   })
   const { data: partenairesAction = [] } = useQuery({
     queryKey: ['action_partenaires', id],
@@ -212,10 +212,22 @@ function OngletBeneficiaires({ actionId, gere, partenaireParDefaut }: { actionId
 
   const { data: liste = [], isLoading } = useQuery({
     queryKey: ['beneficiaires', actionId],
-    queryFn: async () =>
-      verifier(await supabase.from('beneficiaires')
-        .select('*, cible:cibles!beneficiaires_cible_id_fkey(*), via:cibles!beneficiaires_via_collectif_id_fkey(id, nom), apports(*, partenaire:partenaires(nom, sigle))')
-        .eq('action_id', actionId).order('ajoute_le', { ascending: false })) as Beneficiaire[],
+    queryFn: async () => {
+      // Identité seulement (gardée hors ligne) : ni vulnérabilités, ni notes, ni adresse.
+      const liste = verifier(await supabase.from('beneficiaires')
+        .select('*, cible:cibles!beneficiaires_cible_id_fkey(id, type, prenom, nom, telephone, sexe, date_naissance, groupes, numero_beneficiaire, photo_chemin, zone_id, categorie_id), via:cibles!beneficiaires_via_collectif_id_fkey(id, nom), apports(*, partenaire:partenaires(nom, sigle))')
+        .eq('action_id', actionId).order('ajoute_le', { ascending: false })) as Beneficiaire[]
+      // Équipe de terrain sans accès aux fiches : le nécessaire pour l'appel, par la fonction dédiée.
+      if (liste.some((b) => !b.cible)) {
+        const parts = (verifier(await supabase.rpc('participants_equipe', { p_action: actionId })) ?? []) as { beneficiaire_id: string; cible_id: string; type: string; prenom: string | null; nom: string; telephone: string | null; numero_beneficiaire: string | null; photo_chemin: string | null }[]
+        const parBenef = new Map(parts.map((x) => [x.beneficiaire_id, x]))
+        for (const b of liste) {
+          const x = parBenef.get(b.id)
+          if (!b.cible && x) b.cible = { id: x.cible_id, type: x.type, prenom: x.prenom, nom: x.nom, telephone: x.telephone, numero_beneficiaire: x.numero_beneficiaire, photo_chemin: x.photo_chemin } as unknown as Beneficiaire['cible']
+        }
+      }
+      return liste
+    },
   })
   const dejaInscrits = new Set(liste.map((b) => b.cible_id))
   const total = liste.flatMap((b) => b.apports ?? []).reduce((s, x) => s + (x.valeur_fcfa ?? 0), 0)

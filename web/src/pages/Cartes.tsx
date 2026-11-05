@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { CarteVisuelle, type TitulaireCarte } from '@/components/CarteQR'
 import { Chargement } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
-import { nomRole } from '@/lib/droits'
+import { CHAMPS_ROLE, nomRole } from '@/lib/droits'
+import { CHAMPS_CARTE, CHAMPS_MEMBRE_PUBLIC, jetonsDesCartes } from '@/lib/requetes'
 import { usePhotos } from '@/lib/photos'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 import type { Carte, Cible, Membre } from '@/lib/types'
@@ -52,10 +53,10 @@ export function Cartes() {
         fiches = [{ id: c.id, type: 'beneficiaire', prenom: c.prenom, nom: c.nom, numero: c.numero_beneficiaire ?? null, detail: c.metier, photo_chemin: c.photo_chemin, jeton: null }]
       } else {
         retour = '/membres'
-        let q = supabase.from('membres').select('*').eq('actif', true).order('nom')
+        let q = supabase.from('membres').select(`${CHAMPS_MEMBRE_PUBLIC}, ${CHAMPS_ROLE}`).eq('actif', true).order('nom')
         if (unMembre) q = q.eq('id', unMembre)
         else if (!tousMembres) q = q.eq('id', moi!.id)
-        const membres = verifier(await q) as Membre[]
+        const membres = verifier(await q) as unknown as Membre[]
         const actives = verifier(await supabase.from('cartes').select('membre_id').not('membre_id', 'is', null).is('revoquee_le', null)) as Carte[]
         const avec = new Set(actives.map((x) => x.membre_id))
         for (const m of membres) {
@@ -71,9 +72,10 @@ export function Cartes() {
       const colonne = action || cible ? 'cible_id' : 'membre_id'
       const cartes: Carte[] = []
       for (let i = 0; i < ids.length; i += 100) {
-        cartes.push(...(verifier(await supabase.from('cartes').select('*').in(colonne, ids.slice(i, i + 100)).is('revoquee_le', null)) as Carte[]))
+        cartes.push(...(verifier(await supabase.from('cartes').select(CHAMPS_CARTE).in(colonne, ids.slice(i, i + 100)).is('revoquee_le', null)) as Carte[]))
       }
-      const jetons = new Map(cartes.map((c) => [c.membre_id ?? c.cible_id, c.jeton]))
+      const parCarte = await jetonsDesCartes(cartes.map((c) => c.id))
+      const jetons = new Map(cartes.map((c) => [c.membre_id ?? c.cible_id, parCarte.get(c.id) ?? null]))
       // Numéros de bénéficiaires attribués à l'émission : on les relit.
       if (action) {
         const numeros = new Map<string, string | null>()

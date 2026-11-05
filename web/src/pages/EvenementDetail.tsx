@@ -12,6 +12,7 @@ import { Chargement, Erreur, Pastilles } from '@/components/champs'
 import { Avatar, Liste as Encadre } from '@/components/design'
 import { OutilsListe } from '@/components/OutilsListe'
 import { Scanner } from '@/components/Scanner'
+import { empreinteJeton } from '@/components/CarteQR'
 import { useAuth } from '@/lib/auth'
 import { exporterExcel } from '@/lib/export'
 import { aujourdhui, date } from '@/lib/format'
@@ -63,8 +64,8 @@ export function EvenementDetail() {
   const rafraichir = () => { if (navigator.onLine) qc.invalidateQueries({ queryKey: ['evenement-presences', id] }) }
   // Cartes des membres, gardées dans le téléphone : le scan marche aussi sans réseau.
   const { data: cartesMembres = [] } = useQuery({
-    queryKey: ['cartes-membres'],
-    queryFn: async () => verifier(await supabase.from('cartes').select('jeton, membre_id, revoquee_le').not('membre_id', 'is', null)) as { jeton: string; membre_id: string; revoquee_le: string | null }[],
+    queryKey: ['cartes-membres', 'empreintes'],
+    queryFn: async () => verifier(await supabase.from('cartes').select('jeton_hash, membre_id, revoquee_le').not('membre_id', 'is', null)) as { jeton_hash: string; membre_id: string; revoquee_le: string | null }[],
   })
   const noterLocalement = (membreId: string, present: boolean, mode: 'scan' | 'manuel') =>
     qc.setQueryData<Presence[]>(['evenement-presences', id], (avant = []) => present
@@ -119,7 +120,8 @@ export function EvenementDetail() {
       }
     }
     // Sans réseau : la carte est reconnue grâce à la liste gardée dans le téléphone.
-    const carte = cartesMembres.find((c) => c.jeton === jeton)
+    const empreinte = await empreinteJeton(jeton)
+    const carte = cartesMembres.find((c) => c.jeton_hash === empreinte)
     if (!carte) return { statut: 'inconnue' }
     const m = membres.find((x) => x.id === carte.membre_id)
     if (!m || carte.revoquee_le || !m.actif) return { statut: 'revoquee', prenom: m?.prenom, nom: m?.nom }

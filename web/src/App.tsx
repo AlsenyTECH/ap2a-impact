@@ -4,7 +4,7 @@ import { Chargement } from '@/components/champs'
 import { useAuth } from '@/lib/auth'
 import { identifiantLisible } from '@/lib/identifiant'
 import { configurationManquante, lienAChoisirMotDePasse } from '@/lib/supabase'
-import { Activer, Connexion, NouveauMotDePasse, SansFiche } from '@/pages/Connexion'
+import { Activer, Connexion, NouveauMotDePasse, SansFiche, Verrou } from '@/pages/Connexion'
 import { Accueil } from '@/pages/Accueil'
 import { Cibles } from '@/pages/Cibles'
 import { CibleDetail } from '@/pages/CibleDetail'
@@ -31,7 +31,7 @@ import { BonRemise } from '@/pages/BonRemise'
 import { Roles } from '@/pages/Roles'
 
 export function App() {
-  const { session, membre, chargement, deconnecter } = useAuth()
+  const { session, membre, chargement, deconnecter, verrouille, deverrouiller } = useAuth()
   const { pathname } = useLocation()
 
   if (configurationManquante) {
@@ -40,13 +40,17 @@ export function App() {
   // Lien envoyé par l'application (email, SMS, WhatsApp) : il ouvre la session, puis le choix du mot de passe.
   if (pathname === '/activer') return <Activer />
   // Arrivée par un lien d'invitation ou de mot de passe oublié : choisir son mot de passe d'abord.
-  if (pathname === '/nouveau-mot-de-passe' || lienAChoisirMotDePasse()) return <NouveauMotDePasse />
+  // Sans ce lien, la page n'est pas accessible : une session ouverte (téléphone laissé sans
+  // surveillance) ne change pas le mot de passe sans connaître l'ancien (« Mon profil » le demande).
+  if (lienAChoisirMotDePasse()) return <NouveauMotDePasse />
+  if (pathname === '/nouveau-mot-de-passe') return <Navigate to={session ? '/' : '/connexion'} replace />
   // Vérification d'une carte : page publique, sans compte.
   if (pathname.startsWith('/v/')) return <Routes><Route path="v/:jeton" element={<Verification />} /></Routes>
   if (chargement) return <Chargement />
   // Sans compte : la page vitrine de l'association sur l'accueil, la connexion ailleurs.
   if (!session) return pathname === '/' || pathname === '/association' ? <Vitrine /> : <Connexion />
   if (pathname === '/association') return <Vitrine connecte />
+  if (verrouille) return <Verrou identifiant={identifiantLisible(session.user.email)} deverrouiller={deverrouiller} deconnecter={deconnecter} />
   if (pathname === '/connexion') return <Navigate to="/" replace />
   if (!membre) return <SansFicheOuPartenaire email={identifiantLisible(session.user.email) ?? undefined} deconnecter={deconnecter} />
 

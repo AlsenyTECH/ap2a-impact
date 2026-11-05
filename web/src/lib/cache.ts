@@ -2,20 +2,29 @@ import { QueryClient } from '@tanstack/react-query'
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
 import { del, get, set } from 'idb-keyval'
 
-const SEPT_JOURS = 7 * 24 * 60 * 60 * 1000
+const UN_JOUR = 24 * 60 * 60 * 1000
 
 /**
- * Données gardées dans le téléphone pour consulter l'application sans réseau
- * (7 jours). Ne sont jamais gardés : le détail médical, les liens des photos
- * (ils expirent) et les pages d'impression.
+ * Données gardées dans le téléphone pour travailler sans réseau sur le terrain
+ * (24 h au plus) : seulement ce qu'il faut pour les actions, l'appel et les
+ * listes de référence. Jamais : fiches complètes des cibles et des membres
+ * (coordonnées, vulnérabilités, adresses), détail médical, journaux, portail
+ * des partenaires. Liste fermée : une nouvelle donnée n'est pas gardée tant
+ * qu'on ne l'ajoute pas ici.
  */
-const JAMAIS_GARDE = new Set(['consultations', 'photos', 'verification', 'cartes-impression', 'rappels-envoyes', 'journal', 'bon-remise', 'bon-remise-signatures'])
+const GARDE_HORS_LIGNE = new Set([
+  'actions', 'action', 'accueil', 'seances', 'presences', 'inscrits-appel', 'beneficiaires', 'equipe', 'action_partenaires',
+  'evenements', 'evenement', 'evenement-presences', 'evenement-invites', 'evenement-actions', 'actions-pour-evenement',
+  'cartes-membres', 'cartes-action', 'kits', 'kits-mouvements',
+  'types_action', 'zones', 'partenaires', 'familles_cible', 'categories_cible', 'profils_personne', 'roles', 'permissions',
+  'reglages-rappels', 'mes-rappels', 'vitrine-medias',
+])
 
 export const client = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,
-      gcTime: SEPT_JOURS,
+      gcTime: UN_JOUR,
       networkMode: 'offlineFirst',
       retry: (n) => navigator.onLine && n < 1,
       refetchOnWindowFocus: false,
@@ -31,10 +40,11 @@ export const persister = createAsyncStoragePersister({
 
 export const optionsPersistance = {
   persister,
-  maxAge: SEPT_JOURS,
-  buster: 'ap2a-1',
+  maxAge: UN_JOUR,
+  // Nouvelle valeur : l'ancien cache (7 jours, fiches complètes) est effacé à la mise à jour.
+  buster: 'ap2a-2',
   dehydrateOptions: {
     shouldDehydrateQuery: (q: { state: { status: string }; queryKey: readonly unknown[] }) =>
-      q.state.status === 'success' && !JAMAIS_GARDE.has(String(q.queryKey[0])),
+      q.state.status === 'success' && GARDE_HORS_LIGNE.has(String(q.queryKey[0])),
   },
 }

@@ -10,19 +10,23 @@
 //  * droit « membres.gerer » : { type: 'invitations', membre_ids, canal: 'email' | 'sms' | 'whatsapp' } → invitations
 //    groupées ; un membre sans email se connecte avec son téléphone. WhatsApp : les liens sont rendus à
 //    l'application, qui ouvre chaque message (pas d'envoi automatique sans l'API WhatsApp Business) ;
+//    il faut alors aussi « membres.comptes ». Quotas : 200 invitations par jour et par personne, une par
+//    membre toutes les 10 minutes ; SMS vers le Sénégal (+221) seulement ;
 //  * droit « membres.comptes » : { type: 'changer_email', membre_id, email } → change l'adresse de connexion ;
 //  * droit « rappels.regler » : { type: 'sms_test', telephone } → SMS d'essai (vérifie les crédits Brevo).
 //
 // Secrets : EXPEDITEUR_EMAIL, et BREVO_API_KEY ou RESEND_API_KEY.
 // La clé des appels planifiés est dans le coffre de la base (fonction cle_rappels).
-import { createClient } from 'npm:@supabase/supabase-js@2.45.4'
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.45.4'
 
 const APP = 'https://ap2a-impact.vercel.app'
 const VERT = '#0b7a57'
 const OR = '#e9a812'
 
+// Seule l'application appelle cette fonction depuis un navigateur.
 const cors = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': APP,
+  Vary: 'Origin',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
@@ -157,11 +161,10 @@ async function envoyer(a: string, sujet: string, html: string) {
     : null
   if (!r) throw new Error('Aucun service d\'envoi configuré (BREVO_API_KEY ou RESEND_API_KEY)')
   if (!r.ok) {
-    const detail = (await r.text()).slice(0, 300)
-    if (brevo && r.status === 401) {
-      throw new Error(`Brevo ne reconnaît pas la clé API (elle commence par « ${brevo.slice(0, 8)}… », ${brevo.length} caractères). Générez une nouvelle clé API (xkeysib-…) et remplacez le secret BREVO_API_KEY. Détail : ${detail}`)
-    }
-    throw new Error(`Envoi refusé (${r.status}) : ${detail}`)
+    // Le détail du fournisseur reste dans les journaux du serveur.
+    console.error('envoi email refusé', r.status, (await r.text()).slice(0, 500))
+    if (brevo && r.status === 401) throw new Error("Brevo ne reconnaît pas la clé API : générez une nouvelle clé API (xkeysib-…) et remplacez le secret BREVO_API_KEY.")
+    throw new Error(`Envoi de l'email refusé par le fournisseur (code ${r.status})`)
   }
 }
 
@@ -181,6 +184,8 @@ export function versGsm(t: string, max = 160) {
 export function numeroIntl(t: string) {
   let d = t.replace(/\D/g, '')
   if (d.startsWith('00')) d = d.slice(2)
+  // « 0771234567 » (habitude d'autres pays) : le 0 initial n'existe pas au Sénégal.
+  if (d.length === 10 && d.startsWith('0')) d = d.slice(1)
   if (d.length === 9) d = `221${d}`
   return d
 }
@@ -194,10 +199,27 @@ async function envoyerSms(numero: string, texte: string, expediteur: string, max
     body: JSON.stringify({ sender: expediteur, recipient: numero, content: versGsm(texte, max), type: 'transactional' }),
   })
   if (!r.ok) {
-    const detail = (await r.text()).slice(0, 300)
-    if (r.status === 402 || /credit/i.test(detail)) throw new Error(`Crédits SMS Brevo insuffisants : achetez des crédits SMS dans Brevo. Détail : ${detail}`)
-    throw new Error(`SMS refusé (${r.status}) : ${detail}`)
+    const detail = (await r.text()).slice(0, 500)
+    console.error('envoi SMS refusé', r.status, detail)
+    if (r.status === 402 || /credit/i.test(detail)) throw new Error('Crédits SMS Brevo insuffisants : achetez des crédits SMS dans Brevo.')
+    if (/addon/i.test(detail)) throw new Error("L'option SMS n'est pas activée sur le compte Brevo.")
+    throw new Error(`SMS refusé par le fournisseur (code ${r.status})`)
   }
+}
+
+/** Seuls les numéros sénégalais (+221, mobiles 7x et fixes 3x) : pas de SMS surtaxés à l'étranger. */
+const numeroSenegal = (intl: string) => /^221[37]\d{8}$/.test(intl)
+
+/** Prénom inséré dans un message : lettres, espaces, tirets, apostrophes ; 40 caractères au plus (pas de lien ni de texte piégé). */
+const prenomSur = (p: string | null) => (p ?? '').normalize('NFC').replace(/[^\p{L}\p{M} '\-]/gu, '').trim().slice(0, 40) || null
+
+/** Comparaison à temps constant (clé des appels planifiés). */
+function egal(a: string, b: string) {
+  const x = new TextEncoder().encode(a)
+  const y = new TextEncoder().encode(b)
+  let d = x.length ^ y.length
+  for (let i = 0; i < Math.max(x.length, y.length); i++) d |= (x[i] ?? 0) ^ (y[i] ?? 0)
+  return d === 0
 }
 
 // Connexion par téléphone : Supabase identifie un compte par une adresse email ; un membre sans
@@ -212,34 +234,59 @@ function identifiantLisible(email: string) {
   return local.length === 9 ? local.replace(/^(\d{2})(\d{3})(\d{2})(\d{2})$/, '$1 $2 $3 $4') : local
 }
 
-type AdminAuth = ReturnType<typeof createClient>['auth']['admin']
+// deno-lint-ignore no-explicit-any
+type Service = SupabaseClient<any, 'public', any>
 
 /**
  * Lien personnel à usage unique pour choisir son mot de passe. Court (le jeton seul, dans le « # »
  * de l'adresse) : il tient dans un SMS et ne dépend pas des adresses de redirection de Supabase.
- * Compte déjà créé (invitation précédente) : nouveau lien. Mot de passe déjà choisi : refusé.
+ *
+ * Règles (audit) : un compte déjà relié à la fiche reçoit un nouveau lien s'il n'a pas encore de
+ * mot de passe ; une fiche sans compte n'obtient qu'un compte NEUF, créé par cette invitation — jamais
+ * un compte qui existait déjà (inscription libre, compte d'une autre personne).
  */
-async function lienPersonnel(admin: AdminAuth, email: string, userId: string | null) {
-  let identifiant = email
+async function lienPersonnel(service: Service, email: string, userId: string | null) {
+  const actif = async (id: string) => (await service.rpc('compte_active', { p_user: id })).data === true
+  let identifiant = email.toLowerCase()
   if (userId) {
-    const { data: u } = await admin.getUserById(userId)
-    // Même règle que etats_acces() : mot de passe choisi, ou compte ouvert avant les invitations.
-    if (u?.user?.user_metadata?.mdp_choisi || (u?.user && !u.user.invited_at && u.user.last_sign_in_at)) throw new Error('Son accès est déjà activé')
-    if (u?.user?.email) identifiant = u.user.email
+    const { data: u } = await service.auth.admin.getUserById(userId)
+    if (!u?.user?.email) throw new Error('Compte de connexion introuvable')
+    if (await actif(userId)) throw new Error('Son accès est déjà activé')
+    identifiant = u.user.email.toLowerCase()
   }
-  let g = await admin.generateLink({ type: 'invite', email: identifiant })
+  let existant = false
+  let g = await service.auth.admin.generateLink({ type: 'invite', email: identifiant })
   if (g.error && /already|registered|exists/i.test(g.error.message)) {
-    g = await admin.generateLink({ type: 'recovery', email: identifiant })
+    existant = true
+    g = await service.auth.admin.generateLink({ type: 'recovery', email: identifiant })
   }
   const jeton = g.data?.properties?.hashed_token
-  if (g.error || !jeton || !g.data?.user) throw new Error(`Lien d'invitation impossible : ${g.error?.message ?? 'inconnu'}`)
-  if (g.data.user.user_metadata?.mdp_choisi) throw new Error('Son accès est déjà activé')
+  if (g.error || !jeton || !g.data?.user) {
+    console.error('generateLink', g.error?.message)
+    throw new Error("Lien d'invitation impossible pour le moment")
+  }
+  const compte = g.data.user
+  if (userId && compte.id !== userId) throw new Error('Compte de connexion incohérent : contactez l\'administrateur')
+  if (!userId && existant) {
+    throw new Error(`Un compte existe déjà avec l'identifiant ${identifiantLisible(identifiant)} sans être relié à cette fiche : l'administrateur doit le vérifier dans Supabase`)
+  }
+  if (await actif(compte.id)) throw new Error('Son accès est déjà activé')
   const invite = g.data.properties.verification_type === 'invite'
-  return { lien: `${APP}/activer#${invite ? 'i' : 'r'}=${jeton}`, userId: g.data.user.id, identifiant: identifiantLisible(identifiant) }
+  return { lien: `${APP}/activer#${invite ? 'i' : 'r'}=${jeton}`, userId: compte.id, emailCompte: identifiant, identifiant: identifiantLisible(identifiant) }
+}
+
+/** Le compte est-il relié à une autre fiche (membre ou partenaire) que celle-ci ? */
+async function reliéAilleurs(service: Service, userId: string, membreId: string | null, accesId: string | null) {
+  const [m, a] = await Promise.all([
+    service.from('membres').select('prenom, nom').eq('user_id', userId).neq('id', membreId ?? '00000000-0000-0000-0000-000000000000').maybeSingle(),
+    service.from('acces_partenaires').select('prenom, nom').eq('user_id', userId).neq('id', accesId ?? '00000000-0000-0000-0000-000000000000').maybeSingle(),
+  ])
+  const autre = m.data ?? a.data
+  return autre ? `${autre.prenom ?? ''} ${autre.nom}`.trim() : null
 }
 
 const messageInvitationTexte = (prenom: string | null, identifiant: string, lien: string) =>
-  `Bonjour${prenom ? ` ${prenom}` : ''}, l'AP2A vous invite à utiliser son application.\n`
+  `Bonjour${prenomSur(prenom) ? ` ${prenomSur(prenom)}` : ''}, l'AP2A vous invite à utiliser son application.\n`
   + `Votre identifiant : ${identifiant}\n`
   + `Choisissez votre mot de passe avec ce lien personnel (une seule fois) :\n${lien}`
 
@@ -274,66 +321,98 @@ Deno.serve(async (req) => {
     const couvre = async (appelant: string, vise: string) => {
       const [a, v] = await Promise.all([service.rpc('droits_membre', { p_membre: appelant }), service.rpc('droits_membre', { p_membre: vise })])
       const mes = new Set((a.data as string[] | null) ?? [])
-      return !a.error && !v.error && ((v.data as string[] | null) ?? []).every((d) => mes.has(d))
+      // Fiche sans rôle lisible : on refuse (jamais « aucun droit, donc couvert »).
+      return !a.error && !v.error && Array.isArray(v.data) && (v.data as string[]).every((d) => mes.has(d))
+    }
+
+    // Membre connecté qui appelle (jeton de session), ou null.
+    const appelant = async () => {
+      const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
+      const { data: u } = await service.auth.getUser(jeton)
+      if (!u?.user) return null
+      const { data: m } = await service.from('membres').select('id, prenom, nom, numero_adherent, actif').eq('user_id', u.user.id).maybeSingle()
+      return m?.actif ? { ...m, nomComplet: `${m.prenom} ${m.nom} (${m.numero_adherent})` } : null
+    }
+    // Nombre d'envois récents (quotas).
+    const recents = async (filtre: { type?: string; typeLike?: string; par?: string; membre?: string }, minutes: number) => {
+      let q = service.from('rappels_envoyes').select('id', { count: 'exact', head: true }).gte('envoye_le', new Date(Date.now() - minutes * 60_000).toISOString())
+      if (filtre.type) q = q.eq('type', filtre.type)
+      if (filtre.typeLike) q = q.like('type', filtre.typeLike)
+      if (filtre.par) q = q.eq('envoye_par', filtre.par)
+      if (filtre.membre) q = q.eq('membre_id', filtre.membre).in('statut', ['envoye', 'lien'])
+      return (await q).count ?? 0
     }
 
     // Changer l'adresse de connexion d'un membre dont l'accès est activé : réservé à l'administrateur.
     if (type === 'changer_email') {
-      const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
-      const { data: u } = await service.auth.getUser(jeton)
-      const { data: moi } = u?.user ? await service.from('membres').select('id, role, actif').eq('user_id', u.user.id).maybeSingle() : { data: null }
-      if (!moi?.actif || !(await droit(moi.id, 'membres.comptes'))) return repondre({ erreur: "Il faut le droit « Gérer les comptes de connexion » pour changer une adresse de connexion" }, 403)
+      const moi = await appelant()
+      if (!moi || !(await droit(moi.id, 'membres.comptes'))) return repondre({ erreur: "Il faut le droit « Gérer les comptes de connexion » pour changer une adresse de connexion" }, 403)
       const email = String(nouvelEmail ?? '').trim().toLowerCase()
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return repondre({ erreur: 'Adresse email invalide' }, 400)
-      const { data: m } = await service.from('membres').select('id, user_id, email').eq('id', membre_id).maybeSingle()
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.endsWith('.invalid')) return repondre({ erreur: 'Adresse email invalide' }, 400)
+      const { data: m } = await service.from('membres').select('id, user_id, email, prenom, actif').eq('id', membre_id).maybeSingle()
       if (!m) return repondre({ erreur: 'Membre introuvable' }, 404)
+      if (!m.actif) return repondre({ erreur: "Réactivez d'abord ce membre" }, 400)
       if (m.id === moi.id || !(await couvre(moi.id, m.id))) return repondre({ erreur: "Vous ne pouvez pas changer l'adresse de connexion de quelqu'un qui a plus de droits que vous (ni la vôtre)" }, 403)
-      const { data: autreMembre } = await service.from('membres').select('id').eq('email', email).neq('id', m.id).maybeSingle()
-      const { data: autreAcces } = await service.from('acces_partenaires').select('id').eq('email', email).maybeSingle()
+      const { data: autreMembre } = await service.from('membres').select('id').ilike('email', email).neq('id', m.id).maybeSingle()
+      const { data: autreAcces } = await service.from('acces_partenaires').select('id').ilike('email', email).maybeSingle()
       if (autreMembre || autreAcces) return repondre({ erreur: 'Cette adresse est déjà utilisée par une autre fiche' }, 400)
       if (m.user_id) {
         const { error } = await service.auth.admin.updateUserById(m.user_id, { email, email_confirm: true })
-        if (error) return repondre({ erreur: /already|registered|exists/i.test(error.message) ? 'Cette adresse a déjà un compte dans l\'application' : error.message }, 400)
+        if (error) return repondre({ erreur: /already|registered|exists/i.test(error.message) ? 'Cette adresse a déjà un compte dans l\'application' : 'Changement impossible pour le moment' }, 400)
       }
       const { error } = await service.from('membres').update({ email }).eq('id', m.id)
-      if (error) return repondre({ erreur: error.message }, 400)
+      if (error) return repondre({ erreur: 'Changement impossible pour le moment' }, 400)
+      // L'ancienne adresse est prévenue : un changement non voulu se voit tout de suite.
+      if (m.email && m.email.toLowerCase() !== email && !m.email.endsWith('.invalid')) {
+        const corps = `<p style="margin:0 0 12px">Bonjour${prenomSur(m.prenom) ? ` ${echapper(prenomSur(m.prenom))}` : ''},</p>
+          <p style="margin:0 0 12px">L'adresse de connexion de votre compte AP2A vient d'être remplacée par <b>${echapper(email)}</b>, par ${echapper(moi.nomComplet)}.</p>
+          <p style="margin:0 0 12px">Si vous n'êtes pas au courant, prévenez <b>immédiatement</b> le président ou l'administrateur de l'association.</p>`
+        await envoyer(m.email, "AP2A — L'adresse de connexion de votre compte a changé", gabarit('Changement de votre adresse de connexion', corps,
+          "Message de sécurité envoyé automatiquement par l'application AP2A.")).catch((e) => console.error('alerte ancienne adresse', e))
+      }
       return repondre({ ok: true })
     }
 
-    // SMS d'essai : réservé à l'administrateur.
+    // SMS d'essai : réservé à qui règle les rappels, 5 par jour.
     if (type === 'sms_test') {
-      const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
-      const { data: u } = await service.auth.getUser(jeton)
-      const { data: moi } = u?.user ? await service.from('membres').select('id, role, actif').eq('user_id', u.user.id).maybeSingle() : { data: null }
-      if (!moi?.actif || !(await droit(moi.id, 'rappels.regler'))) return repondre({ erreur: "Il faut le droit « Régler les rappels » pour envoyer un SMS d'essai" }, 403)
+      const moi = await appelant()
+      if (!moi || !(await droit(moi.id, 'rappels.regler'))) return repondre({ erreur: "Il faut le droit « Régler les rappels » pour envoyer un SMS d'essai" }, 403)
       const numero = numeroIntl(String(telephone ?? ''))
-      if (numero.length < 11 || numero.length > 15) return repondre({ erreur: 'Numéro de téléphone invalide' }, 400)
+      if (!numeroSenegal(numero)) return repondre({ erreur: 'Numéro sénégalais attendu (77, 78, 76, 70, 75 ou 33…)' }, 400)
+      if (await recents({ type: 'sms-test', par: moi.id }, 24 * 60) >= 5) return repondre({ erreur: "5 SMS d'essai par jour au plus" }, 429)
       const { data: r } = await service.from('reglages_rappels').select('sms_expediteur').single()
+      const journal = { type: 'sms-test', membre_id: moi.id, email: `+${numero}`, nb: 1, envoye_par: moi.id, envoye_par_nom: moi.nomComplet }
       try {
         await envoyerSms(numero, "AP2A : ceci est un SMS d'essai. Les rappels par SMS fonctionnent.", r?.sms_expediteur ?? 'AP2A')
-        await service.from('rappels_envoyes').insert({ type: 'sms-test', membre_id: moi.id, email: `+${numero}`, nb: 1, statut: 'envoye' })
+        await service.from('rappels_envoyes').insert({ ...journal, statut: 'envoye' })
         return repondre({ envoyes: 1, echecs: 0, erreurs: [] })
       } catch (e) {
-        await service.from('rappels_envoyes').insert({ type: 'sms-test', membre_id: moi.id, email: `+${numero}`, nb: 1, statut: 'echec', erreur: (e as Error).message })
+        await service.from('rappels_envoyes').insert({ ...journal, statut: 'echec', erreur: (e as Error).message })
         return repondre({ envoyes: 0, echecs: 1, erreurs: [(e as Error).message] }, 502)
       }
     }
 
     // Invitations groupées de membres (email, SMS ou WhatsApp).
     if (type === 'invitations') {
-      const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
-      const { data: u } = await service.auth.getUser(jeton)
-      const { data: moi } = u?.user ? await service.from('membres').select('id, actif').eq('user_id', u.user.id).maybeSingle() : { data: null }
-      if (!moi?.actif || !(await droit(moi.id, 'membres.gerer'))) return repondre({ erreur: 'Il faut le droit « Gérer les membres » pour inviter des membres' }, 403)
+      const moi = await appelant()
+      if (!moi || !(await droit(moi.id, 'membres.gerer'))) return repondre({ erreur: 'Il faut le droit « Gérer les membres » pour inviter des membres' }, 403)
       if (!['email', 'sms', 'whatsapp'].includes(canal)) return repondre({ erreur: 'Canal inconnu' }, 400)
+      // WhatsApp : les liens d'accès sont remis à la personne qui invite ; il faut le droit sur les comptes.
+      if (canal === 'whatsapp' && !(await droit(moi.id, 'membres.comptes'))) {
+        return repondre({ erreur: "Les invitations par WhatsApp remettent les liens d'accès à la personne qui invite : il faut le droit « Gérer les comptes de connexion ». Utilisez l'email ou le SMS, ou demandez ce droit à l'administrateur." }, 403)
+      }
       const ids = Array.isArray(membre_ids) ? [...new Set(membre_ids.map(String))].slice(0, 100) : []
       if (!ids.length) return repondre({ erreur: 'Aucun membre choisi' }, 400)
+      // Quota : 200 invitations par personne et par jour.
+      const dejaFaites = await recents({ typeLike: 'invitation%', par: moi.id }, 24 * 60)
+      if (dejaFaites + ids.length > 200) return repondre({ erreur: `Quota atteint : 200 invitations par jour (${dejaFaites} déjà envoyées)` }, 429)
       const { data: fiches } = await service.from('membres').select('id, prenom, nom, email, telephone, user_id, actif').in('id', ids)
       const { data: r } = await service.from('reglages_rappels').select('sms_expediteur').single()
       const resultats: { membre_id: string; nom: string; statut: 'envoye' | 'lien' | 'echec'; erreur?: string; lien?: string; message?: string; telephone?: string }[] = []
       let plusDeCredits: string | null = null
       for (const m of fiches ?? []) {
         const nom = `${m.prenom} ${m.nom}`
+        const journal = { type: `invitation-${canal}`, membre_id: m.id, nb: 1, envoye_par: moi.id, envoye_par_nom: moi.nomComplet }
         try {
           if (!m.actif) throw new Error('Membre inactif')
           if (m.id === moi.id) throw new Error('Pas vous-même')
@@ -341,78 +420,94 @@ Deno.serve(async (req) => {
           if (canal === 'email' && !m.email) throw new Error("Pas d'adresse email")
           if (canal !== 'email' && !m.telephone) throw new Error('Pas de numéro de téléphone')
           const tel = m.telephone ? numeroIntl(m.telephone) : null
-          if (canal !== 'email' && (!tel || tel.length < 11 || tel.length > 15)) throw new Error(`Numéro invalide (${m.telephone})`)
+          if (canal === 'sms' && (!tel || !numeroSenegal(tel))) throw new Error(`Numéro non sénégalais ou invalide (${m.telephone})`)
+          if (canal === 'whatsapp' && (!tel || tel.length < 11 || tel.length > 15)) throw new Error(`Numéro invalide (${m.telephone})`)
           if (canal === 'sms' && plusDeCredits) throw new Error(plusDeCredits)
+          // Pas deux invitations au même membre en moins de 10 minutes.
+          if (await recents({ typeLike: 'invitation%', membre: m.id }, 10) > 0) throw new Error('Déjà invité il y a moins de 10 minutes')
           // Identifiant : son email s'il en a un, sinon son téléphone.
-          const { lien, userId, identifiant } = await lienPersonnel(service.auth.admin, m.email ?? emailDeTelephone(m.telephone!), m.user_id)
-          // Le compte (créé ou retrouvé) doit être celui de cette fiche, et d'aucune autre.
-          const { data: autre } = await service.from('membres').select('prenom, nom').eq('user_id', userId).neq('id', m.id).maybeSingle()
-          if (autre) throw new Error(`Cet identifiant (${identifiant}) sert déjà à ${autre.prenom} ${autre.nom}`)
+          const { lien, userId, emailCompte, identifiant } = await lienPersonnel(service, m.email ?? emailDeTelephone(m.telephone!), m.user_id)
+          const autre = await reliéAilleurs(service, userId, m.id, null)
+          if (autre) throw new Error(`Cet identifiant (${identifiant}) sert déjà à ${autre}`)
+          // Par email : seulement à l'adresse du compte lui-même.
+          if (canal === 'email' && m.email!.toLowerCase() !== emailCompte) {
+            throw new Error("L'email de la fiche ne correspond pas à son compte : utilisez « Changer l'adresse de connexion »")
+          }
           if (m.user_id !== userId) {
-            const { error } = await service.from('membres').update({ user_id: userId }).eq('id', m.id)
-            if (error) throw error
+            const { error } = await service.from('membres').update({ user_id: userId }).eq('id', m.id).is('user_id', null)
+            if (error) throw new Error('Liaison du compte impossible')
           }
           const message = messageInvitationTexte(m.prenom, identifiant, lien)
           if (canal === 'whatsapp') {
+            await service.from('rappels_envoyes').insert({ ...journal, email: `+${tel}`, statut: 'lien' })
             resultats.push({ membre_id: m.id, nom, statut: 'lien', lien, message, telephone: tel! })
             continue
           }
           if (canal === 'email') {
             const { sujet, html } = emailInvitation(m.prenom, lien, null, identifiant)
-            await envoyer(m.email!, sujet, html)
+            await envoyer(emailCompte, sujet, html)
           } else {
             try {
-              await envoyerSms(tel!, `AP2A : ${m.prenom}, activez votre acces a l'application. Identifiant : ${identifiant}. Lien personnel (une seule fois) : ${lien}`, r?.sms_expediteur ?? 'AP2A', 320)
+              await envoyerSms(tel!, `AP2A : ${prenomSur(m.prenom) ?? 'Bonjour'}, activez votre acces a l'application. Identifiant : ${identifiant}. Lien personnel (une seule fois) : ${lien}`, r?.sms_expediteur ?? 'AP2A', 320)
             } catch (e) {
-              if (/Crédits SMS/.test((e as Error).message)) plusDeCredits = (e as Error).message
+              if (/Crédits SMS|option SMS/.test((e as Error).message)) plusDeCredits = (e as Error).message
               throw e
             }
           }
           resultats.push({ membre_id: m.id, nom, statut: 'envoye' })
-          await service.from('rappels_envoyes').insert({ type: `invitation-${canal}`, membre_id: m.id, email: canal === 'email' ? m.email : `+${tel}`, nb: 1, statut: 'envoye' })
+          await service.from('rappels_envoyes').insert({ ...journal, email: canal === 'email' ? emailCompte : `+${tel}`, statut: 'envoye' })
         } catch (e) {
           resultats.push({ membre_id: m.id, nom, statut: 'echec', erreur: (e as Error).message })
-          if (canal !== 'whatsapp') {
-            await service.from('rappels_envoyes').insert({ type: `invitation-${canal}`, membre_id: m.id, email: (canal === 'email' ? m.email : m.telephone) ?? '—', nb: 1, statut: 'echec', erreur: (e as Error).message })
-          }
+          await service.from('rappels_envoyes').insert({ ...journal, email: (canal === 'email' ? m.email : m.telephone) ?? '—', statut: 'echec', erreur: (e as Error).message })
         }
       }
       return repondre({ resultats })
     }
 
-    // Invitation d'un membre ou d'un partenaire : réservée au bureau.
+    // Invitation d'un membre ou d'un partenaire, par email.
     if (type === 'invitation') {
-      const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
-      const { data: u } = await service.auth.getUser(jeton)
-      const { data: moi } = u?.user ? await service.from('membres').select('id, role, actif').eq('user_id', u.user.id).maybeSingle() : { data: null }
-      if (!moi?.actif) return repondre({ erreur: 'Non autorisé' }, 403)
+      const moi = await appelant()
+      if (!moi) return repondre({ erreur: 'Non autorisé' }, 403)
       if (membre_id && !(await droit(moi.id, 'membres.gerer'))) return repondre({ erreur: 'Il faut le droit « Gérer les membres » pour inviter un membre' }, 403)
       if (!membre_id && !(await droit(moi.id, 'partenaires.gerer'))) return repondre({ erreur: 'Il faut le droit « Gérer les partenaires » pour inviter un partenaire' }, 403)
-      let destinataire: { prenom: string | null; email: string | null; user_id: string | null; partenaire: string | null; membre: string | null } | null = null
+      let destinataire: { prenom: string | null; email: string | null; user_id: string | null; partenaire: string | null; membre: string | null; acces: string | null } | null = null
       if (membre_id) {
         const { data } = await service.from('membres').select('id, prenom, email, user_id, actif').eq('id', membre_id).maybeSingle()
-        if (data?.actif && !(await couvre(moi.id, data.id))) return repondre({ erreur: "Vous ne pouvez pas inviter quelqu'un qui a plus de droits que vous" }, 403)
-        if (data?.actif) destinataire = { prenom: data.prenom, email: data.email, user_id: data.user_id, partenaire: null, membre: data.id }
+        if (data?.actif && (data.id === moi.id || !(await couvre(moi.id, data.id)))) return repondre({ erreur: "Vous ne pouvez pas inviter quelqu'un qui a plus de droits que vous" }, 403)
+        if (data?.actif) destinataire = { prenom: data.prenom, email: data.email, user_id: data.user_id, partenaire: null, membre: data.id, acces: null }
       } else if (acces_id) {
-        const { data } = await service.from('acces_partenaires').select('prenom, email, user_id, revoque_le, partenaire:partenaires(nom, sigle)').eq('id', acces_id).maybeSingle()
+        const { data } = await service.from('acces_partenaires').select('id, prenom, email, user_id, revoque_le, partenaire:partenaires(nom, sigle)').eq('id', acces_id).maybeSingle()
         const p = data?.partenaire as unknown as { nom: string; sigle: string | null } | null
-        if (data && !data.revoque_le) destinataire = { prenom: data.prenom, email: data.email, user_id: data.user_id, partenaire: p?.sigle || p?.nom || 'partenaire', membre: null }
+        if (data && !data.revoque_le) destinataire = { prenom: data.prenom, email: data.email, user_id: data.user_id, partenaire: p?.sigle || p?.nom || 'partenaire', membre: null, acces: data.id }
       }
       if (!destinataire?.email) return repondre({ erreur: 'Personne introuvable ou sans adresse email' }, 400)
-      // Accès sur invitation seulement : lien personnel à usage unique pour choisir son mot de passe.
+      if (destinataire.membre && await recents({ typeLike: 'invitation%', membre: destinataire.membre }, 10) > 0) return repondre({ erreur: 'Déjà invité il y a moins de 10 minutes' }, 429)
+      if (await recents({ typeLike: 'invitation%', par: moi.id }, 24 * 60) >= 200) return repondre({ erreur: 'Quota atteint : 200 invitations par jour' }, 429)
+      // Lien personnel à usage unique, envoyé seulement à l'adresse du compte lui-même.
       let action: string
       try {
-        action = (await lienPersonnel(service.auth.admin, destinataire.email, destinataire.user_id)).lien
+        const l = await lienPersonnel(service, destinataire.email, destinataire.user_id)
+        const autre = await reliéAilleurs(service, l.userId, destinataire.membre, destinataire.acces)
+        if (autre) throw new Error(`Ce compte sert déjà à ${autre}`)
+        if (l.emailCompte !== destinataire.email.toLowerCase()) throw new Error("L'adresse de la fiche ne correspond pas à son compte de connexion")
+        if (!destinataire.user_id) {
+          const r = destinataire.membre
+            ? await service.from('membres').update({ user_id: l.userId }).eq('id', destinataire.membre).is('user_id', null)
+            : await service.from('acces_partenaires').update({ user_id: l.userId }).eq('id', destinataire.acces!).is('user_id', null)
+          if (r.error) throw new Error('Liaison du compte impossible')
+        }
+        action = l.lien
       } catch (e) {
         return repondre({ erreur: (e as Error).message }, 400)
       }
       const { sujet, html } = emailInvitation(destinataire.prenom, action, destinataire.partenaire)
+      const journal = { type: 'invitation', membre_id: destinataire.membre, email: destinataire.email, nb: 1, envoye_par: moi.id, envoye_par_nom: moi.nomComplet }
       try {
         await envoyer(destinataire.email, sujet, html)
-        await service.from('rappels_envoyes').insert({ type: 'invitation', membre_id: destinataire.membre, email: destinataire.email, nb: 1, statut: 'envoye' })
+        await service.from('rappels_envoyes').insert({ ...journal, statut: 'envoye' })
         return repondre({ envoyes: 1, echecs: 0, erreurs: [] })
       } catch (e) {
-        await service.from('rappels_envoyes').insert({ type: 'invitation', membre_id: destinataire.membre, email: destinataire.email, nb: 1, statut: 'echec', erreur: (e as Error).message })
+        await service.from('rappels_envoyes').insert({ ...journal, statut: 'echec', erreur: (e as Error).message })
         return repondre({ envoyes: 0, echecs: 1, erreurs: [(e as Error).message] }, 502)
       }
     }
@@ -421,14 +516,23 @@ Deno.serve(async (req) => {
     const recue = req.headers.get('x-cle-rappels')
     const cle = recue ? (await service.rpc('cle_rappels')).data as string | null : null
     let pour: string | null = null
-    if (!(cle && recue === cle)) {
-      const jeton = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
-      const { data: u } = await service.auth.getUser(jeton)
-      if (!u?.user) return repondre({ erreur: 'Non autorisé' }, 401)
-      const { data: m } = await service.from('membres').select('id, role, actif').eq('user_id', u.user.id).maybeSingle()
-      if (!m?.actif) return repondre({ erreur: 'Non autorisé' }, 403)
-      if (apercu) pour = m.id
-      else if (!(await droit(m.id, 'rappels.regler'))) return repondre({ erreur: "Il faut le droit « Régler les rappels » pour envoyer les rappels à tous" }, 403)
+    const planifie = !!(cle && recue && egal(recue, cle))
+    if (!planifie) {
+      const m = await appelant()
+      if (!m) return repondre({ erreur: 'Non autorisé' }, 401)
+      if (apercu) {
+        // Aperçu par email : 10 par heure et par membre (protège le quota d'envoi).
+        if (await recents({ typeLike: '%-apercu', membre: m.id }, 60) >= 10) return repondre({ erreur: "10 aperçus par heure au plus : réessayez plus tard" }, 429)
+        pour = m.id
+      } else {
+        if (!(await droit(m.id, 'rappels.regler'))) return repondre({ erreur: "Il faut le droit « Régler les rappels » pour envoyer les rappels à tous" }, 403)
+        // Envoi manuel à tous : pas deux fois en une heure.
+        if (await recents({ type }, 60) > 0) return repondre({ erreur: 'Ces rappels sont déjà partis il y a moins d\'une heure' }, 429)
+        // SMS aux bénéficiaires : seulement pour hier, aujourd'hui ou demain.
+        if (jour && Math.abs(Date.parse(jour) - Date.parse(new Date().toISOString().slice(0, 10))) > 86_400_000) {
+          return repondre({ erreur: 'Date hors de la plage autorisée' }, 400)
+        }
+      }
     }
 
     // SMS automatiques aux bénéficiaires (avec leur accord) : pas d'aperçu.
@@ -450,7 +554,7 @@ Deno.serve(async (req) => {
       let plusDeCredits: string | null = null
       for (const [cle, liste] of groupes) {
         const numero = cle.split('|')[0]
-        const erreur = plusDeCredits ?? (numero.length < 11 || numero.length > 15 ? `Numéro invalide pour un SMS (${liste[0].telephone_intl})` : null)
+        const erreur = plusDeCredits ?? (!numeroSenegal(numero) ? `Numéro non sénégalais ou invalide pour un SMS (${liste[0].telephone_intl})` : null)
         if (erreur) {
           bilan.echecs++
           await noter(liste, 'echec', erreur)
@@ -465,7 +569,7 @@ Deno.serve(async (req) => {
           bilan.erreurs.push((err as Error).message)
           await noter(liste, 'echec', (err as Error).message)
           // Plus de crédits : les suivants sont notés en échec (boutons manuels dans l'application).
-          if (/Crédits SMS/.test((err as Error).message)) plusDeCredits = (err as Error).message
+          if (/Crédits SMS|option SMS/.test((err as Error).message)) plusDeCredits = (err as Error).message
         }
       }
       return repondre(bilan, bilan.echecs && !bilan.envoyes ? 502 : 200)
@@ -496,6 +600,8 @@ Deno.serve(async (req) => {
     }
     return repondre(bilan, bilan.echecs && !bilan.envoyes ? 502 : 200)
   } catch (e) {
-    return repondre({ erreur: (e as Error).message }, 500)
+    // Détail technique dans les journaux du serveur seulement.
+    console.error('rappels', e)
+    return repondre({ erreur: 'Erreur interne : réessayez plus tard' }, 500)
   }
 })

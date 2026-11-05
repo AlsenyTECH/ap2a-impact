@@ -10,13 +10,16 @@ export interface Colonne<T> {
   format?: string
 }
 
+const sansFormule = (t: string) => (/^[=+\-@\t\r]/.test(t) ? `'${t}` : t)
+
 export async function exporterExcel<T>(nomFichier: string, lignes: T[], colonnes: Colonne<T>[], feuille = 'Données') {
   const { default: writeExcelFile } = await import('write-excel-file/browser')
   const columns = colonnes.map((c) => ({
     header: { value: c.titre, fontWeight: 'bold' as const, backgroundColor: '#E3F3EC' },
     cell: (ligne: T) => {
       const v = c.valeur(ligne)
-      return v == null || v === '' ? { value: null } : typeof v === 'number' ? { value: v, type: Number, format: c.format } : { value: String(v) }
+      // Un texte qui commence par = + - @ deviendrait une formule s'il était réenregistré en CSV : on le neutralise.
+      return v == null || v === '' ? { value: null } : typeof v === 'number' ? { value: v, type: Number, format: c.format } : { value: sansFormule(String(v)) }
     },
     width: c.largeur ?? Math.min(40, Math.max(12, c.titre.length + 4)),
   }))

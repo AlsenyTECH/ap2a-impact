@@ -20,7 +20,7 @@ import { PhotoFiche } from '@/components/PhotoFiche'
 import { usePhotos } from '@/lib/photos'
 import { useAuth } from '@/lib/auth'
 import { droitsDe, nomRole, roleDuMembre, useRoles, usePermissions } from '@/lib/droits'
-import { useMembres, useZones } from '@/lib/requetes'
+import { CHAMPS_MEMBRE_PUBLIC, useMembres, useZones } from '@/lib/requetes'
 import { exporterExcel } from '@/lib/export'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 import type { Membre } from '@/lib/types'
@@ -257,12 +257,14 @@ function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | n
       niveau_etude: v.niveau || null, competences: lireCompetences(v.competences),
       ...(peut('roles.gerer') && v.role_id && v.role_id !== existant?.role_id ? { role_id: v.role_id } : {}),
     }
+    // Seules les colonnes publiques sont relues (email et téléphone ne sont pas lisibles directement).
     const r = existant
-      ? await supabase.from('membres').update(donnees).eq('id', existant.id).select().single()
-      : await supabase.from('membres').insert(donnees).select().single()
+      ? await supabase.from('membres').update(donnees).eq('id', existant.id).select(CHAMPS_MEMBRE_PUBLIC).single()
+      : await supabase.from('membres').insert(donnees).select(CHAMPS_MEMBRE_PUBLIC).single()
     if (r.error) { setEnvoi(false); return toast.error(messageErreur(r.error)) }
+    const fiche = { ...(r.data as unknown as Membre), email: donnees.email, telephone: donnees.telephone, user_id: existant?.user_id ?? null }
     try {
-      await enregistrerAdresse((r.data as Membre).id, adresse)
+      await enregistrerAdresse(fiche.id, adresse)
     } catch (err) {
       toast.error(`Fiche enregistrée, mais pas l'adresse : ${messageErreur(err)}`)
     }
@@ -272,7 +274,7 @@ function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | n
     qc.invalidateQueries({ queryKey: ['adresse-membre'] })
     fermer()
     // Nouveau membre avec email : on propose tout de suite de l'inviter.
-    if (!existant && r.data && ((r.data as Membre).email || (r.data as Membre).telephone)) onCree?.(r.data as Membre)
+    if (!existant && (fiche.email || fiche.telephone)) onCree?.(fiche)
   }
 
   // Suppression définitive, avec son compte de connexion (droit « Supprimer un membre »).

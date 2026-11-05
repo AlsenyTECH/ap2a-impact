@@ -66,13 +66,18 @@ export function Verification() {
                 <p className="text-sm text-muted-foreground">Ce QR code ne correspond à aucune carte délivrée par l'association. Il peut s'agir d'une contrefaçon.</p>
               ) : (
                 <>
-                  <div className="font-heading text-2xl font-semibold">{data.prenom} {data.nom}</div>
-                  <div className="inline-block rounded-md bg-muted px-2.5 py-1 font-mono text-sm font-bold">{data.numero}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {data.type === 'membre'
-                      ? <>{data.role_nom ?? (data.role ? LIBELLES_ROLE[data.role] : 'Membre')}{data.depuis ? ` · membre depuis ${date(data.depuis)}` : ''}</>
-                      : 'Personne accompagnée par l\'association'}
-                  </div>
+                  {/* Identité seulement pour une carte valide : une carte annulée ou perdue ne dit plus à qui elle était. */}
+                  {valide ? (
+                    <>
+                      <div className="font-heading text-2xl font-semibold">{data.prenom} {data.nom}</div>
+                      <div className="inline-block rounded-md bg-muted px-2.5 py-1 font-mono text-sm font-bold">{data.numero}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {data.type === 'membre'
+                          ? <>{data.role_nom ?? (data.role ? LIBELLES_ROLE[data.role] : 'Membre')}{data.depuis ? ` · membre depuis ${date(data.depuis)}` : ''}</>
+                          : 'Carte de l\'association'}
+                      </div>
+                    </>
+                  ) : null}
                   {data.statut === 'revoquee' ? (
                     <p className="rounded-lg bg-[#fbe6e6] p-3 text-sm text-[#a32b2b]">
                       Cette carte a été annulée{data.revoquee_le ? ` le ${date(data.revoquee_le.slice(0, 10))}` : ''} (perte ou remplacement). Elle ne doit plus être acceptée.

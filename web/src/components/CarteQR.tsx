@@ -12,6 +12,15 @@ export function jetonDuQR(texte: string) {
   return t.match(/\/v\/([0-9a-f]{32})\b/i)?.[1]?.toLowerCase() ?? (/^[0-9a-f]{32}$/i.test(t) ? t.toLowerCase() : null)
 }
 
+/**
+ * Empreinte SHA-256 d'un jeton (hexadécimal), comme la colonne cartes.jeton_hash :
+ * le téléphone garde les empreintes pour pointer sans réseau, jamais les jetons.
+ */
+export async function empreinteJeton(jeton: string) {
+  const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(jeton))
+  return Array.from(new Uint8Array(h), (o) => o.toString(16).padStart(2, '0')).join('')
+}
+
 export function useQR(texte: string | null) {
   const [image, setImage] = useState<string | null>(null)
   useEffect(() => {

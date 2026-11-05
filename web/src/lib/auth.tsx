@@ -1,10 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
-import { supabase } from './supabase'
+import { oublierLien, supabase } from './supabase'
 import { client, persister } from './cache'
 import { nbEnAttente, viderHorsLigne } from './horsligne'
-import { CHAMPS_ROLE, roleA, roleDuMembre, type Permission } from './droits'
+import { roleA, roleDuMembre, type Permission } from './droits'
 import { noterActivite, noterMotif, oublierActivite, sessionExpiree } from './session'
 import { appliquerMode, appliquerTheme } from './theme'
 import type { Membre } from './types'
@@ -20,6 +20,9 @@ interface Auth {
   /** Relit sa fiche (après un changement de son rôle). */
   recharger: () => void
   deconnecter: () => Promise<void>
+  /** Session expirée alors que des saisies hors ligne attendent : écran verrouillé, mot de passe demandé. */
+  verrouille: boolean
+  deverrouiller: (motDePasse: string) => Promise<string | null>
 }
 
 const Contexte = createContext<Auth | null>(null)
@@ -31,6 +34,7 @@ async function nettoyer(userId: string | undefined, scope: 'global' | 'local') {
   await viderHorsLigne()
   if (userId) localStorage.removeItem(`ap2a-membre-${userId}`)
   oublierActivite()
+  oublierLien()
   const { error } = await supabase.auth.signOut({ scope })
   // Sans réseau, le serveur ne répond pas et la session resterait dans l'appareil : on l'efface quand même.
   if (error) {
@@ -46,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState(0)
   // Vrai une fois la session de départ lue (et fermée si elle avait expiré).
   const [pret, setPret] = useState(false)
+  const [verrouille, setVerrouille] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -58,6 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         nettoyer(s.user.id, 'local').finally(() => { navigate('/connexion', { replace: true }); setPret(true) })
         return
       }
+      // Expirée, mais des saisies hors ligne attendent : on les garde, écran verrouillé.
+      if (s && motif) setVerrouille(true)
       setSession(s)
       setPret(true)
     })
@@ -80,8 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!userId) return
     const verifier = () => {
       const motif = sessionExpiree(connecteLe)
-      // Des saisies faites sans réseau attendent d'être envoyées : on ne les perd pas.
-      if (!motif || nbEnAttente()) return
+      if (!motif) return
+      // Des saisies faites sans réseau attendent d'être envoyées : on ne les perd pas,
+      // mais l'application se verrouille (mot de passe demandé) au lieu de rester ouverte.
+      if (nbEnAttente()) { setVerrouille(true); return }
       noterMotif(motif)
       fermer('local')
     }
@@ -115,7 +124,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setChargement(true)
     // La fiche est gardée dans le téléphone : sans réseau, l'application reste utilisable.
     const cle = `ap2a-membre-${userId}`
-    supabase.from('membres').select(`*, ${CHAMPS_ROLE}`).eq('user_id', userId).eq('actif', true).maybeSingle()
+    // Sa propre fiche complète (email, téléphone, réglages), lue par une fonction : ces colonnes
+    // ne sont pas lisibles directement (audit M1).
+    supabase.rpc('ma_fiche')
       .then(({ data, error }) => {
         if (annule) return
         let fiche = data as Membre | null
@@ -139,6 +150,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     peut: (p) => !!membre && roleA(roleDuMembre(membre), p),
     peutUn: (...p) => !!membre && p.some((x) => roleA(roleDuMembre(membre), x)),
     recharger: () => setVersion((v) => v + 1),
+    verrouille,
+    deverrouiller: async (motDePasse) => {
+      const email = session?.user.email
+      if (!email) return 'Session introuvable'
+      const { error } = await supabase.auth.signInWithPassword({ email, password: motDePasse })
+      if (error) return /fetch|network/i.test(error.message) ? 'Pas de connexion internet : reconnectez-vous au réseau pour déverrouiller.' : 'Mot de passe incorrect'
+      noterActivite()
+      setVerrouille(false)
+      return null
+    },
     deconnecter: async () => {
       const n = nbEnAttente()
       if (n && !confirm(`${n} enregistrement(s) faits sans réseau n'ont pas encore été envoyés. En vous déconnectant maintenant, ils seront perdus. Continuer ?`)) return
