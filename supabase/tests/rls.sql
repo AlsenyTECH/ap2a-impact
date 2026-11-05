@@ -816,6 +816,7 @@ select t.ok(exists (select 1 from journal where table_nom = 'acces_partenaires' 
 select t.ok(exists (select 1 from journal where table_nom = 'consultations'), 'M6 : consultations journalisées (sans le détail médical)');
 -- L6 : pas de nom pour une carte étrangère à l'action
 select t.ok(not has_function_privilege('authenticated', 'public.garder_membre_protege()', 'execute'), 'fonctions de déclencheur : pas appelables directement');
+select t.ok(not has_function_privilege('authenticated', 'public.rappels_dus(timestamp without time zone)', 'execute') and not has_function_privilege('authenticated', 'public.responsable_action(uuid)', 'execute'), 'fonctions internes : pas appelables depuis l''application');
 select t.ok(not has_function_privilege('anon', 'public.date_longue(date)', 'execute') and has_function_privilege('anon', 'public.verifier_carte(text)', 'execute'), 'anonyme : seulement les fonctions publiques prévues');
 reset role;
 \echo 'Tous les tests sont passés.'
