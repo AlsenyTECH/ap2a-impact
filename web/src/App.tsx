@@ -31,6 +31,7 @@ import { RappelsAEnvoyer } from '@/pages/RappelsAEnvoyer'
 import { Kits } from '@/pages/Kits'
 import { BonRemise } from '@/pages/BonRemise'
 import { Roles } from '@/pages/Roles'
+import { Journal } from '@/pages/Journal'
 
 export function App() {
   const { session, membre, chargement, deconnecter, verrouille, deverrouiller, aal, rechargerAal } = useAuth()
@@ -90,6 +91,7 @@ export function App() {
         <Route path="partenaires" element={<Partenaires />} />
         <Route path="kits" element={<Kits />} />
         <Route path="roles" element={<Roles />} />
+        <Route path="journal" element={<Journal />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

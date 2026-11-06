@@ -198,6 +198,7 @@ export interface LigneJournal {
   operation: 'INSERT' | 'UPDATE' | 'DELETE'
   libelle: string | null
   details: Record<string, [unknown, unknown]> | null
+  auteur_nom?: string | null
   membre: Pick<Membre, 'prenom' | 'nom' | 'numero_adherent'> | null
 }
 

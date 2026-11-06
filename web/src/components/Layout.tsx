@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { BarChart3, BellRing, CalendarCheck, CalendarHeart, Handshake, Home, ImagePlay, Landmark, MessageCircle, ListChecks, LogOut, Menu, Moon, Package, Palette, Sun, Shapes, ShieldCheck, Target, UsersRound, X } from 'lucide-react'
+import { BarChart3, History, BellRing, CalendarCheck, CalendarHeart, Handshake, Home, ImagePlay, Landmark, MessageCircle, ListChecks, LogOut, Menu, Moon, Package, Palette, Sun, Shapes, ShieldCheck, Target, UsersRound, X } from 'lucide-react'
 import { MonProfil } from '@/components/MonProfil'
 import { BandeauHorsLigne } from '@/components/BandeauHorsLigne'
 import { useAuth } from '@/lib/auth'
@@ -37,6 +37,7 @@ const GROUPES: { titre: string; liens: Lien[] }[] = [
     liens: [
       { vers: '/categories', libelle: 'Catégories', icone: Shapes },
       { vers: '/roles', libelle: 'Rôles et droits', icone: ShieldCheck, droit: 'roles.gerer' },
+      { vers: '/journal', libelle: 'Historique', icone: History, droit: 'journal.voir' },
       { vers: '/reglages-rappels', libelle: 'Rappels', icone: BellRing, droit: 'rappels.voir' },
       { vers: '/medias', libelle: 'Médias du site', icone: ImagePlay, droit: 'vitrine.gerer' },
       { vers: '/association', libelle: "L'association", icone: Landmark },
