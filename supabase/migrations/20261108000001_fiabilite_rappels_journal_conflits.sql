@@ -173,6 +173,8 @@ language sql immutable as $$
     else '{}'::text[]
   end
 $$;
+alter function public.champs_sensibles(text) set search_path = public;
+revoke all on function public.champs_sensibles(text) from public, anon, authenticated;
 
 -- Empreinte d'une valeur : même mise en forme qu'à la saisie (téléphone à
 -- 9 chiffres, email en minuscules), HMAC-SHA-256, 64 premiers bits en hexadécimal.
