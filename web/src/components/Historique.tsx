@@ -20,6 +20,7 @@ const CHAMPS: Record<string, string> = {
 /** Valeur lisible d'un champ du journal. */
 function valeur(champ: string, v: unknown) {
   if (v == null || v === '') return '—'
+  if (typeof v === 'string' && v.startsWith('hmac:')) return 'valeur masquée'
   if (champ === 'statut') return LIBELLES_STATUT_ACTION[v as keyof typeof LIBELLES_STATUT_ACTION] ?? LIBELLES_STATUT_BENEFICIAIRE[v as keyof typeof LIBELLES_STATUT_BENEFICIAIRE] ?? String(v)
   if (champ === 'nature') return LIBELLES_NATURE[v as keyof typeof LIBELLES_NATURE] ?? String(v)
   if (champ.endsWith('_id')) return 'modifié'

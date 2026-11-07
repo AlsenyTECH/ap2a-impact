@@ -85,7 +85,9 @@ export function SuiviForm({ ouvert, fermer, suivi, beneficiaireId, titre }: {
       }
       // Sans réseau, le suivi est gardé dans le téléphone et envoyé au retour du réseau.
       const r = suivi
-        ? await executer(`Suivi de ${titre}`, { kind: 'update', table: 'suivis', valeurs: donnees, filtre: { id: suivi.id } })
+        // La version lue est jointe : si quelqu'un a modifié ce suivi entre-temps (hors connexion
+        // notamment), la base refuse au lieu d'écraser sa saisie.
+        ? await executer(`Suivi de ${titre}`, { kind: 'update', table: 'suivis', valeurs: suivi.version ? { ...donnees, version: suivi.version } : donnees, filtre: { id: suivi.id } })
         : await executer(`Suivi de ${titre}`, { kind: 'insert', table: 'suivis', valeurs: { ...donnees, id: crypto.randomUUID(), beneficiaire_id: idBeneficiaire, date_prevue: faitLe } })
       if (r === 'envoye') {
         toast.success('Suivi enregistré')
@@ -93,7 +95,7 @@ export function SuiviForm({ ouvert, fermer, suivi, beneficiaireId, titre }: {
       } else {
         toast.info('Suivi gardé dans le téléphone : envoyé au retour du réseau')
         // Affiché tout de suite comme fait dans la liste des suivis.
-        if (suivi) qc.setQueriesData<{ id: string }[]>({ queryKey: ['suivis'] }, (l) => Array.isArray(l) ? l.map((x) => (x.id === suivi.id ? { ...x, ...donnees } : x)) : l)
+        if (suivi) qc.setQueriesData<{ id: string }[]>({ queryKey: ['suivis'] }, (l) => Array.isArray(l) ? l.map((x) => (x.id === suivi.id ? { ...x, ...donnees, version: suivi.version ? suivi.version + 1 : undefined } : x)) : l)
       }
       fermer()
     } catch (err) {

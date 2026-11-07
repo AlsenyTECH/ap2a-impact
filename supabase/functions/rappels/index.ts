@@ -617,8 +617,20 @@ Deno.serve(async (req) => {
       destinataires.push({ membre_id: m.id, prenom: m.prenom, email: m.email, suivis: [], retards: [], seances: [] })
     }
 
+    // Nouvel essai d'un lancement planifié (échec ou envoi partiel) : ceux qui ont
+    // déjà reçu ce rappel aujourd'hui ne le reçoivent pas une seconde fois.
+    const dejaServis = new Set<string>()
+    if (planifie) {
+      const debut = new Date()
+      debut.setUTCHours(0, 0, 0, 0)   // heure de Dakar = UTC
+      const { data: faits } = await service.from('rappels_envoyes').select('membre_id')
+        .eq('type', type).eq('statut', 'envoye').gte('envoye_le', debut.toISOString())
+      for (const f of faits ?? []) if (f.membre_id) dejaServis.add(f.membre_id)
+    }
+
     const bilan = { envoyes: 0, echecs: 0, erreurs: [] as string[] }
     for (const d of destinataires) {
+      if (dejaServis.has(d.membre_id)) continue
       const { sujet, html, nb } = type === 'hebdo' ? emailHebdo(d) : emailSeances(d)
       try {
         await envoyer(d.email, apercu ? `[Aperçu] ${sujet}` : sujet, html)

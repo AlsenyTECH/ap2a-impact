@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, CalendarCheck, Coins, FlaskConical, ListChecks, MessageCircle, Package, Plus, Quote, Target, Users } from 'lucide-react'
+import { ArrowRight, BellRing, CalendarCheck, Coins, FlaskConical, ListChecks, MessageCircle, Package, Plus, Quote, Target, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Avatar, BlocDate, Indicateur, Liste, Section, StatutPastille } from '@/components/design'
@@ -115,6 +115,7 @@ export function Accueil() {
       ) : null}
 
       {peut('kits.gerer') ? <AlerteStock /> : null}
+      {peut('rappels.voir') ? <AlerteRappels /> : null}
 
       {rappelsAEnvoyer ? (
         <Link to="/rappels" className="group flex items-center gap-4 rounded-xl border border-primary/30 bg-primary/5 p-4 transition-colors hover:border-primary">
@@ -254,6 +255,30 @@ function BandeauDemo() {
 }
 
 /** Kits épuisés ou sous leur seuil d'alerte (pour le bureau, qui fait les achats). */
+/** Envoi automatique de rappels en échec (après 3 essais) depuis moins de 7 jours. */
+function AlerteRappels() {
+  const { data: echecs = 0 } = useQuery({
+    queryKey: ['rappels-lancements', 'echecs'],
+    queryFn: async () => {
+      const { count, error } = await supabase.from('rappels_lancements').select('type', { count: 'exact', head: true })
+        .eq('statut', 'echec').gte('lance_le', new Date(Date.now() - 7 * 86_400_000).toISOString())
+      if (error) throw error
+      return count ?? 0
+    },
+  })
+  if (!echecs) return null
+  return (
+    <Link to="/reglages-rappels" className="group flex items-center gap-4 rounded-xl border border-[#e7b4b4] bg-[#fbe6e6]/60 p-4 transition-colors hover:border-[#a32b2b]">
+      <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#a32b2b] text-white"><BellRing className="size-5" /></span>
+      <div className="min-w-0 flex-1">
+        <div className="font-semibold text-[#a32b2b]">{echecs} envoi{echecs > 1 ? 's' : ''} automatique{echecs > 1 ? 's' : ''} de rappels en échec cette semaine</div>
+        <div className="text-sm text-[#a32b2b]/80">Trois essais n'ont pas suffi : voir la cause dans les réglages des rappels.</div>
+      </div>
+      <ArrowRight className="size-5 shrink-0 text-[#a32b2b] transition-transform group-hover:translate-x-0.5" />
+    </Link>
+  )
+}
+
 function AlerteStock() {
   const { data: kits = [] } = useKits()
   const bas = kits.filter((k) => niveauStock(k) !== 'ok' && (k.seuil_alerte > 0 || !!k.dernier_mouvement))

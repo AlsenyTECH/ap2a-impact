@@ -150,7 +150,8 @@ export function Seances({ actionId, planifier, appel, voitBeneficiaires, debut, 
     const pointes = new Set((qc.getQueryData<Presence[]>(['presences', actionId]) ?? []).filter((p) => p.seance_id === s.id).map((p) => p.beneficiaire_id))
     const restants = inscrits.filter((b) => !pointes.has(b.id))
     if (restants.length && confirm(`${restants.length} participant(s) n'ont pas été pointés. Les marquer absents ?`)) {
-      const lignes = restants.map((b) => ({ seance_id: s.id, beneficiaire_id: b.id, present: false }))
+      const maintenant = new Date().toISOString()
+      const lignes = restants.map((b) => ({ seance_id: s.id, beneficiaire_id: b.id, present: false, pointe_le: maintenant }))
       try {
         const r = await executer(`Absents de la séance du ${date(s.date)} (${restants.length})`, { kind: 'upsert', table: 'presences', valeurs: lignes, onConflict: 'seance_id,beneficiaire_id', ignoreDuplicates: true })
         noterLocalement(lignes, false)
@@ -371,7 +372,10 @@ function Appel({ seance, fermer, inscrits, presences, apres }: {
 
   async function enregistrer() {
     setEnvoi(true)
-    const lignes = inscrits.map((b) => ({ seance_id: seance!.id, beneficiaire_id: b.id, present: etat[b.id] ?? true }))
+    // Heure de l'appel sur le téléphone : si un autre pointage plus récent est déjà
+    // enregistré (appel envoyé plus tard, hors connexion), la base garde le plus récent.
+    const maintenant = new Date().toISOString()
+    const lignes = inscrits.map((b) => ({ seance_id: seance!.id, beneficiaire_id: b.id, present: etat[b.id] ?? true, pointe_le: maintenant }))
     try {
       const r = await executer(`Appel de la séance du ${date(seance!.date)}`, { kind: 'upsert', table: 'presences', valeurs: lignes, onConflict: 'seance_id,beneficiaire_id' })
       toast.success(r === 'envoye' ? 'Appel enregistré' : 'Appel gardé dans le téléphone : envoyé au retour du réseau')

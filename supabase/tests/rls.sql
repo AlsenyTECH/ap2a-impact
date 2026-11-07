@@ -835,4 +835,90 @@ select t.ok(a_permission('actions.creer'), 'double authentification : rôle qui 
 select t.qui('admin@ap2a.sn');
 select t.refuse($$update roles set mfa_obligatoire = false where code = 'admin'$$, 'double authentification : jamais retirée à l''administrateur');
 reset role;
+
+-- ===== Relecture critique : journal, conflits hors connexion, rappels =====
+-- Journal : valeurs sensibles en empreinte HMAC, vérifiables par qui voit l'historique
+update membres set telephone = '77 111 22 33' where email = 'membre@ap2a.sn';
+set role authenticated;
+select t.qui('admin@ap2a.sn');
+select t.ok((select details->'telephone'->>1 from journal where table_nom = 'membres' and details ? 'telephone' order by id desc limit 1) like 'hmac:%',
+  'journal : le nouveau téléphone n''est pas écrit en clair');
+select t.ok(not exists (select 1 from journal where details::text like '%771112233%' or details::text like '%77 111 22 33%'),
+  'journal : le numéro n''apparaît nulle part en clair');
+select t.ok((select details->'telephone'->>1 from journal where table_nom = 'membres' and details ? 'telephone' order by id desc limit 1)
+  = empreinte_journal('telephone', '+221 77 111 22 33'), 'journal : l''enquêteur retrouve un numéro donné (même mise en forme)');
+select t.ok(empreinte_journal('telephone', '77 111 22 34') <> empreinte_journal('telephone', '77 111 22 33'), 'journal : deux numéros, deux empreintes');
+select t.qui('coord@ap2a.sn');
+select t.refuse($$select empreinte_journal('telephone', '771112233')$$, 'journal : recherche d''empreinte réservée à qui voit l''historique');
+reset role;
+select t.ok(not has_function_privilege('authenticated', 'public.empreinte_valeur(text, text)', 'execute')
+  and not has_function_privilege('authenticated', 'public.cle_journal()', 'execute'), 'journal : clé et calcul brut inaccessibles');
+
+-- Suivis : une modification préparée sur une version dépassée est refusée
+do $$
+declare v_id uuid; v int;
+begin
+  select id, version into v_id, v from suivis order by echeance_mois limit 1;
+  update suivis set commentaire = 'Saisie au bureau', version = v where id = v_id;
+  if (select version from suivis where id = v_id) <> v + 1 then raise exception 'ÉCHEC : version non incrémentée'; end if;
+  begin
+    update suivis set commentaire = 'Saisie hors connexion', version = v where id = v_id;
+    raise exception 'ÉCHEC (aurait dû être refusé) : suivi sur version dépassée';
+  exception when serialization_failure then
+    raise notice 'ok - refusé : suivi modifié entre-temps, la saisie sur l''ancienne version ne l''écrase pas';
+  end;
+  if (select commentaire from suivis where id = v_id) <> 'Saisie au bureau' then raise exception 'ÉCHEC : saisie écrasée'; end if;
+  update suivis set activite = 'Mise à jour sans version' where id = v_id;
+  raise notice 'ok - suivi : une modification sans version (serveur, anciennes versions) reste possible';
+end $$;
+
+-- Présences : l'observation la plus récente l'emporte
+do $$
+declare s uuid; b uuid;
+begin
+  perform set_config('ap2a.purge_demo', 'on', true);
+  select p.seance_id, p.beneficiaire_id into s, b from presences p limit 1;
+  if s is null then
+    select se.id, be.id into s, b from seances se join beneficiaires be on be.action_id = se.action_id limit 1;
+  end if;
+  insert into presences (seance_id, beneficiaire_id, present, pointe_le) values (s, b, true, now() - interval '1 hour')
+    on conflict (seance_id, beneficiaire_id) do update set present = excluded.present, pointe_le = excluded.pointe_le;
+  insert into presences (seance_id, beneficiaire_id, present, pointe_le) values (s, b, false, now() - interval '3 hours')
+    on conflict (seance_id, beneficiaire_id) do update set present = excluded.present, pointe_le = excluded.pointe_le;
+  if not (select present from presences where seance_id = s and beneficiaire_id = b) then
+    raise exception 'ÉCHEC : un pointage plus ancien a écrasé le plus récent';
+  end if;
+  raise notice 'ok - présences : un pointage plus ancien, arrivé plus tard, n''écrase pas le plus récent';
+  insert into presences (seance_id, beneficiaire_id, present, pointe_le) values (s, b, false, now() + interval '2 days')
+    on conflict (seance_id, beneficiaire_id) do update set present = excluded.present, pointe_le = excluded.pointe_le;
+  if (select present or pointe_le > now() from presences where seance_id = s and beneficiaire_id = b) then
+    raise exception 'ÉCHEC : pointage plus récent refusé ou heure future acceptée';
+  end if;
+  raise notice 'ok - présences : un pointage plus récent l''emporte ; heure du téléphone jamais dans le futur';
+  perform set_config('ap2a.purge_demo', '', true);
+end $$;
+
+-- Rappels planifiés : réponse vérifiée, nouvel essai, échec visible (pg_net imité)
+create schema net;
+create table net._http_response (id bigint primary key, status_code int, content text, timed_out boolean, error_msg text);
+create sequence net.req;
+create function net.http_post(url text, body jsonb default '{}', params jsonb default '{}', headers jsonb default '{}',
+  timeout_milliseconds int default 5000) returns bigint language sql as $$ select nextval('net.req') $$;
+create schema vault;
+create view vault.decrypted_secrets as select 'rappels_cle'::text as name, 'cle-de-test'::text as decrypted_secret;
+insert into rappels_lancements (type, jour, requete_id) values ('hebdo', '2026-01-05', 900), ('seances', '2026-01-05', 901), ('sms', '2026-01-05', 902);
+update rappels_lancements set essais = 3 where type = 'sms' and jour = '2026-01-05';
+insert into net._http_response values (900, 500, 'Erreur', false, null), (901, 200, '{"envoyes":4,"echecs":1}', false, null), (902, null, null, true, null);
+select verifier_rappels_lances();
+select t.ok((select essais = 2 and statut = 'lance' and requete_id <> 900 from rappels_lancements where type = 'hebdo' and jour = '2026-01-05'),
+  'rappels : réponse 500, nouvel essai lancé');
+select t.ok((select essais = 2 and statut = 'lance' and erreur like '1 envoi%' from rappels_lancements where type = 'seances' and jour = '2026-01-05'),
+  'rappels : envoi partiel, nouvel essai pour les seuls destinataires manqués');
+select t.ok((select statut = 'echec' and erreur = 'délai dépassé' from rappels_lancements where type = 'sms' and jour = '2026-01-05'),
+  'rappels : après 3 essais, échec visible avec sa cause');
+insert into net._http_response select requete_id, 200, '{"envoyes":5,"echecs":0}', false, null from rappels_lancements where type = 'hebdo' and jour = '2026-01-05';
+select verifier_rappels_lances();
+select t.ok((select statut = 'reussi' from rappels_lancements where type = 'hebdo' and jour = '2026-01-05'), 'rappels : réponse 200 sans échec, lancement réussi');
+drop schema net cascade;
+drop schema vault cascade;
 \echo 'Tous les tests sont passés.'

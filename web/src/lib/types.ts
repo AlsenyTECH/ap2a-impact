@@ -153,6 +153,8 @@ export interface Suivi {
   commentaire: string | null
   fichier_chemin: string | null
   saisi_par: string | null
+  /** Numéro de version : une modification préparée sur une version dépassée est refusée. */
+  version?: number
 }
 
 /** Ligne de la vue suivis_detail : le suivi, la cible et le membre chargé. */

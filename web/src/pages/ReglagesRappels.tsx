@@ -12,6 +12,9 @@ import { HEURES, heureCourte, JOURS, useReglagesRappels, type ReglagesRappels as
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
+interface Lancement { type: string; jour: string; lance_le: string; essais: number; statut: 'lance' | 'reussi' | 'echec'; erreur: string | null }
+const TYPES_LANCEMENT: Record<string, string> = { hebdo: 'Suivis de la semaine (email)', seances: 'Séances (email)', sms: 'SMS aux bénéficiaires' }
+
 interface EnvoiSms { id: number; envoye_le: string; objet: string; statut: string; erreur: string | null; cible: { prenom: string | null; nom: string } | null }
 
 /** Réglages des rappels automatiques : membres (email) et bénéficiaires (WhatsApp, SMS). */
@@ -30,6 +33,13 @@ export function ReglagesRappels() {
     enabled: peut('rappels.voir'),
     queryFn: async () => verifier(await supabase.from('rappels_cibles').select('id, envoye_le, objet, statut, erreur, cible:cibles(prenom, nom)')
       .eq('canal', 'sms').order('envoye_le', { ascending: false }).limit(15)) as unknown as EnvoiSms[],
+  })
+
+  const { data: lancements = [] } = useQuery({
+    queryKey: ['rappels-lancements'],
+    enabled: peut('rappels.voir'),
+    queryFn: async () => verifier(await supabase.from('rappels_lancements').select('type, jour, lance_le, essais, statut, erreur')
+      .order('lance_le', { ascending: false }).limit(12)) as Lancement[],
   })
 
   if (!peut('rappels.voir')) return <Navigate to="/" replace />
@@ -156,6 +166,26 @@ export function ReglagesRappels() {
         <Button asChild variant="secondary" size="sm"><Link to="/rappels"><MessageCircle /> Voir les rappels à envoyer</Link></Button>
       </Bloc>
 
+      {lancements.length ? (
+        <Bloc icone={CalendarClock} titre="Derniers envois automatiques"
+          sousTitre="Chaque envoi est vérifié au quart d'heure suivant ; en cas d'échec il est relancé (3 essais au plus), sans rien envoyer deux fois.">
+          <div className="divide-y divide-border text-sm">
+            {lancements.map((l) => (
+              <div key={`${l.type}-${l.jour}`} className="flex items-baseline justify-between gap-3 py-1.5">
+                <span className="min-w-0">
+                  <span className="text-muted-foreground">{new Date(l.lance_le).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                  {' · '}{TYPES_LANCEMENT[l.type] ?? l.type}
+                  {l.erreur ? <span className="block text-xs text-muted-foreground">{l.statut === 'echec' ? 'Cause' : 'Dernier problème'} : {l.erreur}</span> : null}
+                </span>
+                <span className={cn('shrink-0 font-medium', l.statut === 'reussi' ? 'text-primary' : l.statut === 'echec' ? 'text-destructive' : 'text-muted-foreground')}>
+                  {l.statut === 'reussi' ? 'réussi' : l.statut === 'echec' ? `échec (${l.essais} essais)` : l.essais > 1 ? `essai ${l.essais}…` : 'en cours'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Bloc>
+      ) : null}
+
       {sms.length ? (
         <Bloc icone={MessageSquareText} titre="Derniers SMS automatiques">
           <div className="divide-y divide-border text-sm">
@@ -174,7 +204,7 @@ export function ReglagesRappels() {
 
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <CalendarClock className="size-4" /> Dernière modification : {new Date(v.modifie_le).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}.
-        Un envoi manqué (panne) est rattrapé dans les deux heures ; un rappel activé après son heure partira le jour suivant.
+        Un envoi manqué (panne) est rattrapé dans les deux heures, puis relancé jusqu'à 3 fois s'il échoue ; un rappel activé après son heure partira le jour suivant.
       </p>
     </div>
   )
