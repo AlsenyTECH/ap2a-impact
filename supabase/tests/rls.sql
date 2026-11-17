@@ -892,6 +892,31 @@ select t.ok(exists (select 1 from calcul_rappels_cibles(current_date) r join eve
   where r.objet = 'evenement' and d.date = current_date + 1 and r.titre = 'Campagne de salubrité'),
   'événement : rappel aux bénéficiaires la veille d''une date intermédiaire');
 
+-- Présence des bénéficiaires à un événement relié à une action
+select jeton as j_benef from cartes where cible_id = (select id from cibles where nom = 'Diop' limit 1) and revoquee_le is null \gset
+set role authenticated;
+select t.qui('coord@ap2a.sn');
+select t.ok((select count(*) from beneficiaires_evenement((select id from evenements where titre = 'Campagne de salubrité'))) >= 2,
+  'événement : les participants des actions reliées sont les bénéficiaires invités');
+select t.ok(pointer_evenement((select id from evenements where titre = 'Campagne de salubrité'), :'j_benef',
+  (select id from evenement_dates where date = current_date + 1 and evenement_id = (select id from evenements where titre = 'Campagne de salubrité'))) ->> 'statut' = 'ok',
+  'événement : un bénéficiaire invité est pointé par sa carte');
+select t.ok(pointer_evenement((select id from evenements where titre = 'Campagne de salubrité'), :'j_benef',
+  (select id from evenement_dates where date = current_date + 1 and evenement_id = (select id from evenements where titre = 'Campagne de salubrité'))) ->> 'statut' = 'deja',
+  'événement : bénéficiaire déjà pointé à cette date');
+insert into evenement_presences_cibles (evenement_id, date_id, cible_id)
+select e.id, d.id, c.id from evenements e join evenement_dates d on d.evenement_id = e.id and d.date = current_date + 3, cibles c
+where e.titre = 'Campagne de salubrité' and c.nom = 'Ndiaye' limit 1;
+select t.ok((select count(*) from evenement_presences_cibles where evenement_id = (select id from evenements where titre = 'Campagne de salubrité')) = 2,
+  'événement : bénéficiaires pointés à la main, une liste par date');
+select t.ok((select pointe_par from evenement_presences_cibles where mode = 'manuel' limit 1) = mon_membre_id(), 'événement : l''auteur du pointage est noté');
+select t.ok(pointer_evenement((select id from evenements where titre = 'Réunion unique'), :'j_diop') ->> 'statut' = 'carte_beneficiaire',
+  'événement sans bénéficiaires invités : carte de bénéficiaire refusée');
+select t.qui('membre@ap2a.sn');
+select t.refuse($$select * from beneficiaires_evenement((select id from evenements where titre = 'Campagne de salubrité'))$$,
+  'événement : qui ne gère pas l''événement n''obtient pas la liste des bénéficiaires invités');
+reset role;
+
 -- ===== Relecture critique : journal, conflits hors connexion, rappels =====
 -- Journal : valeurs sensibles en empreinte HMAC, vérifiables par qui voit l'historique
 update membres set telephone = '77 111 22 33' where email = 'membre@ap2a.sn';

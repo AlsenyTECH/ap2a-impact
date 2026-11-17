@@ -202,7 +202,7 @@ export function EvenementForm({ ouvert, fermer, evenement }: { ouvert: boolean; 
           <Champ label="Invités" aide="« Une sélection » : vous choisirez les membres invités, triés par localité, avec « Invités et annonce » dans la fiche.">
             <Pastilles<'tous' | 'selection'> value={v.invites} onChange={(invites) => setV({ ...v, invites })} options={[['tous', 'Tous les membres'], ['selection', 'Une sélection']]} />
           </Champ>
-          <Champ label="Bénéficiaires invités" aide={v.type === 'remise' ? 'Les participants des actions cochées sont convoqués à la remise ; ceux qui l\'ont accepté reçoivent un rappel la veille.' : 'Facultatif : les participants des actions cochées sont invités et peuvent recevoir un rappel la veille.'}>
+          <Champ label="Bénéficiaires invités" aide={v.type === 'remise' ? 'Les participants des actions cochées sont convoqués à la remise ; ceux qui l\'ont accepté reçoivent un rappel la veille. Leur présence se pointe dans la fiche, onglet « Bénéficiaires ».' : 'Facultatif : les participants des actions cochées sont invités. Ils reçoivent un rappel la veille (s\'ils l\'ont accepté) et leur présence se pointe dans la fiche, onglet « Bénéficiaires ».'}>
             <div className="max-h-44 overflow-y-auto rounded-lg border border-input p-1">
               {!actions.length ? <p className="p-2 text-sm text-muted-foreground">Aucune action.</p> : actions.map((x) => (
                 <label key={x.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted">

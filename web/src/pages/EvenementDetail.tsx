@@ -28,6 +28,8 @@ import { cn } from '@/lib/utils'
 import { EvenementForm, heure, libelleType } from '@/pages/Evenements'
 
 interface Presence { date_id: string; membre_id: string; pointe_le: string; mode: 'manuel' | 'scan' }
+interface PresenceCible { date_id: string; cible_id: string; pointe_le: string; mode: 'manuel' | 'scan' }
+interface BeneficiaireInvite { cible_id: string; prenom: string | null; nom: string; numero_beneficiaire: string | null; actions: string; jeton_hash: string | null }
 
 export function EvenementDetail() {
   const { id = '' } = useParams()
@@ -41,6 +43,7 @@ export function EvenementDetail() {
   const [recherche, setRecherche] = useState('')
   const [vue, setVue] = useState<'tous' | 'presents' | 'absents'>('tous')
   const [tri, setTri] = useState<'nom' | 'arrivee' | 'numero'>('nom')
+  const [publicVu, setPublicVu] = useState<'membres' | 'beneficiaires'>('membres')
 
   const { data: ev, isLoading, error } = useQuery({
     queryKey: ['evenement', id],
@@ -71,7 +74,23 @@ export function EvenementDetail() {
   const dateActive = dates.find((d) => d.id === dateChoisie) ?? dates.find((d) => d.date === auj) ?? dates.find((d) => d.date > auj) ?? dates[dates.length - 1]
   const presences = toutesPresences.filter((p) => p.date_id === dateActive?.id)
   const { data: photos = {} } = usePhotos(membres.map((m) => m.photo_chemin))
-  const rafraichir = () => { if (navigator.onLine) qc.invalidateQueries({ queryKey: ['evenement-presences', id] }) }
+  const rafraichir = () => {
+    if (!navigator.onLine) return
+    qc.invalidateQueries({ queryKey: ['evenement-presences', id] })
+    qc.invalidateQueries({ queryKey: ['evenement-presences-cibles', id] })
+  }
+  // Bénéficiaires invités (participants des actions reliées) : lus par qui gère l'événement.
+  const gereEv = !!ev && (peut('evenements.gerer') || (peut('evenements.creer') && ev.cree_par === moi?.id))
+  const { data: beneficiaires = [] } = useQuery({
+    queryKey: ['evenement-beneficiaires', id],
+    enabled: gereEv && actionsInvitees.length > 0,
+    queryFn: async () => (verifier(await supabase.rpc('beneficiaires_evenement', { p_evenement: id })) ?? []) as BeneficiaireInvite[],
+  })
+  const { data: presencesCibles = [] } = useQuery({
+    queryKey: ['evenement-presences-cibles', id],
+    enabled: gereEv && actionsInvitees.length > 0,
+    queryFn: async () => verifier(await supabase.from('evenement_presences_cibles').select('date_id, cible_id, pointe_le, mode').eq('evenement_id', id)) as PresenceCible[],
+  })
   // Cartes des membres, gardées dans le téléphone : le scan marche aussi sans réseau.
   const { data: cartesMembres = [] } = useQuery({
     queryKey: ['cartes-membres', 'empreintes'],
@@ -133,7 +152,19 @@ export function EvenementDetail() {
     // Sans réseau : la carte est reconnue grâce à la liste gardée dans le téléphone.
     const empreinte = await empreinteJeton(jeton)
     const carte = cartesMembres.find((c) => c.jeton_hash === empreinte)
-    if (!carte) return { statut: 'inconnue' }
+    if (!carte) {
+      const b = beneficiaires.find((x) => x.jeton_hash === empreinte)
+      if (!b || !dateActive) return { statut: 'inconnue' }
+      const dejaB = (qc.getQueryData<PresenceCible[]>(['evenement-presences-cibles', id]) ?? []).some((p) => p.cible_id === b.cible_id && p.date_id === dateActive.id)
+      if (!dejaB) {
+        await executer(`Présence de ${b.prenom ?? ''} ${b.nom} — ${ev!.titre} (${date(dateActive.date)})`, {
+          kind: 'upsert', table: 'evenement_presences_cibles', onConflict: 'date_id,cible_id', ignoreDuplicates: true,
+          valeurs: [{ evenement_id: id, date_id: dateActive.id, cible_id: b.cible_id, mode: 'scan', pointe_le: new Date().toISOString() }],
+        })
+        qc.setQueryData<PresenceCible[]>(['evenement-presences-cibles', id], (avant = []) => [...avant, { date_id: dateActive.id, cible_id: b.cible_id, pointe_le: new Date().toISOString(), mode: 'scan' }])
+      }
+      return { statut: dejaB ? 'deja' : 'ok', prenom: b.prenom ?? undefined, nom: b.nom, numero: b.numero_beneficiaire ?? undefined }
+    }
     const m = membres.find((x) => x.id === carte.membre_id)
     if (!m || carte.revoquee_le || !m.actif) return { statut: 'revoquee', prenom: m?.prenom, nom: m?.nom }
     if (!dateActive) return { statut: 'inconnue' }
@@ -255,6 +286,15 @@ export function EvenementDetail() {
 
       <CompteRendu ev={ev} modifiable={responsable} />
 
+      {beneficiaires.length ? (
+        <div className="no-print mb-3">
+          <Pastilles<'membres' | 'beneficiaires'> value={publicVu} onChange={setPublicVu}
+            options={[['membres', `Membres (${concernes.length})`], ['beneficiaires', `Bénéficiaires (${beneficiaires.length})`]]} />
+        </div>
+      ) : null}
+      {publicVu === 'beneficiaires' && beneficiaires.length ? (
+        <PresencesBeneficiaires evenementId={id} titre={ev.titre} beneficiaires={beneficiaires} presences={presencesCibles} dateActive={dateActive} gere={gere} />
+      ) : (<>
       <div className="no-print">
         <OutilsListe
           recherche={recherche}
@@ -304,13 +344,14 @@ export function EvenementDetail() {
           })}
         </Encadre>
       )}
+      </>)}
 
       <EvenementForm ouvert={edition} fermer={() => setEdition(false)} evenement={ev} />
       <Scanner
         ouvert={scan}
         fermer={() => { setScan(false); rafraichir() }}
         titre={`Pointage — ${ev.titre}${dateActive && dates.length > 1 ? ` (${date(dateActive.date)})` : ''}`}
-        description="Présentez les cartes de membre une par une devant la caméra."
+        description={beneficiaires.length ? 'Présentez les cartes (membres et bénéficiaires invités) une par une devant la caméra.' : 'Présentez les cartes de membre une par une devant la caméra.'}
         pointer={pointer}
       />
       {partage ? (
@@ -453,6 +494,84 @@ function DatesEvenement({ ev, dates, active, choisir, gere, presencesParDate }: 
     </section>
   )
 }
+/** Présence des bénéficiaires invités (participants des actions reliées), pour la date choisie. */
+function PresencesBeneficiaires({ evenementId, titre, beneficiaires, presences, dateActive, gere }: {
+  evenementId: string; titre: string; beneficiaires: BeneficiaireInvite[]; presences: PresenceCible[]; dateActive: EvenementDate | undefined; gere: boolean
+}) {
+  const qc = useQueryClient()
+  const [recherche, setRecherche] = useState('')
+  const [vue, setVue] = useState<'tous' | 'presents' | 'absents'>('tous')
+  const presence = new Map(presences.filter((p) => p.date_id === dateActive?.id).map((p) => [p.cible_id, p]))
+  const nbPresents = beneficiaires.filter((b) => presence.has(b.cible_id)).length
+  const visibles = trier(beneficiaires.filter((b) => (vue === 'tous' || (vue === 'presents') === presence.has(b.cible_id))
+    && correspond(recherche, b.prenom, b.nom, b.numero_beneficiaire, b.actions)), (b) => `${b.nom} ${b.prenom ?? ''}`)
+
+  async function basculer(b: BeneficiaireInvite) {
+    if (!dateActive) return
+    const present = presence.has(b.cible_id)
+    try {
+      await executer(`${present ? 'Retrait de la présence' : 'Présence'} de ${b.prenom ?? ''} ${b.nom} — ${titre} (${date(dateActive.date)})`, present
+        ? { kind: 'delete', table: 'evenement_presences_cibles', filtre: { date_id: dateActive.id, cible_id: b.cible_id } }
+        : { kind: 'upsert', table: 'evenement_presences_cibles', onConflict: 'date_id,cible_id', ignoreDuplicates: true,
+            valeurs: [{ evenement_id: evenementId, date_id: dateActive.id, cible_id: b.cible_id, mode: 'manuel', pointe_le: new Date().toISOString() }] })
+      qc.setQueryData<PresenceCible[]>(['evenement-presences-cibles', evenementId], (avant = []) => present
+        ? avant.filter((p) => !(p.cible_id === b.cible_id && p.date_id === dateActive.id))
+        : [...avant, { date_id: dateActive.id, cible_id: b.cible_id, pointe_le: new Date().toISOString(), mode: 'manuel' }])
+      if (navigator.onLine) qc.invalidateQueries({ queryKey: ['evenement-presences-cibles', evenementId] })
+    } catch (e) {
+      toast.error(messageErreur(e))
+    }
+  }
+
+  async function exporter() {
+    await exporterExcel(`beneficiaires-${dateActive?.date ?? ''}-${titre.toLowerCase().replace(/[^a-z0-9]+/gi, '-').slice(0, 40)}`, visibles, [
+      { titre: 'N° bénéficiaire', valeur: (b) => b.numero_beneficiaire, largeur: 16 },
+      { titre: 'Prénom', valeur: (b) => b.prenom, largeur: 18 },
+      { titre: 'Nom', valeur: (b) => b.nom, largeur: 18 },
+      { titre: 'Action(s)', valeur: (b) => b.actions, largeur: 30 },
+      { titre: 'Présent', valeur: (b) => (presence.has(b.cible_id) ? 'Oui' : 'Non') },
+      { titre: 'Arrivée', valeur: (b) => (presence.get(b.cible_id) ? new Date(presence.get(b.cible_id)!.pointe_le).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null) },
+    ], 'Bénéficiaires')
+  }
+
+  return (
+    <>
+      <div className="no-print">
+        <OutilsListe recherche={recherche} setRecherche={setRecherche} placeholder="Chercher un bénéficiaire : nom, numéro, action…" total={visibles.length}>
+          <div className="flex flex-wrap items-center gap-3">
+            <Pastilles<'tous' | 'presents' | 'absents'> value={vue} onChange={setVue}
+              options={[['tous', `Tous (${beneficiaires.length})`], ['presents', `Présents (${nbPresents})`], ['absents', `Absents (${beneficiaires.length - nbPresents})`]]} />
+            <Button size="sm" variant="secondary" onClick={exporter}><FileSpreadsheet /> Excel</Button>
+          </div>
+        </OutilsListe>
+      </div>
+      <Encadre>
+        {visibles.map((b) => {
+          const p = presence.get(b.cible_id)
+          return (
+            <div key={b.cible_id} className="flex items-center gap-3 px-4 py-2.5">
+              <Avatar prenom={b.prenom ?? b.nom} nom={b.nom} taille="sm" />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium">{b.prenom} {b.nom}</div>
+                <div className="truncate text-xs text-muted-foreground">{[b.numero_beneficiaire, b.actions].filter(Boolean).join(' · ')}</div>
+              </div>
+              {p ? <span className="text-xs text-muted-foreground">{new Date(p.pointe_le).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}{p.mode === 'scan' ? ' · carte' : ''}</span> : null}
+              <button
+                disabled={!gere}
+                onClick={() => basculer(b)}
+                className={cn('inline-flex h-8 items-center gap-1 rounded-full px-3 text-xs font-semibold', p ? 'bg-[#e2f4e2] text-[#0b6b0b]' : 'bg-muted text-muted-foreground', gere && 'hover:opacity-80')}
+                title={gere ? (p ? 'Retirer la présence' : 'Marquer présent') : undefined}
+              >
+                {p ? <><Check className="size-3.5" /> Présent</> : 'Absent'}
+              </button>
+            </div>
+          )
+        })}
+      </Encadre>
+    </>
+  )
+}
+
 /** Compte rendu / procès-verbal : reste modifiable après la clôture. */
 function CompteRendu({ ev, modifiable }: { ev: Evenement; modifiable: boolean }) {
   const qc = useQueryClient()
