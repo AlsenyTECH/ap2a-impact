@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Check, Clock, FileSpreadsheet, Lock, LockOpen, MapPin, Pencil, Printer, ScanLine, Trash2, UserPlus, UsersRound } from 'lucide-react'
+import { ArrowLeft, CalendarPlus, Check, Clock, FileSpreadsheet, Lock, LockOpen, MapPin, Megaphone, Pencil, Printer, ScanLine, Trash2, UsersRound, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Chargement, Erreur, Pastilles } from '@/components/champs'
+import { Chargement, Champ, Erreur, Liste, Pastilles } from '@/components/champs'
+import { PartageMembres } from '@/components/PartageMembres'
 import { Avatar, Liste as Encadre } from '@/components/design'
 import { OutilsListe } from '@/components/OutilsListe'
 import { Scanner } from '@/components/Scanner'
@@ -23,11 +23,11 @@ import { correspond, trier } from '@/lib/recherche'
 import { useMembres } from '@/lib/requetes'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
 import { estErreurReseau, executer } from '@/lib/horsligne'
-import type { Evenement, Membre, ResultatPointage } from '@/lib/types'
+import type { Evenement, EvenementDate, Membre, ResultatPointage } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { EvenementForm, heure, libelleType } from '@/pages/Evenements'
 
-interface Presence { membre_id: string; pointe_le: string; mode: 'manuel' | 'scan' }
+interface Presence { date_id: string; membre_id: string; pointe_le: string; mode: 'manuel' | 'scan' }
 
 export function EvenementDetail() {
   const { id = '' } = useParams()
@@ -36,7 +36,8 @@ export function EvenementDetail() {
   const { peut, membre: moi } = useAuth()
   const [edition, setEdition] = useState(false)
   const [scan, setScan] = useState(false)
-  const [choixInvites, setChoixInvites] = useState(false)
+  const [partage, setPartage] = useState(false)
+  const [dateChoisie, setDateChoisie] = useState<string | null>(null)
   const [recherche, setRecherche] = useState('')
   const [vue, setVue] = useState<'tous' | 'presents' | 'absents'>('tous')
   const [tri, setTri] = useState<'nom' | 'arrivee' | 'numero'>('nom')
@@ -56,10 +57,19 @@ export function EvenementDetail() {
     queryKey: ['evenement-invites', id],
     queryFn: async () => (verifier(await supabase.from('evenement_invites').select('membre_id').eq('evenement_id', id)) as { membre_id: string }[]).map((x) => x.membre_id),
   })
-  const { data: presences = [] } = useQuery({
+  const { data: toutesPresences = [] } = useQuery({
     queryKey: ['evenement-presences', id],
-    queryFn: async () => verifier(await supabase.from('evenement_presences').select('membre_id, pointe_le, mode').eq('evenement_id', id)) as Presence[],
+    queryFn: async () => verifier(await supabase.from('evenement_presences').select('date_id, membre_id, pointe_le, mode').eq('evenement_id', id)) as Presence[],
   })
+  // Un événement peut se tenir sur plusieurs dates : une liste de présence par date.
+  const { data: dates = [] } = useQuery({
+    queryKey: ['evenement-dates', id],
+    queryFn: async () => verifier(await supabase.from('evenement_dates').select('*').eq('evenement_id', id).order('date').order('heure_debut', { nullsFirst: true })) as EvenementDate[],
+  })
+  // Date affichée : celle choisie, sinon aujourd'hui, sinon la prochaine, sinon la dernière.
+  const auj = aujourdhui()
+  const dateActive = dates.find((d) => d.id === dateChoisie) ?? dates.find((d) => d.date === auj) ?? dates.find((d) => d.date > auj) ?? dates[dates.length - 1]
+  const presences = toutesPresences.filter((p) => p.date_id === dateActive?.id)
   const { data: photos = {} } = usePhotos(membres.map((m) => m.photo_chemin))
   const rafraichir = () => { if (navigator.onLine) qc.invalidateQueries({ queryKey: ['evenement-presences', id] }) }
   // Cartes des membres, gardées dans le téléphone : le scan marche aussi sans réseau.
@@ -67,10 +77,10 @@ export function EvenementDetail() {
     queryKey: ['cartes-membres', 'empreintes'],
     queryFn: async () => verifier(await supabase.from('cartes').select('jeton_hash, membre_id, revoquee_le').not('membre_id', 'is', null)) as { jeton_hash: string; membre_id: string; revoquee_le: string | null }[],
   })
-  const noterLocalement = (membreId: string, present: boolean, mode: 'scan' | 'manuel') =>
+  const noterLocalement = (dateId: string, membreId: string, present: boolean, mode: 'scan' | 'manuel') =>
     qc.setQueryData<Presence[]>(['evenement-presences', id], (avant = []) => present
-      ? [...avant.filter((p) => p.membre_id !== membreId), { membre_id: membreId, pointe_le: new Date().toISOString(), mode }]
-      : avant.filter((p) => p.membre_id !== membreId))
+      ? [...avant.filter((p) => !(p.membre_id === membreId && p.date_id === dateId)), { date_id: dateId, membre_id: membreId, pointe_le: new Date().toISOString(), mode }]
+      : avant.filter((p) => !(p.membre_id === membreId && p.date_id === dateId)))
 
   if (error) return <Erreur erreur={error} />
   if (isLoading || !ev) return <Chargement />
@@ -79,7 +89,7 @@ export function EvenementDetail() {
   const cloture = !!ev.cloture_le
   // Une fois clôturé, l'événement est figé : plus de pointage ni de changement de la liste.
   const gere = responsable && !cloture
-  const passe = ev.date < aujourdhui()
+  const passe = (ev.date_fin ?? ev.date) < auj
   const cloturePar = membres.find((m) => m.id === ev.cloture_par)
   const presence = new Map(presences.map((p) => [p.membre_id, p]))
   const listeInvites = ev.invites === 'tous' ? membres.filter((m) => m.actif) : membres.filter((m) => invites.includes(m.id))
@@ -96,13 +106,14 @@ export function EvenementDetail() {
     : trier(retenus, (m) => presence.get(m.id)?.pointe_le)
 
   async function basculer(m: Membre) {
+    if (!dateActive) return
     const present = presence.has(m.id)
     try {
-      await executer(`${present ? 'Retrait de la présence' : 'Présence'} de ${m.prenom} ${m.nom} — ${ev!.titre}`, present
-        ? { kind: 'delete', table: 'evenement_presences', filtre: { evenement_id: id, membre_id: m.id } }
-        : { kind: 'upsert', table: 'evenement_presences', onConflict: 'evenement_id,membre_id', ignoreDuplicates: true,
-            valeurs: [{ evenement_id: id, membre_id: m.id, mode: 'manuel', pointe_le: new Date().toISOString() }] })
-      noterLocalement(m.id, !present, 'manuel')
+      await executer(`${present ? 'Retrait de la présence' : 'Présence'} de ${m.prenom} ${m.nom} — ${ev!.titre} (${date(dateActive.date)})`, present
+        ? { kind: 'delete', table: 'evenement_presences', filtre: { date_id: dateActive.id, membre_id: m.id } }
+        : { kind: 'upsert', table: 'evenement_presences', onConflict: 'date_id,membre_id', ignoreDuplicates: true,
+            valeurs: [{ evenement_id: id, date_id: dateActive.id, membre_id: m.id, mode: 'manuel', pointe_le: new Date().toISOString() }] })
+      noterLocalement(dateActive.id, m.id, !present, 'manuel')
       rafraichir()
     } catch (e) {
       toast.error(messageErreur(e))
@@ -112,7 +123,7 @@ export function EvenementDetail() {
   async function pointer(jeton: string): Promise<ResultatPointage> {
     if (navigator.onLine) {
       try {
-        const r = verifier(await supabase.rpc('pointer_evenement', { p_evenement: id, p_jeton: jeton })) as ResultatPointage
+        const r = verifier(await supabase.rpc('pointer_evenement', { p_evenement: id, p_jeton: jeton, p_date: dateActive?.id ?? null })) as ResultatPointage
         rafraichir()
         return r
       } catch (e) {
@@ -125,13 +136,14 @@ export function EvenementDetail() {
     if (!carte) return { statut: 'inconnue' }
     const m = membres.find((x) => x.id === carte.membre_id)
     if (!m || carte.revoquee_le || !m.actif) return { statut: 'revoquee', prenom: m?.prenom, nom: m?.nom }
-    const deja = (qc.getQueryData<Presence[]>(['evenement-presences', id]) ?? []).some((p) => p.membre_id === m.id)
+    if (!dateActive) return { statut: 'inconnue' }
+    const deja = (qc.getQueryData<Presence[]>(['evenement-presences', id]) ?? []).some((p) => p.membre_id === m.id && p.date_id === dateActive.id)
     if (!deja) {
-      await executer(`Présence de ${m.prenom} ${m.nom} — ${ev!.titre}`, {
-        kind: 'upsert', table: 'evenement_presences', onConflict: 'evenement_id,membre_id', ignoreDuplicates: true,
-        valeurs: [{ evenement_id: id, membre_id: m.id, mode: 'scan', pointe_le: new Date().toISOString() }],
+      await executer(`Présence de ${m.prenom} ${m.nom} — ${ev!.titre} (${date(dateActive.date)})`, {
+        kind: 'upsert', table: 'evenement_presences', onConflict: 'date_id,membre_id', ignoreDuplicates: true,
+        valeurs: [{ evenement_id: id, date_id: dateActive.id, membre_id: m.id, mode: 'scan', pointe_le: new Date().toISOString() }],
       })
-      noterLocalement(m.id, true, 'scan')
+      noterLocalement(dateActive.id, m.id, true, 'scan')
     }
     const invite = ev!.invites === 'tous' || invites.includes(m.id)
     return { statut: deja ? 'deja' : invite ? 'ok' : 'non_invite', prenom: m.prenom, nom: m.nom, numero: m.numero_adherent }
@@ -157,7 +169,7 @@ export function EvenementDetail() {
   }
 
   async function exporter() {
-    await exporterExcel(`presences-${ev!.date}-${ev!.titre.toLowerCase().replace(/[^a-z0-9]+/gi, '-').slice(0, 40)}`, trier(concernes, (m) => `${m.nom} ${m.prenom}`), [
+    await exporterExcel(`presences-${dateActive?.date ?? ev!.date}-${ev!.titre.toLowerCase().replace(/[^a-z0-9]+/gi, '-').slice(0, 40)}`, trier(concernes, (m) => `${m.nom} ${m.prenom}`), [
       { titre: 'N° membre', valeur: (m) => m.numero_adherent, largeur: 14 },
       { titre: 'Prénom', valeur: (m) => m.prenom, largeur: 18 },
       { titre: 'Nom', valeur: (m) => m.nom, largeur: 18 },
@@ -179,8 +191,8 @@ export function EvenementDetail() {
             <div className="text-sm font-medium text-muted-foreground">{libelleType(ev.type)}</div>
             <h1 className="mt-0.5 text-2xl font-semibold leading-tight">{ev.titre}</h1>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              <span>{date(ev.date)}</span>
-              {ev.heure_debut ? <span className="inline-flex items-center gap-1"><Clock className="size-4" />{heure(ev.heure_debut)}{ev.heure_fin ? ` – ${heure(ev.heure_fin)}` : ''}</span> : null}
+              <span>{dates.length > 1 ? `${dates.length} dates, du ${date(ev.date)} au ${date(ev.date_fin ?? ev.date)}` : date(ev.date)}</span>
+              {dates.length <= 1 && ev.heure_debut ? <span className="inline-flex items-center gap-1"><Clock className="size-4" />{heure(ev.heure_debut)}{ev.heure_fin ? ` – ${heure(ev.heure_fin)}` : ''}</span> : null}
               {ev.lieu ? <span className="inline-flex items-center gap-1"><MapPin className="size-4" />{ev.lieu}</span> : null}
             </div>
             {ev.description ? <p className="mt-3 whitespace-pre-line text-sm">{ev.description}</p> : null}
@@ -202,7 +214,7 @@ export function EvenementDetail() {
             <Button variant="secondary" onClick={() => window.print()}><Printer /> Imprimer</Button>
             {gere ? (
               <>
-                {ev.invites === 'selection' ? <Button variant="secondary" onClick={() => setChoixInvites(true)}><UserPlus /> Invités</Button> : null}
+                <Button variant="secondary" onClick={() => setPartage(true)}><Megaphone /> Invités et annonce</Button>
                 <Button variant="secondary" onClick={() => changerCloture(true)}><Lock /> Clôturer</Button>
                 <Button variant="ghost" onClick={() => setEdition(true)}><Pencil /> Modifier</Button>
               </>
@@ -212,7 +224,7 @@ export function EvenementDetail() {
           </div>
         </div>
         <div className="grid grid-cols-3 gap-px border-t border-border/70 bg-border/70 text-center">
-          {[[listeInvites.length, ev.invites === 'tous' ? 'membres actifs invités' : 'invités'], [nbPresents, 'présents'], [`${taux} %`, 'participation']].map(([v, l]) => (
+          {[[listeInvites.length, ev.invites === 'tous' ? 'membres actifs invités' : 'invités'], [nbPresents, dates.length > 1 && dateActive ? `présents le ${date(dateActive.date)}` : 'présents'], [`${taux} %`, 'participation']].map(([v, l]) => (
             <div key={l} className="bg-card px-3 py-3">
               <div className="font-heading text-xl font-semibold chiffres">{v}</div>
               <div className="text-xs text-muted-foreground">{l}</div>
@@ -238,6 +250,8 @@ export function EvenementDetail() {
           <Button size="sm" onClick={() => changerCloture(true)}><Lock /> Clôturer maintenant</Button>
         </div>
       ) : null}
+
+      <DatesEvenement ev={ev} dates={dates} active={dateActive} choisir={setDateChoisie} gere={gere} presencesParDate={toutesPresences} />
 
       <CompteRendu ev={ev} modifiable={responsable} />
 
@@ -295,65 +309,150 @@ export function EvenementDetail() {
       <Scanner
         ouvert={scan}
         fermer={() => { setScan(false); rafraichir() }}
-        titre={`Pointage — ${ev.titre}`}
+        titre={`Pointage — ${ev.titre}${dateActive && dates.length > 1 ? ` (${date(dateActive.date)})` : ''}`}
         description="Présentez les cartes de membre une par une devant la caméra."
         pointer={pointer}
       />
-      {choixInvites ? <ChoixInvites evenementId={id} membres={membres.filter((m) => m.actif)} invites={invites} fermer={() => setChoixInvites(false)} /> : null}
+      {partage ? (
+        <PartageMembres
+          evenement={{ id, invites: ev.invites }}
+          messageInitial={messageEvenement(ev, dates)}
+          fermer={() => setPartage(false)}
+        />
+      ) : null}
     </>
   )
 }
 
-function ChoixInvites({ evenementId, membres, invites, fermer }: { evenementId: string; membres: Membre[]; invites: string[]; fermer: () => void }) {
-  const qc = useQueryClient()
-  const [choix, setChoix] = useState(new Set(invites))
-  const [recherche, setRecherche] = useState('')
-  const [envoi, setEnvoi] = useState(false)
-  const visibles = trier(membres.filter((m) => correspond(recherche, m.prenom, m.nom, m.numero_adherent, m.fonction, nomRole(m))), (m) => `${m.nom} ${m.prenom}`)
+const jourCourt = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
 
-  async function enregistrer() {
+/** Message proposé pour annoncer l'événement : ses prochaines dates. */
+export function messageEvenement(ev: Evenement, dates: EvenementDate[]) {
+  const auj = aujourdhui()
+  const prochaines = dates.filter((d) => d.date >= auj)
+  const liste = (prochaines.length ? prochaines : dates).slice(0, 6)
+    .map((d) => `- ${jourCourt(d.date)}${d.heure_debut ?? ev.heure_debut ? ` à ${heure((d.heure_debut ?? ev.heure_debut)!)}` : ''}${d.lieu ? `, ${d.lieu}` : ''}`)
+  const reste = (prochaines.length ? prochaines : dates).length - liste.length
+  return [
+    `Bonjour {prénom}, l'AP2A vous invite : « ${ev.titre} »${ev.lieu ? ` (${ev.lieu})` : ''}.`,
+    liste.length > 1 || reste > 0 ? `Dates :\n${liste.join('\n')}${reste > 0 ? `\n… et ${reste} autre(s) date(s)` : ''}` : liste[0]?.replace(/^- /, 'Le ') ?? '',
+    ev.description ? ev.description.slice(0, 200) : '',
+    'Merci de votre présence !',
+  ].filter(Boolean).join('\n')
+}
+
+const REPETITIONS: [string, string][] = [['jour', 'Chaque jour'], ['semaine', 'Chaque semaine'], ['mois', 'Chaque mois']]
+
+/** Dates de l'événement : choisir celle dont on fait l'appel, en ajouter (une ou une série), en retirer. */
+function DatesEvenement({ ev, dates, active, choisir, gere, presencesParDate }: {
+  ev: Evenement; dates: EvenementDate[]; active: EvenementDate | undefined; choisir: (id: string) => void; gere: boolean; presencesParDate: Presence[]
+}) {
+  const qc = useQueryClient()
+  const [ajout, setAjout] = useState(false)
+  const [serie, setSerie] = useState<'une' | 'serie'>('une')
+  const [v, setV] = useState({ date: aujourdhui(), fin: '', repetition: 'semaine', heure_debut: '', heure_fin: '', lieu: '' })
+  const [envoi, setEnvoi] = useState(false)
+  if (!gere && dates.length <= 1) return null
+
+  // Dates d'une série : du premier jour au dernier, tous les jours, semaines ou mois (60 au plus).
+  function datesSerie(): string[] {
+    if (serie === 'une') return [v.date]
+    if (!v.fin || v.fin < v.date) return []
+    const res: string[] = []
+    const d = new Date(`${v.date}T12:00:00`)
+    const jour = d.getDate()
+    for (let i = 0; res.length < 60; i++) {
+      const x = new Date(`${v.date}T12:00:00`)
+      if (v.repetition === 'jour') x.setDate(jour + i)
+      else if (v.repetition === 'semaine') x.setDate(jour + 7 * i)
+      else { x.setMonth(x.getMonth() + i); if (x.getDate() !== jour) continue }
+      const iso = `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
+      if (iso > v.fin) break
+      res.push(iso)
+    }
+    return res
+  }
+  const nouvelles = datesSerie().filter((d) => !dates.some((x) => x.date === d && (x.heure_debut ?? '') === (v.heure_debut ? `${v.heure_debut}:00` : '')))
+
+  async function ajouter() {
+    if (!nouvelles.length) return
     setEnvoi(true)
-    const ajouts = [...choix].filter((x) => !invites.includes(x))
-    const retraits = invites.filter((x) => !choix.has(x))
-    const r1 = ajouts.length ? await supabase.from('evenement_invites').insert(ajouts.map((membre_id) => ({ evenement_id: evenementId, membre_id }))) : { error: null }
-    const r2 = retraits.length ? await supabase.from('evenement_invites').delete().eq('evenement_id', evenementId).in('membre_id', retraits) : { error: null }
+    const { error } = await supabase.from('evenement_dates').insert(nouvelles.map((d) => ({
+      evenement_id: ev.id, date: d, heure_debut: v.heure_debut || null, heure_fin: v.heure_fin || null, lieu: v.lieu.trim() || null,
+    })))
     setEnvoi(false)
-    if (r1.error || r2.error) return toast.error(messageErreur(r1.error ?? r2.error))
-    qc.invalidateQueries({ queryKey: ['evenement-invites', evenementId] })
-    qc.invalidateQueries({ queryKey: ['evenements'] })
-    toast.success(`${choix.size} invité(s)`)
-    fermer()
+    if (error) return toast.error(messageErreur(error))
+    toast.success(`${nouvelles.length} date(s) ajoutée(s)`)
+    setAjout(false)
+    for (const k of [['evenement-dates', ev.id], ['evenement', ev.id], ['evenements']]) qc.invalidateQueries({ queryKey: k })
+  }
+
+  async function retirer(d: EvenementDate) {
+    const n = presencesParDate.filter((p) => p.date_id === d.id).length
+    if (!confirm(`Retirer la date du ${date(d.date)} ?${n ? `\n\nSa liste de présence (${n} présent(s)) sera effacée.` : ''}`)) return
+    const { error } = await supabase.from('evenement_dates').delete().eq('id', d.id)
+    if (error) return toast.error(messageErreur(error))
+    for (const k of [['evenement-dates', ev.id], ['evenement', ev.id], ['evenements'], ['evenement-presences', ev.id]]) qc.invalidateQueries({ queryKey: k })
   }
 
   return (
-    <Dialog open onOpenChange={(o) => !o && fermer()}>
-      <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Membres invités</DialogTitle>
-          <DialogDescription>{choix.size} sélectionné(s) sur {membres.length}.</DialogDescription>
-        </DialogHeader>
-        <OutilsListe recherche={recherche} setRecherche={setRecherche} placeholder="Nom, numéro, rôle (bureau…)" />
-        <div className="flex gap-2">
-          <Button size="sm" variant="secondary" onClick={() => setChoix(new Set([...choix, ...visibles.map((m) => m.id)]))}>Tout cocher</Button>
-          <Button size="sm" variant="ghost" onClick={() => setChoix(new Set([...choix].filter((x) => !visibles.some((m) => m.id === x))))}>Tout décocher</Button>
+    <section className="mb-6 rounded-xl border border-border bg-card p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-base font-semibold">Dates ({dates.length})</h2>
+        {gere ? <Button size="sm" variant="secondary" className="no-print" onClick={() => setAjout(!ajout)}><CalendarPlus /> Ajouter des dates</Button> : null}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {dates.map((d) => {
+          const n = presencesParDate.filter((p) => p.date_id === d.id).length
+          const h = d.heure_debut ?? ev.heure_debut
+          return (
+            <span key={d.id} className={cn('inline-flex items-center rounded-full border text-sm', d.id === active?.id ? 'border-primary bg-primary/10 text-primary' : 'border-border')}>
+              <button type="button" onClick={() => choisir(d.id)} className="px-3 py-1" aria-pressed={d.id === active?.id} title="Afficher la liste de présence de cette date">
+                <b className="font-semibold">{jourCourt(d.date)}</b>{h ? ` · ${heure(h)}` : ''}{d.lieu ? ` · ${d.lieu}` : ''}
+                <span className="text-xs text-muted-foreground"> · {n} présent{n > 1 ? 's' : ''}</span>
+              </button>
+              {gere && dates.length > 1 ? (
+                <button type="button" onClick={() => retirer(d)} className="no-print mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted" aria-label={`Retirer la date du ${date(d.date)}`}><X className="size-3.5" /></button>
+              ) : null}
+            </span>
+          )
+        })}
+      </div>
+      {gere && ajout ? (
+        <div className="no-print mt-4 grid gap-3 rounded-lg border border-border bg-muted/30 p-3">
+          <Pastilles<'une' | 'serie'> value={serie} onChange={setSerie} options={[['une', 'Une date'], ['serie', 'Une série de dates']]} />
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Champ label={serie === 'une' ? 'Date' : 'Première date'}><Input type="date" value={v.date} onChange={(e) => setV({ ...v, date: e.target.value })} /></Champ>
+            {serie === 'serie' ? (
+              <>
+                <Champ label="Dernière date"><Input type="date" min={v.date} value={v.fin} onChange={(e) => setV({ ...v, fin: e.target.value })} /></Champ>
+                <Champ label="Répétition">
+                  <Liste value={v.repetition} onChange={(e) => setV({ ...v, repetition: e.target.value })}>
+                    {REPETITIONS.map(([c, l]) => <option key={c} value={c}>{l}</option>)}
+                  </Liste>
+                </Champ>
+              </>
+            ) : null}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Champ label="Début (facultatif)"><Input type="time" value={v.heure_debut} onChange={(e) => setV({ ...v, heure_debut: e.target.value })} /></Champ>
+            <Champ label="Fin (facultatif)"><Input type="time" value={v.heure_fin} onChange={(e) => setV({ ...v, heure_fin: e.target.value })} /></Champ>
+            <Champ label="Lieu, s'il change"><Input maxLength={200} value={v.lieu} placeholder={ev.lieu ?? ''} onChange={(e) => setV({ ...v, lieu: e.target.value })} /></Champ>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="text-muted-foreground">
+              {nouvelles.length ? `${nouvelles.length} date(s) à ajouter${nouvelles.length > 1 ? ` : du ${date(nouvelles[0])} au ${date(nouvelles[nouvelles.length - 1])}` : ''}` : serie === 'serie' ? 'Choisissez la dernière date.' : 'Cette date existe déjà.'}
+            </span>
+            <span className="flex gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setAjout(false)}>Annuler</Button>
+              <Button size="sm" onClick={ajouter} disabled={envoi || !nouvelles.length}>Ajouter</Button>
+            </span>
+          </div>
         </div>
-        <div className="max-h-[45dvh] divide-y divide-border/70 overflow-y-auto rounded-xl border border-border">
-          {visibles.map((m) => (
-            <label key={m.id} className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm">
-              <Checkbox checked={choix.has(m.id)} onCheckedChange={(c) => { const n = new Set(choix); if (c) n.add(m.id); else n.delete(m.id); setChoix(n) }} />
-              <span className="flex-1">{m.prenom} {m.nom} <span className="text-xs text-muted-foreground">· {m.numero_adherent} · {nomRole(m)}</span></span>
-            </label>
-          ))}
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={fermer}>Annuler</Button>
-          <Button onClick={enregistrer} disabled={envoi}>Enregistrer</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+      ) : null}
+    </section>
   )
 }
-
 /** Compte rendu / procès-verbal : reste modifiable après la clôture. */
 function CompteRendu({ ev, modifiable }: { ev: Evenement; modifiable: boolean }) {
   const qc = useQueryClient()

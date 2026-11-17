@@ -66,14 +66,15 @@ export const useAdresseMembre = (membreId: string | null | undefined) =>
     enabled: !!membreId,
     queryFn: async () => {
       const a = verifier(await supabase.from('membres_adresses').select('zone_id, adresse, repere').eq('membre_id', membreId!).maybeSingle()) as { zone_id: number | null; adresse: string | null; repere: string | null } | null
-      return a ? { zone_id: a.zone_id, adresse: a.adresse ?? '', repere: a.repere ?? '', autre: !a.zone_id && !!a.adresse } : ADRESSE_VIDE
+      // « Autre » : une adresse en clair, avec éventuellement la commune (zone) ; sinon zone = unité des Parcelles.
+      return a ? { zone_id: a.zone_id, adresse: a.adresse ?? '', repere: a.repere ?? '', autre: !!a.adresse } : ADRESSE_VIDE
     },
   })
 
 /** Enregistre l'adresse ; vide, elle est effacée. */
 export async function enregistrerAdresse(membreId: string, a: Adresse) {
   const ligne = {
-    zone_id: a.autre ? null : a.zone_id,
+    zone_id: a.zone_id,
     adresse: a.autre ? a.adresse.trim() || null : null,
     repere: a.repere.trim() || null,
   }
@@ -87,6 +88,8 @@ export async function enregistrerAdresse(membreId: string, a: Adresse) {
 export function ChampsAdresse({ valeur, changer }: { valeur: Adresse; changer: (a: Adresse) => void }) {
   const { data: zones = [] } = useZones()
   const unites = unitesParcelles(zones)
+  // Hors Parcelles : la commune (ou le département, la région) pour trier et filtrer les membres.
+  const communes = zones.filter((z) => z.niveau !== 'quartier').sort((a, b) => a.chemin.localeCompare(b.chemin, 'fr'))
   return (
     <div className="grid gap-3 rounded-lg border border-border bg-muted/30 p-3">
       <Champ label="Adresse">
@@ -103,6 +106,14 @@ export function ChampsAdresse({ valeur, changer }: { valeur: Adresse; changer: (
           <option value="autre">Autre (hors Parcelles Assainies)</option>
         </Liste>
       </Champ>
+      {valeur.autre ? (
+        <Champ label="Commune ou localité" aide="Sert à trier et filtrer les membres par localité.">
+          <Liste value={valeur.zone_id ?? ''} onChange={(e) => changer({ ...valeur, zone_id: e.target.value ? Number(e.target.value) : null })}>
+            <option value="">— Choisir —</option>
+            {communes.map((z) => <option key={z.id} value={z.id}>{z.niveau === 'commune' ? `${z.nom} (${z.chemin.split(' > ')[1] ?? ''})` : z.chemin}</option>)}
+          </Liste>
+        </Champ>
+      ) : null}
       {valeur.autre ? (
         <Champ label="Quartier et ville">
           <Input autoFocus required maxLength={200} value={valeur.adresse} placeholder="Ex. Cité Mixta, Dakar · Keur Massar · Thiès" onChange={(e) => changer({ ...valeur, adresse: e.target.value })} />

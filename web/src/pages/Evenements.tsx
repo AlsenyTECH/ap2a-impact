@@ -12,7 +12,7 @@ import { Champ, Chargement, EnTete, Erreur, Liste, Pastilles } from '@/component
 import { BlocDate } from '@/components/design'
 import { OutilsListe } from '@/components/OutilsListe'
 import { useAuth } from '@/lib/auth'
-import { aujourdhui } from '@/lib/format'
+import { aujourdhui, date } from '@/lib/format'
 import { correspond, trier } from '@/lib/recherche'
 import { useMembres } from '@/lib/requetes'
 import { messageErreur, supabase, verifier } from '@/lib/supabase'
@@ -48,7 +48,7 @@ export function Evenements() {
 
   const auj = aujourdhui()
   const retenus = (evenements ?? []).filter((e) => (!type || e.type === type)
-    && (!quand || (quand === 'venir' ? e.date >= auj : quand === 'clotures' ? !!e.cloture_le : e.date < auj && !e.cloture_le))
+    && (!quand || (quand === 'venir' ? (e.date_fin ?? e.date) >= auj : quand === 'clotures' ? !!e.cloture_le : (e.date_fin ?? e.date) < auj && !e.cloture_le))
     && correspond(recherche, e.titre, e.lieu, e.description, libelleType(e.type)))
   const liste = tri === 'recents' ? trier(retenus, (e) => e.date, 'desc')
     : tri === 'anciens' ? trier(retenus, (e) => e.date)
@@ -84,7 +84,7 @@ export function Evenements() {
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {liste.map((e) => {
-            const passe = e.date < auj
+            const passe = (e.date_fin ?? e.date) < auj
             const n = invites(e)
             return (
               <Link key={e.id} to={`/evenements/${e.id}`} className="flex gap-4 rounded-2xl border border-border/80 bg-card p-4 shadow-carte transition hover:-translate-y-0.5 hover:shadow-haute">
@@ -95,6 +95,7 @@ export function Evenements() {
                     {e.cloture_le ? <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px]"><Lock className="size-3" /> Clôturé</span> : null}
                   </div>
                   <div className="truncate font-semibold">{e.titre}</div>
+                  {e.date_fin && e.date_fin > e.date ? <div className="text-xs font-medium text-primary">Plusieurs dates, jusqu'au {date(e.date_fin)}</div> : null}
                   <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     {e.heure_debut ? <span className="inline-flex items-center gap-1"><Clock className="size-3.5" />{heure(e.heure_debut)}</span> : null}
                     {e.lieu ? <span className="inline-flex min-w-0 items-center gap-1"><MapPin className="size-3.5 shrink-0" /><span className="truncate">{e.lieu}</span></span> : null}
@@ -151,9 +152,11 @@ export function EvenementForm({ ouvert, fermer, evenement }: { ouvert: boolean; 
   async function enregistrer(e: FormEvent) {
     e.preventDefault()
     setEnvoi(true)
+    // Les dates se gèrent ensuite dans la fiche (section Dates) : à la création, la première date ;
+    // à la modification, on ne touche pas aux dates.
     const donnees = {
-      titre: v.titre.trim(), type: v.type, date: v.date, heure_debut: v.heure_debut || null, heure_fin: v.heure_fin || null,
-      lieu: v.lieu.trim() || null, description: v.description.trim() || null, invites: v.invites,
+      titre: v.titre.trim(), type: v.type, lieu: v.lieu.trim() || null, description: v.description.trim() || null, invites: v.invites,
+      ...(evenement ? {} : { date: v.date, heure_debut: v.heure_debut || null, heure_fin: v.heure_fin || null }),
     }
     const r = evenement
       ? await supabase.from('evenements').update(donnees).eq('id', evenement.id).select('id').single()
@@ -183,13 +186,20 @@ export function EvenementForm({ ouvert, fermer, evenement }: { ouvert: boolean; 
         <form onSubmit={enregistrer} className="grid gap-4">
           <Champ label="Type"><Pastilles value={v.type} onChange={(type) => setV({ ...v, type })} options={TYPES_EVENEMENT} /></Champ>
           <Champ label="Titre"><Input required value={v.titre} onChange={(e) => setV({ ...v, titre: e.target.value })} placeholder="Assemblée générale ordinaire 2026" /></Champ>
-          <div className="grid grid-cols-3 gap-3">
-            <Champ label="Date"><Input type="date" required value={v.date} onChange={(e) => setV({ ...v, date: e.target.value })} /></Champ>
-            <Champ label="Début"><Input type="time" value={v.heure_debut} onChange={(e) => setV({ ...v, heure_debut: e.target.value })} /></Champ>
-            <Champ label="Fin"><Input type="time" value={v.heure_fin} onChange={(e) => setV({ ...v, heure_fin: e.target.value })} /></Champ>
-          </div>
+          {evenement ? (
+            <p className="rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground">Les dates et les heures se modifient dans la fiche de l'événement, section « Dates ».</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-3">
+                <Champ label="Première date"><Input type="date" required value={v.date} onChange={(e) => setV({ ...v, date: e.target.value })} /></Champ>
+                <Champ label="Début"><Input type="time" value={v.heure_debut} onChange={(e) => setV({ ...v, heure_debut: e.target.value })} /></Champ>
+                <Champ label="Fin"><Input type="time" value={v.heure_fin} onChange={(e) => setV({ ...v, heure_fin: e.target.value })} /></Champ>
+              </div>
+              <p className="-mt-2 text-xs text-muted-foreground">Sur plusieurs jours ? Vous ajouterez les autres dates, une par une ou en série, dans la fiche de l'événement.</p>
+            </>
+          )}
           <Champ label="Lieu"><Input value={v.lieu} onChange={(e) => setV({ ...v, lieu: e.target.value })} placeholder="Siège de l'association, Unité 17" /></Champ>
-          <Champ label="Invités" aide="« Une sélection » : vous choisirez les membres invités sur la page de l'événement.">
+          <Champ label="Invités" aide="« Une sélection » : vous choisirez les membres invités, triés par localité, avec « Invités et annonce » dans la fiche.">
             <Pastilles<'tous' | 'selection'> value={v.invites} onChange={(invites) => setV({ ...v, invites })} options={[['tous', 'Tous les membres'], ['selection', 'Une sélection']]} />
           </Champ>
           <Champ label="Bénéficiaires invités" aide={v.type === 'remise' ? 'Les participants des actions cochées sont convoqués à la remise ; ceux qui l\'ont accepté reçoivent un rappel la veille.' : 'Facultatif : les participants des actions cochées sont invités et peuvent recevoir un rappel la veille.'}>

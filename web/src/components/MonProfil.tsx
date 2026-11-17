@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { BellRing, CalendarClock, Eye, IdCard, KeyRound, ListChecks, Mail, Send } from 'lucide-react'
+import { BellRing, CalendarClock, Eye, IdCard, KeyRound, ListChecks, Mail, Megaphone, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -57,6 +57,14 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
     queryFn: async () => verifier(await supabase.from('rappels_envoyes').select('*').order('envoye_le', { ascending: false }).limit(15)) as Envoi[],
   })
 
+  const [annonces, setAnnonces] = useState<boolean | null>(null)
+  async function reglerAnnonces(v: boolean) {
+    const { error } = await supabase.rpc('regler_annonces', { p_actif: v })
+    if (error) return toast.error(messageErreur(error))
+    setAnnonces(v)
+    toast.success(v ? 'Vous recevrez les annonces' : 'Vous ne recevrez plus les annonces')
+  }
+
   async function regler(v: boolean) {
     const { error } = await supabase.rpc('regler_rappels', { p_actif: v })
     if (error) return toast.error(messageErreur(error))
@@ -97,6 +105,19 @@ export function MonProfil({ ouvert, fermer }: { ouvert: boolean; fermer: () => v
             <Button asChild size="sm" variant="secondary" className="mt-2"><Link to={`/cartes?membre=${membre.id}`} onClick={fermer}><IdCard /> Ma carte de membre</Link></Button>
           </div>
         </div>
+
+        <section className="space-y-3">
+          <label className="flex items-start justify-between gap-4">
+            <span className="flex gap-3">
+              <Megaphone className="mt-0.5 size-5 shrink-0 text-primary" />
+              <span className="text-sm">
+                <span className="font-medium">Recevoir les annonces des actions et événements</span>
+                <span className="block text-muted-foreground">Par WhatsApp, SMS ou email, quand un responsable informe les membres.</span>
+              </span>
+            </span>
+            <Switch checked={annonces ?? membre.annonces ?? true} onCheckedChange={reglerAnnonces} />
+          </label>
+        </section>
 
         <section className="space-y-3">
           <label className="flex items-start justify-between gap-4">

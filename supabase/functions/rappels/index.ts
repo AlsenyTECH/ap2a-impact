@@ -14,7 +14,9 @@
 //    membre toutes les 10 minutes ; SMS vers le Sénégal (+221) seulement ;
 //  * droit « membres.comptes » : { type: 'changer_email', membre_id, email } → change l'adresse de connexion ;
 //  * droit « rappels.regler » : { type: 'sms_test', telephone } → SMS d'essai (vérifie les crédits Brevo) ;
-//  * droit « membres.comptes » : { type: 'reinitialiser_2fa', membre_id } → téléphone perdu.
+//  * droit « membres.comptes » : { type: 'reinitialiser_2fa', membre_id } → téléphone perdu ;
+//  * qui gère l'action ou l'événement : { type: 'annonce', action_id | evenement_id, tous, membre_ids, canal, message }
+//    → informe tous les membres ou ceux choisis (sauf ceux qui refusent les annonces) ; SMS : droit « annonces.sms ».
 // Un rôle qui exige la double authentification n'a aucun droit ici tant que la session n'est pas aal2.
 //
 // Secrets : EXPEDITEUR_EMAIL, et BREVO_API_KEY ou RESEND_API_KEY.
@@ -311,8 +313,9 @@ const repondre = (corps: unknown, statut = 200) =>
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
-    const { type = 'hebdo', apercu = false, membre_id = null, acces_id = null, email: nouvelEmail = null, jour: jourRecu = null, telephone = null, membre_ids = [], canal = 'email' } = await req.json().catch(() => ({}))
-    if (!['hebdo', 'seances', 'sms', 'sms_test', 'invitation', 'invitations', 'changer_email', 'reinitialiser_2fa'].includes(type)) return repondre({ erreur: 'Type inconnu' }, 400)
+    const { type = 'hebdo', apercu = false, membre_id = null, acces_id = null, email: nouvelEmail = null, jour: jourRecu = null, telephone = null, membre_ids = [], canal = 'email',
+      action_id = null, evenement_id = null, tous = false, message = '' } = await req.json().catch(() => ({}))
+    if (!['hebdo', 'seances', 'sms', 'sms_test', 'invitation', 'invitations', 'changer_email', 'reinitialiser_2fa', 'annonce'].includes(type)) return repondre({ erreur: 'Type inconnu' }, 400)
     const jour = typeof jourRecu === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(jourRecu) ? jourRecu : null
 
     const service = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
@@ -491,6 +494,76 @@ Deno.serve(async (req) => {
         } catch (e) {
           resultats.push({ membre_id: m.id, nom, statut: 'echec', erreur: (e as Error).message })
           await service.from('rappels_envoyes').insert({ ...journal, email: (canal === 'email' ? m.email : m.telephone) ?? '—', statut: 'echec', erreur: (e as Error).message })
+        }
+      }
+      return repondre({ resultats })
+    }
+
+    // Annonce d'une action ou d'un événement à tous les membres, ou à ceux choisis.
+    if (type === 'annonce') {
+      const moi = await appelant()
+      if (!moi) return repondre({ erreur: 'Non autorisé' }, 401)
+      if (!moi.mfaOk) return repondre({ erreur: 'Validez votre double authentification' }, 403)
+      if (!['email', 'sms', 'whatsapp'].includes(canal)) return repondre({ erreur: 'Canal inconnu' }, 400)
+      if (!!action_id === !!evenement_id) return repondre({ erreur: 'Une action ou un événement' }, 400)
+      // Le droit de gérer l'action ou l'événement est vérifié par la base, au nom de la personne qui appelle.
+      const commeMoi = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+        auth: { persistSession: false }, global: { headers: { authorization: req.headers.get('authorization') ?? '' } },
+      })
+      const verif = action_id
+        ? await commeMoi.rpc('peut_gerer_action', { p_action: action_id })
+        : await commeMoi.rpc('peut_gerer_evenement', { p_evenement: evenement_id })
+      if (verif.error || verif.data !== true) return repondre({ erreur: "Seul qui gère cette action ou cet événement peut informer les membres" }, 403)
+      if (canal === 'sms' && !(await droitDe(moi, 'annonces.sms'))) return repondre({ erreur: "Le SMS est payant : il faut le droit « Envoyer des annonces par SMS ». Utilisez WhatsApp ou l'email." }, 403)
+      const texte = String(message ?? '').trim()
+      if (texte.length < 5 || texte.length > 700) return repondre({ erreur: 'Message de 5 à 700 caractères' }, 400)
+      let q = service.from('membres').select('id, prenom, nom, email, telephone').eq('actif', true).eq('annonces', true)
+      if (!tous) {
+        const ids = Array.isArray(membre_ids) ? [...new Set(membre_ids.map(String))].slice(0, 500) : []
+        if (!ids.length) return repondre({ erreur: 'Aucun membre choisi' }, 400)
+        q = q.in('id', ids)
+      }
+      const { data: fiches, error: e } = await q
+      if (e) throw e
+      // Quota : 500 destinataires par jour et par personne.
+      const deja = await recents({ typeLike: 'annonce%', par: moi.id }, 24 * 60)
+      if (deja + (fiches?.length ?? 0) > 500) return repondre({ erreur: `Quota atteint : 500 annonces par jour (${deja} déjà envoyées)` }, 429)
+      const { data: r } = await service.from('reglages_rappels').select('sms_expediteur').single()
+      const resultats: { membre_id: string; nom: string; statut: 'envoye' | 'lien' | 'echec'; erreur?: string; message?: string; telephone?: string }[] = []
+      let plusDeCredits: string | null = null
+      for (const m of fiches ?? []) {
+        const nom = `${m.prenom} ${m.nom}`
+        const perso = texte.replace(/\{prénom\}|\{prenom\}/gi, prenomSur(m.prenom) ?? '')
+        const journal = { type: `annonce-${canal}`, membre_id: m.id, nb: 1, envoye_par: moi.id, envoye_par_nom: moi.nomComplet }
+        try {
+          const tel = m.telephone ? numeroIntl(m.telephone) : null
+          if (canal === 'whatsapp') {
+            if (!tel || tel.length < 11 || tel.length > 15) throw new Error('Pas de numéro de téléphone valide')
+            await service.from('rappels_envoyes').insert({ ...journal, email: `+${tel}`, statut: 'lien' })
+            resultats.push({ membre_id: m.id, nom, statut: 'lien', message: perso, telephone: tel })
+            continue
+          }
+          if (canal === 'sms') {
+            if (!tel || !numeroSenegal(tel)) throw new Error('Pas de numéro sénégalais valide')
+            if (plusDeCredits) throw new Error(plusDeCredits)
+            try {
+              await envoyerSms(tel, perso, r?.sms_expediteur ?? 'AP2A', 320)
+            } catch (err) {
+              if (/Crédits SMS|option SMS/.test((err as Error).message)) plusDeCredits = (err as Error).message
+              throw err
+            }
+            await service.from('rappels_envoyes').insert({ ...journal, email: `+${tel}`, statut: 'envoye' })
+          } else {
+            if (!m.email || m.email.endsWith('.invalid')) throw new Error("Pas d'adresse email")
+            const corps = `<p style="margin:0 0 12px;white-space:pre-line">${echapper(perso)}</p>`
+            await envoyer(m.email, 'AP2A — Information', gabarit('Information de l\'association', corps,
+              "Vous recevez ce message car vous êtes membre de l'AP2A. Pour ne plus recevoir les annonces, décochez-les dans « Mon profil » de l'application."))
+            await service.from('rappels_envoyes').insert({ ...journal, email: m.email, statut: 'envoye' })
+          }
+          resultats.push({ membre_id: m.id, nom, statut: 'envoye' })
+        } catch (err) {
+          resultats.push({ membre_id: m.id, nom, statut: 'echec', erreur: (err as Error).message })
+          await service.from('rappels_envoyes').insert({ ...journal, email: (canal === 'email' ? m.email : m.telephone) ?? '—', statut: 'echec', erreur: (err as Error).message })
         }
       }
       return repondre({ resultats })

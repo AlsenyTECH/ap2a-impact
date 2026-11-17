@@ -836,6 +836,62 @@ select t.qui('admin@ap2a.sn');
 select t.refuse($$update roles set mfa_obligatoire = false where code = 'admin'$$, 'double authentification : jamais retirée à l''administrateur');
 reset role;
 
+-- ===== Localités, annonces, événements sur plusieurs dates =====
+insert into membres_adresses (membre_id, zone_id) values ((t.m('membre@ap2a.sn')).id, (select id from zones where nom = 'Unité 17'))
+  on conflict (membre_id) do update set zone_id = excluded.zone_id, adresse = null;
+insert into membres_adresses (membre_id, zone_id, adresse) values ((t.m('coord2@ap2a.sn')).id, (select id from zones where niveau = 'commune' and nom = 'Grand Yoff'), 'Cité Millionnaire')
+  on conflict (membre_id) do update set zone_id = excluded.zone_id, adresse = excluded.adresse;
+set role authenticated;
+select t.qui('admin@ap2a.sn');
+select t.ok((select localite = 'Unité 17' and tri = '1-017' from localites_membres() where membre_id = (t.m('membre@ap2a.sn')).id),
+  'localité : unité des Parcelles, triée par numéro');
+select t.ok((select localite = 'Grand Yoff' and tri like '2-%' and adresse = 'Cité Millionnaire' from localites_membres() where membre_id = (t.m('coord2@ap2a.sn')).id),
+  'localité : adresse « Autre » rattachée à une commune');
+select t.qui('coord@ap2a.sn');
+select t.refuse($$select * from localites_membres()$$, 'localités : réservées à qui gère les membres');
+select t.ok((select count(*) from membres_pour_annonce(p_action := (select id from actions where responsable_id = (t.m('coord@ap2a.sn')).id limit 1))) > 0,
+  'annonce : le responsable de l''action voit les membres à informer');
+select t.ok(not exists (select 1 from membres_pour_annonce(p_action := (select id from actions where responsable_id = (t.m('coord@ap2a.sn')).id limit 1)) where adresse is not null),
+  'annonce : le responsable ne voit pas les adresses détaillées');
+select t.ok((select localite from membres_pour_annonce(p_action := (select id from actions where responsable_id = (t.m('coord@ap2a.sn')).id limit 1)) where membre_id = (t.m('membre@ap2a.sn')).id) = 'Unité 17',
+  'annonce : la localité (unité) est visible pour trier');
+select t.qui('membre@ap2a.sn');
+select t.refuse($$select * from membres_pour_annonce(p_action := (select id from actions limit 1))$$, 'annonce : un simple membre n''informe pas les autres');
+select regler_annonces(false);
+select t.qui('admin@ap2a.sn');
+select t.ok((select not annonces from membres_pour_annonce(p_action := (select id from actions limit 1)) where membre_id = (t.m('membre@ap2a.sn')).id),
+  'annonce : un membre peut refuser les annonces');
+select t.ok((select adresse from membres_pour_annonce(p_action := (select id from actions limit 1)) where membre_id = (t.m('coord2@ap2a.sn')).id) = 'Cité Millionnaire',
+  'annonce : qui gère les membres voit l''adresse');
+
+-- Événement sur plusieurs dates
+select t.qui('coord@ap2a.sn');
+insert into evenements (titre, date, heure_debut, lieu) values ('Campagne de salubrité', current_date + 3, '09:00', 'Unité 17');
+select t.ok((select count(*) = 1 and min(date) = current_date + 3 and min(heure_debut) = '09:00' from evenement_dates
+  where evenement_id = (select id from evenements where titre = 'Campagne de salubrité')), 'événement : sa première date est créée');
+insert into evenement_dates (evenement_id, date) select id, current_date + 1 from evenements where titre = 'Campagne de salubrité';
+insert into evenement_dates (evenement_id, date) select id, current_date + 33 from evenements where titre = 'Campagne de salubrité';
+select t.ok((select date = current_date + 1 and date_fin = current_date + 33 from evenements where titre = 'Campagne de salubrité'),
+  'événement : première et dernière date tenues à jour');
+select t.ok(pointer_evenement((select id from evenements where titre = 'Campagne de salubrité'), :'j_coord',
+  (select id from evenement_dates where date = current_date + 1 and evenement_id = (select id from evenements where titre = 'Campagne de salubrité'))) ->> 'statut' = 'ok',
+  'événement : pointage sur une date');
+select t.ok(pointer_evenement((select id from evenements where titre = 'Campagne de salubrité'), :'j_coord',
+  (select id from evenement_dates where date = current_date + 3 and evenement_id = (select id from evenements where titre = 'Campagne de salubrité'))) ->> 'statut' = 'ok',
+  'événement : la même personne pointée à une autre date');
+select t.ok((select count(*) from evenement_presences where evenement_id = (select id from evenements where titre = 'Campagne de salubrité')) = 2,
+  'événement : une liste de présence par date');
+insert into evenements (titre, date) values ('Réunion unique', current_date + 5);
+select t.refuse($$delete from evenement_dates where evenement_id = (select id from evenements where titre = 'Réunion unique')$$,
+  'événement : garde toujours au moins une date');
+delete from evenement_dates where date = current_date + 33 and evenement_id = (select id from evenements where titre = 'Campagne de salubrité');
+select t.ok((select date_fin from evenements where titre = 'Campagne de salubrité') = current_date + 3, 'événement : retirer une date met à jour la dernière date');
+reset role;
+insert into evenement_actions select e.id, a.id from evenements e, actions a where e.titre = 'Campagne de salubrité' and a.titre = 'Couture 2026';
+select t.ok(exists (select 1 from calcul_rappels_cibles(current_date) r join evenement_dates d on d.id = r.objet_id
+  where r.objet = 'evenement' and d.date = current_date + 1 and r.titre = 'Campagne de salubrité'),
+  'événement : rappel aux bénéficiaires la veille d''une date intermédiaire');
+
 -- ===== Relecture critique : journal, conflits hors connexion, rappels =====
 -- Journal : valeurs sensibles en empreinte HMAC, vérifiables par qui voit l'historique
 update membres set telephone = '77 111 22 33' where email = 'membre@ap2a.sn';

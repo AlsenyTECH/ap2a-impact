@@ -49,12 +49,27 @@ export function Membres() {
   })
   const etats = useMemo(() => new Map((Array.isArray(listeEtats) ? listeEtats : []).map((e) => [e.membre_id, e.etat])), [listeEtats])
   const active = (m: Membre) => (etats.get(m.id) ?? (m.user_id ? 'actif' : 'aucun')) === 'actif'
-  const [tri, setTri] = useState<'nom' | 'numero' | 'role' | 'recents'>('nom')
+  // Localité de chaque membre (unité des Parcelles, commune) : lue par qui gère les membres.
+  const { data: listeLocalites } = useQuery({
+    queryKey: ['localites-membres'],
+    enabled: gestion,
+    queryFn: async () => (verifier(await supabase.rpc('localites_membres')) ?? []) as { membre_id: string; localite: string; tri: string; adresse: string | null }[],
+  })
+  const localiteDe = useMemo(() => new Map((Array.isArray(listeLocalites) ? listeLocalites : []).map((l) => [l.membre_id, l])), [listeLocalites])
+  const localites = useMemo(() => {
+    const m = new Map<string, { tri: string; n: number }>()
+    for (const l of Array.isArray(listeLocalites) ? listeLocalites : []) m.set(l.localite, { tri: l.tri, n: (m.get(l.localite)?.n ?? 0) + 1 })
+    return [...m.entries()].sort((a, b) => a[1].tri.localeCompare(b[1].tri))
+  }, [listeLocalites])
+  const [localite, setLocalite] = useState('')
+  const [tri, setTri] = useState<'nom' | 'numero' | 'role' | 'recents' | 'localite'>('nom')
   const [role, setRole] = useState('')
   const [inactifs, setInactifs] = useState(false)
   const retenus = (membres ?? []).filter((m) => (inactifs || m.actif) && (!role || m.role_id === role)
     && (!acces || (acces === 'actives') === active(m))
-    && correspond(recherche, m.prenom, m.nom, m.telephone, m.email, m.numero_adherent, m.fonction, nomRole(m), libelleNiveau(m.niveau_etude), m.competences?.join(' ')))
+    && (!localite || localiteDe.get(m.id)?.localite === localite)
+    && correspond(recherche, m.prenom, m.nom, m.telephone, m.email, m.numero_adherent, m.fonction, nomRole(m), libelleNiveau(m.niveau_etude), m.competences?.join(' '),
+      localiteDe.get(m.id)?.localite, localiteDe.get(m.id)?.adresse))
   const ordreRole = new Map(roles.map((r, i) => [r.id, i]))
   const { data: zones = [] } = useZones()
 
@@ -67,7 +82,7 @@ export function Membres() {
       const adresse = (m: Membre) => {
         const a = adresseDe.get(m.id)
         if (!a) return null
-        return [a.zone_id ? zones.find((z) => z.id === a.zone_id)?.nom : a.adresse, a.repere].filter(Boolean).join(' — ')
+        return [a.zone_id ? zones.find((z) => z.id === a.zone_id)?.nom : null, a.adresse, a.repere].filter(Boolean).join(' — ')
       }
       await exporterExcel(`membres-ap2a-${new Date().toISOString().slice(0, 10)}`, liste, [
         { titre: "N° d'adhérent", valeur: (m) => m.numero_adherent, largeur: 16 },
@@ -92,6 +107,7 @@ export function Membres() {
   const liste = tri === 'nom' ? trier(retenus, (m) => `${m.nom} ${m.prenom}`)
     : tri === 'numero' ? trier(retenus, (m) => m.numero_adherent)
     : tri === 'role' ? trier(retenus, (m) => ordreRole.get(m.role_id) ?? 99)
+    : tri === 'localite' ? trier(retenus, (m) => `${localiteDe.get(m.id)?.tri ?? '9'} ${(localiteDe.get(m.id)?.adresse ?? '').toLowerCase()} ${m.nom} ${m.prenom}`)
     : trier(retenus, (m) => m.date_adhesion, 'desc')
 
   // Suppression groupée : jamais soi-même ni un compte protégé ; chaque fiche passe par la même règle que le bouton seul.
@@ -134,7 +150,7 @@ export function Membres() {
         recherche={recherche}
         setRecherche={setRecherche}
         placeholder="Nom, n° d'adhérent, téléphone, fonction, compétence…"
-        tris={[['nom', 'Nom A → Z'], ['numero', "N° d'adhérent"], ['role', 'Par rôle'], ['recents', 'Adhésions récentes']]}
+        tris={[['nom', 'Nom A → Z'], ['numero', "N° d'adhérent"], ['role', 'Par rôle'], ['recents', 'Adhésions récentes'], ...(gestion ? [['localite', 'Par localité'] as ['localite', string]] : [])]}
         tri={tri}
         setTri={setTri}
         total={membres ? liste.length : undefined}
@@ -144,6 +160,12 @@ export function Membres() {
           {gestion ? (
             <Pastilles<'' | 'actives' | 'attente'> value={acces} onChange={(v) => setAcces(v === acces ? '' : v)}
               options={[['actives', 'Accès activé'], ['attente', `Accès non activé (${(membres ?? []).filter((m) => m.actif && !active(m)).length})`]]} />
+          ) : null}
+          {gestion && localites.length ? (
+            <Liste className="w-auto" value={localite} onChange={(e) => setLocalite(e.target.value)} aria-label="Filtrer par localité">
+              <option value="">Toutes les localités</option>
+              {localites.map(([l, x]) => <option key={l} value={l}>{l} ({x.n})</option>)}
+            </Liste>
           ) : null}
           <label className="flex items-center gap-2 text-sm text-muted-foreground"><Switch checked={inactifs} onCheckedChange={setInactifs} /> Inclure les inactifs</label>
         </div>
@@ -170,7 +192,7 @@ export function Membres() {
               <div className="min-w-0 flex-1">
                 <div className={m.actif ? 'font-medium' : 'font-medium text-muted-foreground line-through'}>{m.prenom} {m.nom}</div>
                 <div className="truncate text-xs text-muted-foreground">
-                  {[m.numero_adherent, m.fonction, m.telephone].filter(Boolean).join(' · ')}
+                  {[m.numero_adherent, m.fonction, m.telephone, gestion ? [localiteDe.get(m.id)?.localite, localiteDe.get(m.id)?.adresse].filter((x) => x && x !== 'Non renseignée' && x !== 'Autre adresse').join(', ') : null].filter(Boolean).join(' · ')}
                 </div>
                 {m.competences?.length || m.niveau_etude ? (
                   <div className="truncate text-xs font-medium text-primary">{[libelleNiveau(m.niveau_etude), ...(m.competences ?? [])].filter(Boolean).join(' · ')}</div>
@@ -272,6 +294,7 @@ function MembreForm({ membre, fermer, onCree }: { membre: Membre | 'nouveau' | n
     toast.success(existant ? 'Membre modifié' : 'Membre ajouté')
     qc.invalidateQueries({ queryKey: ['membres'] })
     qc.invalidateQueries({ queryKey: ['adresse-membre'] })
+    qc.invalidateQueries({ queryKey: ['localites-membres'] })
     fermer()
     // Nouveau membre avec email : on propose tout de suite de l'inviter.
     if (!existant && (fiche.email || fiche.telephone)) onCree?.(fiche)

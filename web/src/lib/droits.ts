@@ -12,7 +12,7 @@ export type Permission =
   | 'kits.gerer'
   | 'partenaires.gerer'
   | 'membres.gerer' | 'membres.supprimer' | 'membres.comptes' | 'roles.gerer'
-  | 'referentiels.gerer' | 'vitrine.gerer' | 'rappels.voir' | 'rappels.regler' | 'journal.voir' | 'medical.journal' | 'medical.lire' | 'demo.gerer'
+  | 'referentiels.gerer' | 'vitrine.gerer' | 'rappels.voir' | 'rappels.regler' | 'journal.voir' | 'medical.journal' | 'medical.lire' | 'demo.gerer' | 'annonces.sms'
 
 export interface DefinitionDroit { code: Permission; groupe: string; libelle: string; description: string | null; ordre: number }
 

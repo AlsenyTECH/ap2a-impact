@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, CalendarDays, IdCard, FileSpreadsheet, FileText, Lock, LockOpen, Gift, MapPin, Paperclip, Pencil, PenLine, Plus, Printer, ScanLine, Trash2, UserPlus, UserRound, Wallet, X } from 'lucide-react'
+import { ArrowLeft, CalendarDays, IdCard, FileSpreadsheet, FileText, Lock, LockOpen, Gift, MapPin, Megaphone, Paperclip, Pencil, PenLine, Plus, Printer, ScanLine, Trash2, UserPlus, UserRound, Wallet, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,7 @@ import { OutilsListe } from '@/components/OutilsListe'
 import { Seances } from '@/components/Seances'
 import { Historique } from '@/components/Historique'
 import { OngletConsultations } from '@/components/OngletConsultations'
+import { PartageMembres } from '@/components/PartageMembres'
 import { correspond, membreAvecNumero, trier } from '@/lib/recherche'
 import { Avatar, IconeType, StatutPastille } from '@/components/design'
 import { useAuth } from '@/lib/auth'
@@ -43,6 +44,7 @@ export function ActionDetail() {
   const { data: action, isLoading, error } = useAction(id)
   const { data: types = [] } = useTypesAction()
   const [edition, setEdition] = useState(false)
+  const [informer, setInformer] = useState(false)
 
   const { data: equipe = [] } = useQuery({
     queryKey: ['equipe', id],
@@ -123,6 +125,7 @@ export function ActionDetail() {
                 </Button>
               ))}
               {!cloturee ? <Button variant="secondary" size="sm" onClick={() => setEdition(true)}><Pencil /> Modifier</Button> : null}
+              {!cloturee ? <Button variant="secondary" size="sm" onClick={() => setInformer(true)}><Megaphone /> Informer des membres</Button> : null}
               <Button asChild variant="secondary" size="sm"><Link to={`/actions/${id}/rapport`}><FileText /> Rapport</Link></Button>
               <Button asChild variant="secondary" size="sm" title="Imprimer les cartes des participants (pointage par QR code)"><Link to={`/cartes?action=${id}`}><IdCard /> Cartes</Link></Button>
               {action.statut === 'preparation' || action.statut === 'annulee' ? (
@@ -196,6 +199,19 @@ export function ActionDetail() {
         {gere ? <TabsContent value="historique"><Historique actionId={id} /></TabsContent> : null}
       </Tabs>
       <ActionForm ouvert={edition} fermer={() => setEdition(false)} action={action} />
+      {informer ? (
+        <PartageMembres
+          actionId={id}
+          messageInitial={[
+            `Bonjour {prénom}, l'AP2A organise « ${action.titre} »`
+              + ` ${action.date_fin && action.date_fin !== action.date_debut ? `du ${date(action.date_debut)} au ${date(action.date_fin)}` : `le ${date(action.date_debut)}`}`
+              + `${action.lieu ? `, ${action.lieu}` : ''}.`,
+            action.description ? action.description.slice(0, 200) : '',
+            'Votre aide est la bienvenue. Merci !',
+          ].filter(Boolean).join('\n')}
+          fermer={() => setInformer(false)}
+        />
+      ) : null}
     </>
   )
 }

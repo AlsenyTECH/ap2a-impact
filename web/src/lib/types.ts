@@ -33,6 +33,8 @@ export interface Membre {
   /** Compte protégé : ni supprimé ni désactivé (marque posée dans Supabase). */
   protege?: boolean
   competences?: string[]
+  /** Accepte d'être informé des actions et événements (réglable dans « Mon profil »). */
+  annonces?: boolean
 }
 
 export interface Zone { id: number; nom: string; niveau: string; parent_id: number | null; chemin: string }
@@ -219,7 +221,10 @@ export interface Evenement {
   id: string
   titre: string
   type: string
+  /** Première date (tenue à jour par la base à partir des dates de l'événement). */
   date: string
+  /** Dernière date. */
+  date_fin: string | null
   heure_debut: string | null
   heure_fin: string | null
   lieu: string | null
@@ -230,6 +235,17 @@ export interface Evenement {
   cloture_le: string | null
   cloture_par: string | null
   compte_rendu: string | null
+}
+
+/** Une date d'un événement (un événement peut se tenir sur plusieurs jours). */
+export interface EvenementDate {
+  id: string
+  evenement_id: string
+  date: string
+  heure_debut: string | null
+  heure_fin: string | null
+  lieu: string | null
+  note: string | null
 }
 
 /** Réponse d'un pointage par scan (séance ou événement). */
